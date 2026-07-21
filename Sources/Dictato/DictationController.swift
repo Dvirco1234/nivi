@@ -1,0 +1,247 @@
+import AppKit
+import DictatoCore
+
+@MainActor
+final class DictationController {
+    private var machine = DictationStateMachine()
+    private var settings = Settings()
+
+    private let menuBar = MenuBarController()
+    private let overlayModel = OverlayModel()
+    private lazy var overlayPanel = OverlayPanel(model: overlayModel)
+    private let recorder = AudioRecorder()
+    private let inserter = TextInserter()
+    private let modelManager = ModelManager()
+    private var recognizer: SpeechRecognizer?
+
+    private let detector: RightCmdTapDetector
+    private let hotkeys: HotkeyMonitor
+
+    private var recordingStarted: Date?
+    private var recordingTimer: Timer?
+
+    init() {
+        detector = RightCmdTapDetector(
+            doubleTapWindow: Double(settings.doubleTapWindowMs) / 1000.0,
+            now: { ProcessInfo.processInfo.systemUptime }
+        )
+        hotkeys = HotkeyMonitor(detector: detector)
+    }
+
+    func start() {
+        detector.onActivate = { [weak self] in
+            Task { @MainActor in self?.hotkeyActivated() }
+        }
+        hotkeys.onEsc = { [weak self] in
+            Task { @MainActor in self?.cancelRecording() }
+        }
+        hotkeys.start()
+        recorder.onLevel = { [weak self] level in self?.overlayModel.pushLevel(level) }
+
+        if !PermissionManager.accessibilityGranted {
+            PermissionManager.promptForAccessibility()
+        }
+        loadModel()
+    }
+
+    func wireMenu() {
+        menuBar.onStartStop = { [weak self] in
+            Task { @MainActor in self?.toggleFromMenu() }
+        }
+        menuBar.onReloadModel = { [weak self] in
+            Task { @MainActor in self?.reloadModel() }
+        }
+    }
+
+    func toggleFromMenu() {
+        hotkeyActivated()
+    }
+
+    // MARK: - Model
+
+    private func loadModel() {
+        machine = DictationStateMachine()
+        menuBar.update(state: machine.state)
+        Task {
+            do {
+                let modelPath = try await modelManager.ensureModel { [weak self] fraction in
+                    self?.menuBar.setStatusText(
+                        "Downloading model… \(Int(fraction * 100))%")
+                }
+                let recognizer = WhisperCppRecognizer(modelPath: modelPath)
+                try await recognizer.load()
+                self.recognizer = recognizer
+                transition(.modelLoaded)
+            } catch {
+                Log.error("Model load failed: \(error.localizedDescription)")
+                transition(.modelFailed(error.localizedDescription))
+                scheduleErrorDismiss(after: 3)
+            }
+        }
+    }
+
+    private func reloadModel() {
+        recognizer?.unload()
+        recognizer = nil
+        loadModel()
+    }
+
+    // MARK: - Recording flow
+
+    private func hotkeyActivated() {
+        switch machine.state {
+        case .idle:
+            startRecording()
+        case .recording:
+            stopAndTranscribe()
+        default:
+            break
+        }
+    }
+
+    private func startRecording() {
+        Task {
+            guard await PermissionManager.microphoneGranted() else {
+                Log.error("Microphone permission denied")
+                PermissionManager.openMicrophoneSettings()
+                showTransientError("Microphone access denied")
+                return
+            }
+            do {
+                try recorder.start()
+            } catch {
+                Log.error("Recorder start failed: \(error.localizedDescription)")
+                showTransientError("Could not start recording")
+                return
+            }
+            transition(.startRequested)
+            Log.info("Recording started")
+            recordingStarted = Date()
+            overlayModel.reset()
+            updateOverlay()
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.recordingTick() }
+            }
+        }
+    }
+
+    private func recordingTick() {
+        guard case .recording = machine.state, let started = recordingStarted else { return }
+        let elapsed = Date().timeIntervalSince(started)
+        overlayModel.phase = .recording(elapsed: elapsed)
+        if Int(elapsed) >= settings.maxRecordingSeconds {
+            Log.info("Max recording duration reached, auto-stopping")
+            stopAndTranscribe()
+        }
+    }
+
+    private func stopAndTranscribe() {
+        stopTimer()
+        let samples = recorder.stop()
+        transition(.stopRequested)
+        Log.info("Recording stopped (\(String(format: "%.1f", Double(samples.count) / AudioRecorder.sampleRate))s)")
+        updateOverlay()
+        Task {
+            guard let recognizer else {
+                finishWithError("Model not loaded")
+                return
+            }
+            do {
+                let inferenceStart = Date()
+                let text = try await recognizer.transcribe(samples: samples)
+                Log.info("Inference completed in \(String(format: "%.2f", -inferenceStart.timeIntervalSinceNow))s")
+                guard !text.isEmpty else {
+                    finishWithError("No speech detected")
+                    return
+                }
+                transition(.transcriptionSucceeded)
+                inserter.insert(text, autoPaste: settings.autoPaste)
+                transition(.insertionCompleted)
+                flashSuccess()
+            } catch {
+                Log.error("Inference failed: \(error.localizedDescription)")
+                finishWithError("Could not transcribe")
+            }
+        }
+    }
+
+    private func cancelRecording() {
+        guard case .recording = machine.state else { return }
+        stopTimer()
+        recorder.cancel()
+        transition(.cancelRequested)
+        Log.info("Recording cancelled")
+        updateOverlay()
+    }
+
+    // MARK: - State/UI plumbing
+
+    private func transition(_ event: DictationEvent) {
+        machine.handle(event)
+        menuBar.update(state: machine.state)
+        hotkeys.escEnabled = machine.state == .recording
+        detector.mode = machine.state == .recording ? .singleTap : .doubleTap
+        updateOverlay()
+    }
+
+    private func updateOverlay() {
+        guard settings.showOverlay else { return }
+        switch machine.state {
+        case .recording:
+            if case .recording = overlayModel.phase {} else {
+                overlayModel.phase = .recording(elapsed: 0)
+            }
+            overlayPanel.show()
+        case .transcribing, .inserting:
+            overlayModel.phase = .processing
+            overlayPanel.show()
+        case .error(let message):
+            overlayModel.phase = .error(message)
+            overlayPanel.show()
+        case .idle, .loadingModel:
+            if overlayModel.phase != .success {
+                overlayModel.phase = .hidden
+                overlayPanel.hide()
+            }
+        }
+    }
+
+    private func flashSuccess() {
+        overlayModel.phase = .success
+        overlayPanel.show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self, self.overlayModel.phase == .success else { return }
+            self.overlayModel.phase = .hidden
+            self.overlayPanel.hide()
+        }
+    }
+
+    private func finishWithError(_ message: String) {
+        transition(.transcriptionFailed(message))
+        scheduleErrorDismiss(after: 1.5)
+    }
+
+    private func showTransientError(_ message: String) {
+        machine = DictationStateMachine()
+        machine.handle(.modelFailed(message))  // reuse error state
+        menuBar.update(state: machine.state)
+        overlayModel.phase = .error(message)
+        overlayPanel.show()
+        scheduleErrorDismiss(after: 1.5)
+    }
+
+    private func scheduleErrorDismiss(after seconds: TimeInterval) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            guard let self else { return }
+            if case .error = self.machine.state {
+                self.transition(.errorDismissed)
+            }
+        }
+    }
+
+    private func stopTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        recordingStarted = nil
+    }
+}

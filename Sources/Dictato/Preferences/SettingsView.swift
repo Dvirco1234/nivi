@@ -37,10 +37,9 @@ struct SettingsView: View {
             }
             .navigationSplitViewColumnWidth(210)
         } detail: {
-            ScrollView { detail.padding(20).frame(maxWidth: .infinity, alignment: .leading) }
-                .frame(minWidth: 460, minHeight: 460)
+            detail.frame(minWidth: 480, minHeight: 460)
         }
-        .frame(width: 720, height: 500)
+        .frame(width: 760, height: 520)
     }
 
     private var brandHeader: some View {
@@ -77,28 +76,33 @@ private struct GeneralSection: View {
 
     var body: some View {
         Form {
-            Toggle("Auto-paste after transcription", isOn: $autoPaste)
-                .onChange(of: autoPaste) { settings.autoPaste = $0 }
-            Toggle("Copy only (never paste)", isOn: $copyOnly)
-                .onChange(of: copyOnly) { settings.copyOnly = $0 }
-            Toggle("Keep dictation out of clipboard history", isOn: $excludeHistory)
-                .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
-            Toggle("Show overlay", isOn: $showOverlay)
-                .onChange(of: showOverlay) { settings.showOverlay = $0 }
-            Toggle("Play sounds", isOn: $playSounds)
-                .onChange(of: playSounds) { settings.playSounds = $0 }
-            Picker("Insertion mode", selection: $mode) {
-                ForEach(InsertionMode.allCases, id: \.self) { m in
-                    Text(m.isImplemented ? m.displayName : "\(m.displayName) — coming soon").tag(m)
+            Section {
+                Toggle("Auto-paste after transcription", isOn: $autoPaste)
+                    .onChange(of: autoPaste) { settings.autoPaste = $0 }
+                Toggle("Copy only (never paste)", isOn: $copyOnly)
+                    .onChange(of: copyOnly) { settings.copyOnly = $0 }
+                Toggle("Keep dictation out of clipboard history", isOn: $excludeHistory)
+                    .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
+                Toggle("Show overlay", isOn: $showOverlay)
+                    .onChange(of: showOverlay) { settings.showOverlay = $0 }
+                Toggle("Play sounds", isOn: $playSounds)
+                    .onChange(of: playSounds) { settings.playSounds = $0 }
+            }
+            Section {
+                Picker("Insertion mode", selection: $mode) {
+                    ForEach(InsertionMode.allCases, id: \.self) { m in
+                        Text(m.isImplemented ? m.displayName : "\(m.displayName) — coming soon").tag(m)
+                    }
                 }
+                .onChange(of: mode) { newValue in
+                    settings.insertionMode = newValue.isImplemented ? newValue : .batch
+                    if !newValue.isImplemented { mode = settings.insertionMode }
+                }
+                LaunchAtLoginToggle()
             }
-            .onChange(of: mode) { newValue in
-                settings.insertionMode = newValue.isImplemented ? newValue : .batch
-                if !newValue.isImplemented { mode = settings.insertionMode }
-            }
-            Divider()
-            LaunchAtLoginToggle()
         }
+        .formStyle(.grouped)
+        .navigationTitle("General")
     }
 }
 
@@ -114,15 +118,20 @@ private struct HotkeysSection: View {
     private var settings = Settings()
     var body: some View {
         Form {
-            HotkeyRecorderView(title: "Dictate", binding: settings.dictateBinding) {
-                settings.dictateBinding = $0
+            Section {
+                HotkeyRecorderView(title: "Dictate", binding: settings.dictateBinding) {
+                    settings.dictateBinding = $0
+                }
+                HotkeyRecorderView(title: "Cancel", binding: settings.cancelBinding) {
+                    settings.cancelBinding = $0
+                }
+            } footer: {
+                Text("Changes apply after you quit and reopen Dictato.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            HotkeyRecorderView(title: "Cancel", binding: settings.cancelBinding) {
-                settings.cancelBinding = $0
-            }
-            Text("Changes apply after you quit and reopen Dictato.")
-                .font(.caption).foregroundStyle(.secondary)
         }
+        .formStyle(.grouped)
+        .navigationTitle("Hotkeys")
     }
 }
 
@@ -132,19 +141,28 @@ private struct SpeechSection: View {
     @State private var idleMinutes = Settings().idleUnloadSeconds / 60
     var body: some View {
         Form {
-            LabeledContent("Sample rate", value: "16 kHz")
-            Stepper("Models kept in memory: \(cacheCap)", value: $cacheCap, in: 1...4)
-                .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
-            Text("Higher keeps more models resident for instant switching (more RAM).")
-                .font(.caption).foregroundStyle(.secondary)
-            Divider()
-            Stepper(idleMinutes == 0 ? "Release model when idle: Never"
-                                     : "Release model after \(idleMinutes) min idle",
-                    value: $idleMinutes, in: 0...30)
-                .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
-            Text("Frees ~1.6 GB when unused; the model reloads (~1 s) on your next dictation.")
-                .font(.caption).foregroundStyle(.secondary)
+            Section {
+                LabeledContent("Sample rate", value: "16 kHz")
+            }
+            Section {
+                Stepper("Models kept in memory: \(cacheCap)", value: $cacheCap, in: 1...4)
+                    .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
+            } footer: {
+                Text("Higher keeps more models resident for instant switching (more RAM).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Stepper(idleMinutes == 0 ? "Release model when idle: Never"
+                                         : "Release model after \(idleMinutes) min idle",
+                        value: $idleMinutes, in: 0...30)
+                    .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
+            } footer: {
+                Text("Frees ~1.6 GB when unused; the model reloads (~1 s) on your next dictation.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
+        .formStyle(.grouped)
+        .navigationTitle("Speech")
     }
 }
 
@@ -155,13 +173,19 @@ private struct DebugSection: View {
     @State private var verbose = Settings().verboseLogging
     var body: some View {
         Form {
-            Toggle("Show inference time", isOn: $showInference)
-                .onChange(of: showInference) { settings.showInferenceTime = $0 }
-            Toggle("Show audio duration", isOn: $showDuration)
-                .onChange(of: showDuration) { settings.showAudioDuration = $0 }
-            Toggle("Verbose logging", isOn: $verbose)
-                .onChange(of: verbose) { settings.verboseLogging = $0 }
-            Button("Open Logs") { NSWorkspace.shared.open(Log.logDirectory) }
+            Section {
+                Toggle("Show inference time", isOn: $showInference)
+                    .onChange(of: showInference) { settings.showInferenceTime = $0 }
+                Toggle("Show audio duration", isOn: $showDuration)
+                    .onChange(of: showDuration) { settings.showAudioDuration = $0 }
+                Toggle("Verbose logging", isOn: $verbose)
+                    .onChange(of: verbose) { settings.verboseLogging = $0 }
+            }
+            Section {
+                Button("Open Logs") { NSWorkspace.shared.open(Log.logDirectory) }
+            }
         }
+        .formStyle(.grouped)
+        .navigationTitle("Debug")
     }
 }

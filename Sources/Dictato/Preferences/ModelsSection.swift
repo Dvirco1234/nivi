@@ -7,21 +7,26 @@ struct ModelsSection: View {
     @State private var showingAdd = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Dictation Models").font(.title2.weight(.semibold))
-                Spacer()
-                Button { showingAdd = true } label: { Label("Add model", systemImage: "plus") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Dictation Models").font(.title2.weight(.semibold))
+                    Spacer()
+                    Button { showingAdd = true } label: { Label("Add model", systemImage: "plus") }
+                }
+                ForEach(store.catalog.models) { model in
+                    ModelCard(model: model,
+                              state: store.installStates[model.id] ?? .notInstalled,
+                              isDefault: model.id == store.catalog.defaultModelID,
+                              onDownload: { Task { await store.install(model) } },
+                              onDelete: { store.delete(model.id) },
+                              onSetDefault: { store.setDefault(model.id) })
+                }
             }
-            ForEach(store.catalog.models) { model in
-                ModelCard(model: model,
-                          state: store.installStates[model.id] ?? .notInstalled,
-                          isDefault: model.id == store.catalog.defaultModelID,
-                          onDownload: { Task { await store.install(model) } },
-                          onDelete: { store.delete(model.id) },
-                          onSetDefault: { store.setDefault(model.id) })
-            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .navigationTitle("Dictation Models")
         .sheet(isPresented: $showingAdd) {
             AddModelSheet(onAdd: { store.addModel($0); showingAdd = false },
                           onCancel: { showingAdd = false })

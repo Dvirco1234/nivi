@@ -155,6 +155,7 @@ final class DictationController {
             let mouse = NSEvent.mouseLocation
             overlayPanel.preferredScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
             transition(.startRequested)
+            if settings.playSounds { SoundPlayer.playStart() }
             Log.info("Recording started")
             recordingStarted = Date()
             overlayModel.reset()
@@ -178,6 +179,7 @@ final class DictationController {
     private func stopAndTranscribe() {
         stopTimer()
         let samples = recorder.stop()
+        if settings.playSounds { SoundPlayer.playStop() }
         transition(.stopRequested)
         Log.info("Recording stopped (\(String(format: "%.1f", Double(samples.count) / AudioRecorder.sampleRate))s)")
         updateOverlay()

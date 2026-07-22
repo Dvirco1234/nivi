@@ -25,33 +25,39 @@ struct SettingsView: View {
     @State private var section: PrefSection = .general
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $section) {
-                Section {
-                    ForEach(PrefSection.allCases) { s in
-                        Label(s.rawValue, systemImage: s.icon).tag(s)
-                    }
-                } header: {
-                    brandHeader
-                }
-            }
-            .navigationSplitViewColumnWidth(210)
-        } detail: {
-            detail.frame(minWidth: 480, minHeight: 460)
+        HStack(spacing: 0) {
+            sidebar
+            Divider()
+            detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: 760, height: 520)
     }
 
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            brandHeader
+            List(selection: $section) {
+                ForEach(PrefSection.allCases) { s in
+                    Label(s.rawValue, systemImage: s.icon).tag(s)
+                }
+            }
+            .listStyle(.sidebar)
+        }
+        .frame(width: 210)
+        .background(.black.opacity(0.15))
+    }
+
     private var brandHeader: some View {
         HStack(spacing: 8) {
-            if let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
-               let img = NSImage(contentsOf: url) {
+            if let img = LanguageGlyph.image(named: "DictatoLogo") {
                 Image(nsImage: img).resizable().frame(width: 26, height: 26)
             }
             Text("Dictato").font(.title3.weight(.semibold))
         }
-        .padding(.vertical, 8)
-        .textCase(nil)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder private var detail: some View {

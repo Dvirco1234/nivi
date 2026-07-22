@@ -165,9 +165,10 @@ final class DictationController {
                     return
                 }
                 transition(.transcriptionSucceeded)
-                inserter.insert(text, autoPaste: settings.autoPaste)
+                inserter.insert(text,
+                                autoPaste: settings.autoPaste,
+                                excludeFromHistory: settings.excludeFromClipboardHistory)
                 transition(.insertionCompleted)
-                flashSuccess()
             } catch {
                 Log.error("Inference failed: \(error.localizedDescription)")
                 finishWithError("Could not transcribe")
@@ -213,20 +214,8 @@ final class DictationController {
             overlayModel.phase = .error(message)
             overlayPanel.show()
         case .idle, .loadingModel:
-            if overlayModel.phase != .success {
-                overlayModel.phase = .hidden
-                overlayPanel.hide()
-            }
-        }
-    }
-
-    private func flashSuccess() {
-        overlayModel.phase = .success
-        overlayPanel.show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
-            guard let self, self.overlayModel.phase == .success else { return }
-            self.overlayModel.phase = .hidden
-            self.overlayPanel.hide()
+            overlayModel.phase = .hidden
+            overlayPanel.hide()
         }
     }
 

@@ -26,6 +26,7 @@ public struct Settings {
             Key.doubleTapWindowMs: 400,
             Key.maxRecordingSeconds: 600,
             Key.verboseLogging: false,
+            Key.excludeFromClipboardHistory: true,
         ])
     }
 
@@ -43,6 +44,7 @@ public struct Settings {
         static let showAudioDuration = "showAudioDuration"
         static let dictateBinding = "dictateBinding"
         static let cancelBinding = "cancelBinding"
+        static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
     }
 
     public var autoPaste: Bool {
@@ -108,5 +110,10 @@ public struct Settings {
     public var cancelBinding: HotkeyBinding {
         get { HotkeyBinding.from(json: defaults.string(forKey: Key.cancelBinding) ?? "") ?? .defaultCancel }
         nonmutating set { defaults.set(newValue.encodedJSON(), forKey: Key.cancelBinding) }
+    }
+
+    public var excludeFromClipboardHistory: Bool {
+        get { defaults.bool(forKey: Key.excludeFromClipboardHistory) }
+        nonmutating set { defaults.set(newValue, forKey: Key.excludeFromClipboardHistory) }
     }
 }

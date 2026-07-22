@@ -8,7 +8,7 @@ final class OverlayPanel: NSPanel {
 
     init(model: OverlayModel) {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 60),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 78),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

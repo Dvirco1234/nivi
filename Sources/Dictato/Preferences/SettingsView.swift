@@ -22,6 +22,7 @@ private struct GeneralTab: View {
     @State private var playSounds = Settings().playSounds
     @State private var copyOnly = Settings().copyOnly
     @State private var mode = Settings().insertionMode
+    @State private var excludeHistory = Settings().excludeFromClipboardHistory
 
     var body: some View {
         Form {
@@ -29,6 +30,8 @@ private struct GeneralTab: View {
                 .onChange(of: autoPaste) { settings.autoPaste = $0 }
             Toggle("Copy only (never paste)", isOn: $copyOnly)
                 .onChange(of: copyOnly) { settings.copyOnly = $0 }
+            Toggle("Keep dictation out of clipboard history", isOn: $excludeHistory)
+                .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
             Toggle("Show overlay", isOn: $showOverlay)
                 .onChange(of: showOverlay) { settings.showOverlay = $0 }
             Toggle("Play sounds", isOn: $playSounds)

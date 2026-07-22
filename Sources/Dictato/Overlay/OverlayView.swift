@@ -4,8 +4,8 @@ import AppKit
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
-    private let cardWidth: CGFloat = 420
-    private let cardHeight: CGFloat = 60
+    private let cardWidth: CGFloat = 360
+    private let cardHeight: CGFloat = 78
 
     var body: some View {
         content
@@ -17,13 +17,11 @@ struct OverlayView: View {
         case .hidden:
             EmptyView()
         case .recording:
-            card { recordingRow }
+            card { recordingBody }
         case .processing:
             card { centeredRow { ProgressView().controlSize(.small); Text("Processing…") } }
         case .success:
-            card {
-                centeredRow { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Text inserted") }
-            }
+            card { centeredRow { ProgressView().controlSize(.small); Text("Processing…") } }
         case .error(let message):
             card {
                 centeredRow { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow); Text(message).lineLimit(1) }
@@ -31,27 +29,29 @@ struct OverlayView: View {
         }
     }
 
-    private var recordingRow: some View {
-        HStack(spacing: 10) {
-            targetApp
-            waveform.frame(maxWidth: .infinity)
-            brand
+    private var recordingBody: some View {
+        VStack(spacing: 8) {
+            HStack {
+                targetApp
+                Spacer(minLength: 8)
+                brand
+            }
+            waveform
         }
     }
 
     private var targetApp: some View {
         HStack(spacing: 6) {
             if let icon = model.targetAppIcon {
-                Image(nsImage: icon).resizable().frame(width: 22, height: 22)
+                Image(nsImage: icon).resizable().frame(width: 20, height: 20)
             } else {
-                Image(systemName: "app.dashed").frame(width: 22, height: 22)
+                Image(systemName: "app.dashed").frame(width: 20, height: 20)
             }
             Text(model.targetAppName ?? "")
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .frame(width: 104, alignment: .leading)
     }
 
     private var brand: some View {
@@ -70,15 +70,14 @@ struct OverlayView: View {
         Group {
             if let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
                let img = NSImage(contentsOf: url) {
-                Image(nsImage: img).resizable().frame(width: 20, height: 20)
+                Image(nsImage: img).resizable().frame(width: 18, height: 18)
             } else {
-                Image(systemName: "waveform").frame(width: 20, height: 20)
+                Image(systemName: "waveform").frame(width: 18, height: 18)
             }
         }
     }
 
-    /// Fixed lattice of dots filling the middle; most recent levels align to the right,
-    /// rising in height with speech. Silence stays as a flat baseline of dots.
+    /// Full-width dot lattice; most recent levels align right and rise with speech.
     private var waveform: some View {
         let slots = OverlayModel.waveformSlots
         let levels = model.levels
@@ -87,12 +86,13 @@ struct OverlayView: View {
             ForEach(0..<slots, id: \.self) { i in
                 let level: Float = i < pad ? 0 : levels[i - pad]
                 Capsule()
-                    .fill(.primary.opacity(0.6))
-                    .frame(width: 3, height: max(3, CGFloat(level) * 26))
+                    .fill(.primary.opacity(0.35 + Double(min(level, 1)) * 0.5))
+                    .frame(width: 3, height: max(3, CGFloat(min(level, 1)) * 26))
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: 28)
-        .animation(.linear(duration: 0.06), value: model.levels)
+        .animation(.linear(duration: 0.05), value: model.levels)
     }
 
     private func centeredRow<C: View>(@ViewBuilder _ c: () -> C) -> some View {
@@ -102,7 +102,7 @@ struct OverlayView: View {
     private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         content()
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .frame(width: cardWidth, height: cardHeight)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(

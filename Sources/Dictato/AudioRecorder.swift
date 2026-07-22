@@ -68,7 +68,8 @@ final class AudioRecorder {
         samplesQueue.sync { samples.append(contentsOf: chunk) }
 
         let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(chunk.count))
-        let level = min(1.0, rms * 8)
+        // Perceptual boost: sqrt curve + high gain so normal speech swings the bars.
+        let level = min(1.0, sqrt(rms) * 3.2)
         DispatchQueue.main.async { [weak self] in self?.onLevel?(level) }
     }
 }

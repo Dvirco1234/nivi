@@ -42,4 +42,54 @@ det.modifierChanged(down: true); det.otherKeyDown(); det.modifierChanged(down: f
 check(acts == 0, "combo not a tap")
 tapMod(1.0); check(acts == 1, "single tap activates")
 
+// --- ManagedModel / ModelSource / ModelCatalog ---
+check(ModelSource.huggingFace(repo: "ivrit-ai/whisper-large-v3-turbo-ggml", file: "ggml-model.bin").downloadURL?.absoluteString
+      == "https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml/resolve/main/ggml-model.bin",
+      "hf download url")
+check(ModelSource.directURL(URL(string: "https://x.com/m.bin")!).downloadURL?.absoluteString == "https://x.com/m.bin",
+      "direct url")
+check(ModelSource.localFile(path: "/tmp/m.bin").downloadURL == nil, "local has no download url")
+
+let cat = ModelCatalog.seeded()
+check(cat.defaultModelID == "ivrit-large-v3-turbo", "seeded default")
+check(cat.models.count == 3, "seeded has 3 presets")
+check(cat.defaultModel?.localFileName == "ivrit-large-v3-turbo.bin", "local file name")
+check(cat.model(id: "whisper-small-en")?.defaultLanguage == "en", "english preset lang")
+let catData = try! JSONEncoder().encode(cat)
+check((try? JSONDecoder().decode(ModelCatalog.self, from: catData)) == cat, "catalog codable round-trip")
+
+// --- ModelCatalogStore / ModelPaths / migration ---
+let base = FileManager.default.temporaryDirectory
+    .appendingPathComponent("dictato-2b-coretest", isDirectory: true)
+try? FileManager.default.removeItem(at: base)
+let mdir = ModelPaths.modelsDir(base: base)
+try! FileManager.default.createDirectory(at: mdir, withIntermediateDirectories: true)
+
+let mm = ManagedModel(id: "ivrit-large-v3-turbo", displayName: "x",
+    source: .huggingFace(repo: "r", file: "f"), defaultLanguage: "he", minSizeBytes: 8)
+check(ModelPaths.installedURL(for: mm, base: base).lastPathComponent == "ivrit-large-v3-turbo.bin",
+      "installed url filename")
+
+let legacy = mdir.appendingPathComponent("ggml-ivrit-large-v3-turbo.bin")
+try! Data([0x6C,0x6D,0x67,0x67,0,0,0,0]).write(to: legacy)
+ModelCatalogStore.migrateLegacy(modelsDir: mdir)
+check(FileManager.default.fileExists(atPath: mdir.appendingPathComponent("ivrit-large-v3-turbo.bin").path),
+      "legacy migrated")
+check(!FileManager.default.fileExists(atPath: legacy.path), "legacy removed")
+
+let catURL = base.appendingPathComponent("models.json")
+let boot = ModelCatalogStore.bootstrap(catalogURL: catURL, modelsDir: mdir)
+check(boot.defaultModelID == "ivrit-large-v3-turbo", "bootstrap seeded default")
+check(ModelCatalogStore.load(from: catURL) != nil, "catalog persisted")
+check(ModelCatalogStore.canDelete("whisper-small-en", from: boot, installedIDs: ["ivrit-large-v3-turbo"]) == false,
+      "cannot delete not-installed")
+check(ModelCatalogStore.canDelete("ivrit-large-v3-turbo", from: boot, installedIDs: ["ivrit-large-v3-turbo"]) == false,
+      "cannot delete default")
+check(ModelCatalogStore.canDelete("whisper-small-en", from: boot,
+      installedIDs: ["ivrit-large-v3-turbo","whisper-small-en"]) == true, "can delete extra installed")
+try? FileManager.default.removeItem(at: base)
+
+// --- recognizerCacheCapacity ---
+check(Settings(defaults: suite).recognizerCacheCapacity == 2, "default cache capacity 2")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

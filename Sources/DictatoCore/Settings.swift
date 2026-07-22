@@ -27,6 +27,7 @@ public struct Settings {
             Key.maxRecordingSeconds: 600,
             Key.verboseLogging: false,
             Key.excludeFromClipboardHistory: true,
+            Key.recognizerCacheCapacity: 2,
         ])
     }
 
@@ -45,6 +46,7 @@ public struct Settings {
         static let dictateBinding = "dictateBinding"
         static let cancelBinding = "cancelBinding"
         static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
+        static let recognizerCacheCapacity = "recognizerCacheCapacity"
     }
 
     public var autoPaste: Bool {
@@ -115,5 +117,10 @@ public struct Settings {
     public var excludeFromClipboardHistory: Bool {
         get { defaults.bool(forKey: Key.excludeFromClipboardHistory) }
         nonmutating set { defaults.set(newValue, forKey: Key.excludeFromClipboardHistory) }
+    }
+
+    public var recognizerCacheCapacity: Int {
+        get { max(1, defaults.integer(forKey: Key.recognizerCacheCapacity)) }
+        nonmutating set { defaults.set(max(1, newValue), forKey: Key.recognizerCacheCapacity) }
     }
 }

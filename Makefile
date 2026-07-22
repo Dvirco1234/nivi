@@ -8,7 +8,7 @@ ifeq ($(SIGN_ID),)
 SIGN_ID := -
 endif
 
-.PHONY: vendor build release test app run clean icon dmg cert
+.PHONY: vendor build release test app run clean icon dmg cert install
 
 vendor:
 	@if [ ! -d $(VENDOR) ]; then \
@@ -63,6 +63,11 @@ dmg: app
 	hdiutil create -volname Dictato -srcfolder build/dmg -ov -format UDZO build/Dictato.dmg
 	rm -rf build/dmg
 	@echo "Built build/Dictato.dmg"
+
+install: app
+	rm -rf /Applications/Dictato.app
+	cp -R $(APP) /Applications/Dictato.app
+	@echo "Installed /Applications/Dictato.app"
 
 run: app
 	open $(APP)

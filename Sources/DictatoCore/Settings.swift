@@ -28,6 +28,7 @@ public struct Settings {
             Key.verboseLogging: false,
             Key.excludeFromClipboardHistory: true,
             Key.recognizerCacheCapacity: 2,
+            Key.idleUnloadSeconds: 300,
         ])
     }
 
@@ -47,6 +48,7 @@ public struct Settings {
         static let cancelBinding = "cancelBinding"
         static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
         static let recognizerCacheCapacity = "recognizerCacheCapacity"
+        static let idleUnloadSeconds = "idleUnloadSeconds"
     }
 
     public var autoPaste: Bool {
@@ -122,5 +124,11 @@ public struct Settings {
     public var recognizerCacheCapacity: Int {
         get { max(1, defaults.integer(forKey: Key.recognizerCacheCapacity)) }
         nonmutating set { defaults.set(max(1, newValue), forKey: Key.recognizerCacheCapacity) }
+    }
+
+    /// Seconds of inactivity before the loaded model is released from memory (0 = never).
+    public var idleUnloadSeconds: Int {
+        get { defaults.integer(forKey: Key.idleUnloadSeconds) }
+        nonmutating set { defaults.set(newValue, forKey: Key.idleUnloadSeconds) }
     }
 }

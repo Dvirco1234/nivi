@@ -129,12 +129,20 @@ private struct HotkeysSection: View {
 private struct SpeechSection: View {
     private var settings = Settings()
     @State private var cacheCap = Settings().recognizerCacheCapacity
+    @State private var idleMinutes = Settings().idleUnloadSeconds / 60
     var body: some View {
         Form {
             LabeledContent("Sample rate", value: "16 kHz")
             Stepper("Models kept in memory: \(cacheCap)", value: $cacheCap, in: 1...4)
                 .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
             Text("Higher keeps more models resident for instant switching (more RAM).")
+                .font(.caption).foregroundStyle(.secondary)
+            Divider()
+            Stepper(idleMinutes == 0 ? "Release model when idle: Never"
+                                     : "Release model after \(idleMinutes) min idle",
+                    value: $idleMinutes, in: 0...30)
+                .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
+            Text("Frees ~1.6 GB when unused; the model reloads (~1 s) on your next dictation.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

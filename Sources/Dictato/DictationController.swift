@@ -19,6 +19,7 @@ final class DictationController {
 
     private var recordingStarted: Date?
     private var recordingTimer: Timer?
+    private var idleUnloadTimer: Timer?
 
     init() {
         let binding = settings.dictateBinding
@@ -54,6 +55,14 @@ final class DictationController {
         }
         NotificationCenter.default.addObserver(forName: .dictatoDefaultModelChanged, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.warmDefaultModel() }
+        }
+        // Global NSEvent monitors can stop delivering after sleep — re-arm on wake.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            Log.info("System woke — re-arming hotkey monitors")
+            self.hotkeys.stop()
+            self.hotkeys.start()
         }
         loadModel()
     }
@@ -112,6 +121,7 @@ final class DictationController {
     // MARK: - Recording flow
 
     private func hotkeyActivated() {
+        Log.info("Hotkey activated (state: \(machine.state))")
         switch machine.state {
         case .idle:
             startRecording()
@@ -123,6 +133,7 @@ final class DictationController {
     }
 
     private func startRecording() {
+        cancelIdleUnload()
         Task {
             guard await PermissionManager.microphoneGranted() else {
                 Log.error("Microphone permission denied")
@@ -214,7 +225,28 @@ final class DictationController {
         } else {
             detector.mode = .singleTap
         }
+        if machine.state == .idle { scheduleIdleUnload() }
         updateOverlay()
+    }
+
+    // MARK: - Idle model unload
+
+    private func scheduleIdleUnload() {
+        idleUnloadTimer?.invalidate()
+        let seconds = settings.idleUnloadSeconds
+        guard seconds > 0 else { return }
+        idleUnloadTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(seconds), repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.machine.state == .idle else { return }
+                await self.recognizerCache.evictAll()
+                Log.info("Idle \(seconds)s — released model from memory")
+            }
+        }
+    }
+
+    private func cancelIdleUnload() {
+        idleUnloadTimer?.invalidate()
+        idleUnloadTimer = nil
     }
 
     private func updateOverlay() {

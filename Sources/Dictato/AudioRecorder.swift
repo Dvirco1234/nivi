@@ -6,7 +6,10 @@ final class AudioRecorder {
 
     var onLevel: ((Float) -> Void)?
 
-    private let engine = AVAudioEngine()
+    // A fresh engine is built per recording so it always binds the CURRENT default
+    // input device — reusing one engine goes stale when AirPods/headphones connect
+    // or the route changes, which made recording silently fail.
+    private var engine: AVAudioEngine?
     private var converter: AVAudioConverter?
     private var samples: [Float] = []
     private let samplesQueue = DispatchQueue(label: "com.dvir.dictato.audio")
@@ -15,18 +18,29 @@ final class AudioRecorder {
 
     func start() throws {
         samplesQueue.sync { samples.removeAll() }
+        tearDown()   // drop any previous engine
+
+        let engine = AVAudioEngine()
+        self.engine = engine
         let input = engine.inputNode
-        let inputFormat = input.outputFormat(forBus: 0)
-        guard inputFormat.sampleRate > 0 else {
+        let inputFormat = input.inputFormat(forBus: 0)
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+            self.engine = nil
             throw NSError(domain: "Dictato", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "No audio input device"])
+                          userInfo: [NSLocalizedDescriptionKey: "No audio input device available"])
         }
+        Log.info("Recording input: \(Int(inputFormat.sampleRate)) Hz, \(inputFormat.channelCount) ch")
         converter = AVAudioConverter(from: inputFormat, to: targetFormat)
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
             self?.process(buffer)
         }
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            tearDown()
+            throw error
+        }
     }
 
     func stop() -> [Float] {
@@ -40,8 +54,11 @@ final class AudioRecorder {
     }
 
     private func tearDown() {
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        if let engine {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
+        engine = nil
         converter = nil
     }
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// Detects taps of the right Command key from a stream of modifier/key events.
 /// A "tap" is a press+release with no other key involved during the hold.
-public final class RightCmdTapDetector {
+public final class ModifierTapDetector {
     public enum Mode {
         case doubleTap
         case singleTap
@@ -22,7 +22,7 @@ public final class RightCmdTapDetector {
         self.now = now
     }
 
-    public func rightCmdChanged(down: Bool) {
+    public func modifierChanged(down: Bool) {
         if down {
             isDown = true
             comboUsed = false

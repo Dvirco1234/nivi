@@ -1,6 +1,20 @@
 import Foundation
 
-/// UserDefaults-backed settings. No UI in v1 — edit via `defaults write com.dvir.dictato <key> <value>`.
+public enum InsertionMode: String, Codable, CaseIterable {
+    case batch, overlayLive, inAppLive
+
+    public var isImplemented: Bool { self == .batch }   // 2a: only batch
+
+    public var displayName: String {
+        switch self {
+        case .batch: return "Batch (record, then paste)"
+        case .overlayLive: return "Live preview in overlay"
+        case .inAppLive: return "Live typing into app"
+        }
+    }
+}
+
+/// UserDefaults-backed settings. Edit via Preferences or `defaults write com.dvir.dictato <key> <value>`.
 public struct Settings {
     private let defaults: UserDefaults
 
@@ -22,6 +36,13 @@ public struct Settings {
         static let maxRecordingSeconds = "maxRecordingSeconds"
         static let verboseLogging = "verboseLogging"
         static let modelPathOverride = "modelPathOverride"
+        static let insertionMode = "insertionMode"
+        static let playSounds = "playSounds"
+        static let copyOnly = "copyOnly"
+        static let showInferenceTime = "showInferenceTime"
+        static let showAudioDuration = "showAudioDuration"
+        static let dictateBinding = "dictateBinding"
+        static let cancelBinding = "cancelBinding"
     }
 
     public var autoPaste: Bool {
@@ -52,5 +73,40 @@ public struct Settings {
     public var modelPathOverride: String? {
         get { defaults.string(forKey: Key.modelPathOverride) }
         set { defaults.set(newValue, forKey: Key.modelPathOverride) }
+    }
+
+    public var insertionMode: InsertionMode {
+        get { InsertionMode(rawValue: defaults.string(forKey: Key.insertionMode) ?? "") ?? .batch }
+        set { defaults.set(newValue.rawValue, forKey: Key.insertionMode) }
+    }
+
+    public var playSounds: Bool {
+        get { defaults.bool(forKey: Key.playSounds) }
+        set { defaults.set(newValue, forKey: Key.playSounds) }
+    }
+
+    public var copyOnly: Bool {
+        get { defaults.bool(forKey: Key.copyOnly) }
+        set { defaults.set(newValue, forKey: Key.copyOnly) }
+    }
+
+    public var showInferenceTime: Bool {
+        get { defaults.bool(forKey: Key.showInferenceTime) }
+        set { defaults.set(newValue, forKey: Key.showInferenceTime) }
+    }
+
+    public var showAudioDuration: Bool {
+        get { defaults.bool(forKey: Key.showAudioDuration) }
+        set { defaults.set(newValue, forKey: Key.showAudioDuration) }
+    }
+
+    public var dictateBinding: HotkeyBinding {
+        get { HotkeyBinding.from(json: defaults.string(forKey: Key.dictateBinding) ?? "") ?? .defaultDictate }
+        set { defaults.set(newValue.encodedJSON(), forKey: Key.dictateBinding) }
+    }
+
+    public var cancelBinding: HotkeyBinding {
+        get { HotkeyBinding.from(json: defaults.string(forKey: Key.cancelBinding) ?? "") ?? .defaultCancel }
+        set { defaults.set(newValue.encodedJSON(), forKey: Key.cancelBinding) }
     }
 }

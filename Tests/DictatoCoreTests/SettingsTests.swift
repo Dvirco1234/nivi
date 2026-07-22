@@ -30,4 +30,18 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(reread.doubleTapWindowMs, 300)
         XCTAssertEqual(reread.modelPathOverride, "/tmp/model.bin")
     }
+
+    func testNewKeyDefaults() {
+        let s = Settings(defaults: defaults)
+        XCTAssertEqual(s.insertionMode, .batch)
+        XCTAssertFalse(s.playSounds)
+        XCTAssertEqual(s.dictateBinding, .defaultDictate)
+        XCTAssertEqual(s.cancelBinding, .defaultCancel)
+    }
+
+    func testBindingPersists() {
+        var s = Settings(defaults: defaults)
+        s.dictateBinding = .modifierTap(.leftCommand, count: 2)
+        XCTAssertEqual(Settings(defaults: defaults).dictateBinding, .modifierTap(.leftCommand, count: 2))
+    }
 }

@@ -1,23 +1,23 @@
 import XCTest
 @testable import DictatoCore
 
-final class RightCmdTapDetectorTests: XCTestCase {
+final class ModifierTapDetectorTests: XCTestCase {
     private var clock: TimeInterval = 0
-    private var detector: RightCmdTapDetector!
+    private var detector: ModifierTapDetector!
     private var activations = 0
 
     override func setUp() {
         super.setUp()
         clock = 0
         activations = 0
-        detector = RightCmdTapDetector(doubleTapWindow: 0.4) { [unowned self] in clock }
+        detector = ModifierTapDetector(doubleTapWindow: 0.4) { [unowned self] in clock }
         detector.onActivate = { [unowned self] in activations += 1 }
     }
 
     private func tap(at time: TimeInterval) {
         clock = time
-        detector.rightCmdChanged(down: true)
-        detector.rightCmdChanged(down: false)
+        detector.modifierChanged(down: true)
+        detector.modifierChanged(down: false)
     }
 
     func testDoubleTapWithinWindowActivates() {
@@ -52,19 +52,19 @@ final class RightCmdTapDetectorTests: XCTestCase {
 
     func testComboKeyDuringHoldIsNotATap() {
         detector.mode = .singleTap
-        detector.rightCmdChanged(down: true)
+        detector.modifierChanged(down: true)
         detector.otherKeyDown()          // e.g. user pressed ⌘C
-        detector.rightCmdChanged(down: false)
+        detector.modifierChanged(down: false)
         XCTAssertEqual(activations, 0)
     }
 
     func testOtherModifierDuringHoldIsNotATap() {
         detector.mode = .doubleTap
         tap(at: 0)
-        detector.rightCmdChanged(down: true)
+        detector.modifierChanged(down: true)
         detector.otherKeyDown()          // e.g. shift joined
         clock = 0.2
-        detector.rightCmdChanged(down: false)
+        detector.modifierChanged(down: false)
         XCTAssertEqual(activations, 0)
     }
 
@@ -78,7 +78,7 @@ final class RightCmdTapDetectorTests: XCTestCase {
 
     func testReleaseWithoutPressIsIgnored() {
         detector.mode = .singleTap
-        detector.rightCmdChanged(down: false)
+        detector.modifierChanged(down: false)
         XCTAssertEqual(activations, 0)
     }
 }

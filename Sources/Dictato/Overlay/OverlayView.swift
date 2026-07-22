@@ -3,6 +3,7 @@ import AppKit
 
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
+    @State private var hovering = false
 
     private let cardWidth: CGFloat = 360
     private let cardHeight: CGFloat = 78
@@ -18,6 +19,8 @@ struct OverlayView: View {
             EmptyView()
         case .recording:
             card { recordingBody }
+                .overlay(alignment: .topTrailing) { if hovering { cancelButton } }
+                .onHover { hovering = $0 }
         case .processing:
             card { centeredRow { ProgressView().controlSize(.small); Text("Processing…") } }
         case .success:
@@ -38,6 +41,19 @@ struct OverlayView: View {
             }
             waveform
         }
+    }
+
+    private var cancelButton: some View {
+        Button {
+            model.onCancel?()
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(.white, .black.opacity(0.55))
+        }
+        .buttonStyle(.plain)
+        .padding(6)
+        .help("Cancel recording")
     }
 
     private var targetApp: some View {
@@ -77,20 +93,25 @@ struct OverlayView: View {
         }
     }
 
-    /// Full-width dot lattice; most recent levels align right and rise with speech.
+    /// Full-width bar lattice spanning edge-to-edge (aligned with the top row).
+    /// Most recent levels align to the right and rise with speech.
     private var waveform: some View {
         let slots = OverlayModel.waveformSlots
         let levels = model.levels
         let pad = max(0, slots - levels.count)
-        return HStack(alignment: .center, spacing: 3) {
-            ForEach(0..<slots, id: \.self) { i in
-                let level: Float = i < pad ? 0 : levels[i - pad]
-                Capsule()
-                    .fill(.primary.opacity(0.35 + Double(min(level, 1)) * 0.5))
-                    .frame(width: 3, height: max(3, CGFloat(min(level, 1)) * 26))
+        return GeometryReader { geo in
+            let colW = geo.size.width / CGFloat(slots)
+            HStack(spacing: 0) {
+                ForEach(0..<slots, id: \.self) { i in
+                    let level: Float = i < pad ? 0 : levels[i - pad]
+                    let clamped = CGFloat(min(max(level, 0), 1))
+                    Capsule()
+                        .fill(.primary.opacity(0.3 + Double(clamped) * 0.55))
+                        .frame(width: min(3, colW * 0.7), height: max(3, clamped * 26))
+                        .frame(width: colW)
+                }
             }
         }
-        .frame(maxWidth: .infinity)
         .frame(height: 28)
         .animation(.linear(duration: 0.05), value: model.levels)
     }

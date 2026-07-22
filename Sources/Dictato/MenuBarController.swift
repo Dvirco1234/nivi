@@ -50,7 +50,7 @@ final class MenuBarController: NSObject {
             statusMenuItem.title = "Ready"
             startStopBase = "Start Recording"; applyStartStopTitle()
             startStopItem.isEnabled = true
-            setIcon(systemName: "waveform")
+            setLogoIcon()
         case .recording:
             statusMenuItem.title = "Recording…"
             startStopBase = "Stop Recording"; applyStartStopTitle()
@@ -83,6 +83,17 @@ final class MenuBarController: NSObject {
     private func setIcon(systemName: String) {
         statusItem.button?.image = NSImage(
             systemSymbolName: systemName, accessibilityDescription: "Dictato")
+    }
+
+    private func setLogoIcon() {
+        guard let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
+              let img = NSImage(contentsOf: url) else {
+            setIcon(systemName: "waveform")
+            return
+        }
+        img.size = NSSize(width: 18, height: 18)
+        img.isTemplate = false
+        statusItem.button?.image = img
     }
 
     @objc private func startStopClicked() { onStartStop?() }

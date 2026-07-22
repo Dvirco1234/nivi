@@ -1,8 +1,20 @@
 import AVFoundation
 import AppKit
 import ApplicationServices
+import IOKit.hid
 
 enum PermissionManager {
+    /// Global keyDown monitoring (e.g. Esc-to-cancel) needs Input Monitoring,
+    /// which is separate from Accessibility. Prompts once if undetermined.
+    static var inputMonitoringGranted: Bool {
+        IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+    }
+
+    @discardableResult
+    static func requestInputMonitoring() -> Bool {
+        IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+    }
+
     static func microphoneGranted() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:

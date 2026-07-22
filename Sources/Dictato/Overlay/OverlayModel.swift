@@ -13,6 +13,7 @@ final class OverlayModel: ObservableObject {
     @Published var levels: [Float] = []
     @Published var targetAppName: String?
     @Published var targetAppIcon: NSImage?
+    var onCancel: (() -> Void)?
 
     func setTarget(name: String?, icon: NSImage?) {
         targetAppName = name

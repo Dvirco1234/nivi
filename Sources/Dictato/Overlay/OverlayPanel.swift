@@ -18,7 +18,8 @@ final class OverlayPanel: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true
-        ignoresMouseEvents = true
+        ignoresMouseEvents = false   // needed for hover + click-to-cancel
+        acceptsMouseMovedEvents = true
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         contentView = NSHostingView(rootView: OverlayView(model: model))

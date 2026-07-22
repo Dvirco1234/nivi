@@ -42,9 +42,15 @@ final class DictationController {
         }
         hotkeys.start()
         recorder.onLevel = { [weak self] level in self?.overlayModel.pushLevel(level) }
+        overlayModel.onCancel = { [weak self] in
+            Task { @MainActor in self?.cancelRecording() }
+        }
 
         if !PermissionManager.accessibilityGranted {
             PermissionManager.promptForAccessibility()
+        }
+        if !PermissionManager.inputMonitoringGranted {
+            PermissionManager.requestInputMonitoring()   // needed for Esc-to-cancel
         }
         loadModel()
     }

@@ -16,8 +16,8 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <key>LSUIElement</key>
-    <true/>
+    <key>CFBundleIconFile</key>
+    <string>Dictato</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Dictato records your voice to transcribe Hebrew speech to text. Audio never leaves this Mac.</string>
     <key>NSHumanReadableCopyright</key>

@@ -34,11 +34,25 @@ APP := build/Dictato.app
 
 app: release
 	rm -rf $(APP)
-	mkdir -p $(APP)/Contents/MacOS
+	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
 	cp .build/release/Dictato $(APP)/Contents/MacOS/Dictato
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
+	cp Resources/Dictato.icns $(APP)/Contents/Resources/Dictato.icns
+	cp Resources/DictatoLogo.png $(APP)/Contents/Resources/DictatoLogo.png
 	codesign --force --sign - $(APP)
 	@echo "Built $(APP)"
+
+icon:
+	bash Tools/make-iconset.sh
+
+dmg: app
+	rm -rf build/dmg build/Dictato.dmg
+	mkdir -p build/dmg
+	cp -R $(APP) build/dmg/
+	ln -s /Applications build/dmg/Applications
+	hdiutil create -volname Dictato -srcfolder build/dmg -ov -format UDZO build/Dictato.dmg
+	rm -rf build/dmg
+	@echo "Built build/Dictato.dmg"
 
 run: app
 	open $(APP)

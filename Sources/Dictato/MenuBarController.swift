@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import DictatoCore
 
 final class MenuBarController: NSObject {
@@ -10,6 +9,9 @@ final class MenuBarController: NSObject {
 
     var onStartStop: (() -> Void)?
     var onReloadModel: (() -> Void)?
+
+    private var dictateHint = ""
+    private var startStopBase = "Start Recording"
 
     override init() {
         super.init()
@@ -24,6 +26,9 @@ final class MenuBarController: NSObject {
         menu.addItem(reload)
         launchAtLoginItem.target = self
         menu.addItem(launchAtLoginItem)
+        let prefs = NSMenuItem(title: "Preferences…", action: #selector(openPreferencesClicked), keyEquivalent: ",")
+        prefs.target = self
+        menu.addItem(prefs)
         let logs = NSMenuItem(title: "Open Logs", action: #selector(openLogsClicked), keyEquivalent: "")
         logs.target = self
         menu.addItem(logs)
@@ -43,12 +48,12 @@ final class MenuBarController: NSObject {
             setIcon(systemName: "hourglass")
         case .idle:
             statusMenuItem.title = "Ready"
-            startStopItem.title = "Start Recording"
+            startStopBase = "Start Recording"; applyStartStopTitle()
             startStopItem.isEnabled = true
             setIcon(systemName: "waveform")
         case .recording:
             statusMenuItem.title = "Recording…"
-            startStopItem.title = "Stop Recording"
+            startStopBase = "Stop Recording"; applyStartStopTitle()
             startStopItem.isEnabled = true
             setIcon(systemName: "record.circle.fill")
         case .transcribing, .inserting:
@@ -66,6 +71,15 @@ final class MenuBarController: NSObject {
         statusMenuItem.title = text
     }
 
+    func setDictateHint(_ text: String) {
+        dictateHint = text
+        applyStartStopTitle()
+    }
+
+    private func applyStartStopTitle() {
+        startStopItem.title = dictateHint.isEmpty ? startStopBase : "\(startStopBase)   \(dictateHint)"
+    }
+
     private func setIcon(systemName: String) {
         statusItem.button?.image = NSImage(
             systemSymbolName: systemName, accessibilityDescription: "Dictato")
@@ -78,20 +92,14 @@ final class MenuBarController: NSObject {
         NSWorkspace.shared.open(Log.logDirectory)
     }
 
+    @objc private func openPreferencesClicked() { PreferencesWindow.show() }
+
     @objc private func launchAtLoginClicked() {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            Log.error("Launch at login toggle failed: \(error.localizedDescription)")
-        }
+        LoginItem.set(!LoginItem.isEnabled)
         refreshLaunchAtLoginState()
     }
 
     private func refreshLaunchAtLoginState() {
-        launchAtLoginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        launchAtLoginItem.state = LoginItem.isEnabled ? .on : .off
     }
 }

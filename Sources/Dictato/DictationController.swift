@@ -14,25 +14,30 @@ final class DictationController {
     private let modelManager = ModelManager()
     private var recognizer: SpeechRecognizer?
 
-    private let detector: RightCmdTapDetector
+    private let detector: ModifierTapDetector
     private let hotkeys: HotkeyMonitor
 
     private var recordingStarted: Date?
     private var recordingTimer: Timer?
 
     init() {
-        detector = RightCmdTapDetector(
+        let binding = settings.dictateBinding
+        let count: Int = { if case .modifierTap(_, let c) = binding { return c }; return 2 }()
+        detector = ModifierTapDetector(
             doubleTapWindow: Double(settings.doubleTapWindowMs) / 1000.0,
             now: { ProcessInfo.processInfo.systemUptime }
         )
-        hotkeys = HotkeyMonitor(detector: detector)
+        detector.mode = count >= 2 ? .doubleTap : .singleTap
+        hotkeys = HotkeyMonitor(detector: detector,
+                                dictateBinding: binding,
+                                cancelBinding: settings.cancelBinding)
     }
 
     func start() {
         detector.onActivate = { [weak self] in
             Task { @MainActor in self?.hotkeyActivated() }
         }
-        hotkeys.onEsc = { [weak self] in
+        hotkeys.onCancel = { [weak self] in
             Task { @MainActor in self?.cancelRecording() }
         }
         hotkeys.start()
@@ -51,6 +56,7 @@ final class DictationController {
         menuBar.onReloadModel = { [weak self] in
             Task { @MainActor in self?.reloadModel() }
         }
+        menuBar.setDictateHint(settings.dictateBinding.displayString)
     }
 
     func toggleFromMenu() {
@@ -114,6 +120,8 @@ final class DictationController {
                 showTransientError("Could not start recording")
                 return
             }
+            let front = NSWorkspace.shared.frontmostApplication
+            overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
             transition(.startRequested)
             Log.info("Recording started")
             recordingStarted = Date()
@@ -179,8 +187,12 @@ final class DictationController {
     private func transition(_ event: DictationEvent) {
         machine.handle(event)
         menuBar.update(state: machine.state)
-        hotkeys.escEnabled = machine.state == .recording
-        detector.mode = machine.state == .recording ? .singleTap : .doubleTap
+        hotkeys.cancelEnabled = machine.state == .recording
+        if case .modifierTap(_, let c) = settings.dictateBinding, c >= 2 {
+            detector.mode = machine.state == .recording ? .singleTap : .doubleTap
+        } else {
+            detector.mode = .singleTap
+        }
         updateOverlay()
     }
 

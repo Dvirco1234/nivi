@@ -1,43 +1,69 @@
 import SwiftUI
+import AppKit
 
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
     var body: some View {
-        Group {
-            switch model.phase {
-            case .hidden:
-                EmptyView()
-            case .recording(let elapsed):
-                recordingView(elapsed: elapsed)
-            case .processing:
-                statusView { ProgressView().controlSize(.small) } label: { Text("Processing…") }
-            case .success:
-                statusView {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                } label: { Text("Text inserted") }
-            case .error(let message):
-                statusView {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-                } label: { Text(message).lineLimit(1) }
-            }
-        }
-        .frame(width: 240, height: 90)
+        content
+            .frame(width: 320, height: 64)
     }
 
-    private func recordingView(elapsed: TimeInterval) -> some View {
-        card {
-            VStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Image(systemName: "mic.fill")
-                        .foregroundStyle(.red)
-                        .symbolEffect(.pulse, options: .repeating)
-                    Text("Recording Hebrew…").font(.callout)
-                    Text(timeString(elapsed))
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                waveform
+    @ViewBuilder private var content: some View {
+        switch model.phase {
+        case .hidden:
+            EmptyView()
+        case .recording(let elapsed):
+            card(recording: true) { recordingRow(elapsed: elapsed) }
+        case .processing:
+            card(recording: false) { centeredRow { ProgressView().controlSize(.small); Text("Processing…") } }
+        case .success:
+            card(recording: false) {
+                centeredRow { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Text inserted") }
+            }
+        case .error(let message):
+            card(recording: false) {
+                centeredRow { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow); Text(message).lineLimit(1) }
+            }
+        }
+    }
+
+    private func recordingRow(elapsed: TimeInterval) -> some View {
+        HStack(spacing: 8) {
+            targetApp
+            Spacer(minLength: 6)
+            waveform
+            Spacer(minLength: 6)
+            brand
+        }
+    }
+
+    private var targetApp: some View {
+        HStack(spacing: 6) {
+            if let icon = model.targetAppIcon {
+                Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+            } else {
+                Image(systemName: "app.dashed").frame(width: 20, height: 20)
+            }
+            Text(model.targetAppName ?? "").font(.callout).lineLimit(1)
+        }
+        .frame(maxWidth: 110, alignment: .leading)
+    }
+
+    private var brand: some View {
+        HStack(spacing: 6) {
+            logo
+            Text("Dictato").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private var logo: some View {
+        Group {
+            if let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
+               let img = NSImage(contentsOf: url) {
+                Image(nsImage: img).resizable().frame(width: 18, height: 18)
+            } else {
+                Image(systemName: "waveform").frame(width: 18, height: 18)
             }
         }
     }
@@ -45,36 +71,29 @@ struct OverlayView: View {
     private var waveform: some View {
         HStack(alignment: .center, spacing: 2) {
             ForEach(Array(model.levels.enumerated()), id: \.offset) { _, level in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(.primary.opacity(0.7))
-                    .frame(width: 3, height: max(2, CGFloat(level) * 24))
+                Circle()
+                    .fill(.primary.opacity(0.75))
+                    .frame(width: 3, height: max(3, CGFloat(level) * 22))
             }
         }
-        .frame(height: 24)
+        .frame(height: 22)
         .animation(.linear(duration: 0.05), value: model.levels)
     }
 
-    private func statusView<Icon: View, Label: View>(
-        @ViewBuilder _ icon: () -> Icon, @ViewBuilder label: () -> Label
-    ) -> some View {
-        card {
-            HStack(spacing: 8) {
-                icon()
-                label().font(.callout)
-            }
-        }
+    private func centeredRow<C: View>(@ViewBuilder _ c: () -> C) -> some View {
+        HStack(spacing: 8) { c() }.font(.callout)
     }
 
-    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func card<C: View>(recording: Bool, @ViewBuilder _ content: () -> C) -> some View {
         content()
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.1)))
-    }
-
-    private func timeString(_ elapsed: TimeInterval) -> String {
-        let total = Int(elapsed)
-        return String(format: "%02d:%02d", total / 60, total % 60)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(width: 320, height: 64)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(recording ? Color.red.opacity(0.8) : Color.white.opacity(0.12),
+                                  lineWidth: recording ? 1.5 : 1)
+            )
     }
 }

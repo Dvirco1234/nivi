@@ -25,6 +25,30 @@ Requires: macOS 14+, Xcode command line tools, cmake.
 
 Permissions: Microphone (recording) and Accessibility (global hotkey + paste).
 
+## Install (shared build)
+
+Dictato is ad-hoc signed (no paid Apple Developer account), so macOS Gatekeeper
+blocks it on first open with a "damaged / unidentified developer" message. This
+is expected — unlock it once:
+
+1. Open `Dictato.dmg`, drag **Dictato** to **Applications**.
+2. Remove the download quarantine:
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/Dictato.app
+   ```
+   (Or right-click Dictato → **Open** → **Open** the first time.)
+3. Launch Dictato. On first run it downloads the Hebrew model (~1.6 GB), then
+   works fully offline.
+
+Grant **Microphone** (recording) and **Accessibility** (global hotkey + paste)
+when prompted, then relaunch once so the hotkey monitor picks up the grant.
+
+## Build a shareable DMG
+
+```sh
+make dmg     # → build/Dictato.dmg
+```
+
 ## Settings
 
 No preferences window in v1. `defaults write com.dvir.dictato <key> <value>`:

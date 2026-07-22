@@ -11,8 +11,8 @@ final class DictationController {
     private lazy var overlayPanel = OverlayPanel(model: overlayModel)
     private let recorder = AudioRecorder()
     private let inserter = TextInserter()
-    private let modelManager = ModelManager()
-    private var recognizer: SpeechRecognizer?
+    let modelStore = ModelStore()
+    private lazy var recognizerCache = RecognizerCache(capacity: settings.recognizerCacheCapacity)
 
     private let detector: ModifierTapDetector
     private let hotkeys: HotkeyMonitor
@@ -52,6 +52,9 @@ final class DictationController {
         if !PermissionManager.inputMonitoringGranted {
             PermissionManager.requestInputMonitoring()   // needed for Esc-to-cancel
         }
+        NotificationCenter.default.addObserver(forName: .dictatoDefaultModelChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.warmDefaultModel() }
+        }
         loadModel()
     }
 
@@ -63,6 +66,7 @@ final class DictationController {
             Task { @MainActor in self?.reloadModel() }
         }
         menuBar.setDictateHint(settings.dictateBinding.displayString)
+        PreferencesWindow.configure(store: modelStore)
     }
 
     func toggleFromMenu() {
@@ -74,28 +78,35 @@ final class DictationController {
     private func loadModel() {
         machine = DictationStateMachine()
         menuBar.update(state: machine.state)
-        Task {
-            do {
-                let modelPath = try await modelManager.ensureModel { [weak self] fraction in
-                    self?.menuBar.setStatusText(
-                        "Downloading model… \(Int(fraction * 100))%")
+        Task { await warmDefaultModel() }
+    }
+
+    private func warmDefaultModel() async {
+        guard let model = modelStore.catalog.defaultModel else {
+            transition(.modelFailed("No default model configured"))
+            return
+        }
+        do {
+            if !modelStore.isInstalled(model.id) {
+                menuBar.setStatusText("Downloading \(model.displayName)…")
+                await modelStore.install(model)
+                guard modelStore.isInstalled(model.id) else {
+                    transition(.modelFailed("Model download failed"))
+                    scheduleErrorDismiss(after: 3); return
                 }
-                let recognizer = WhisperCppRecognizer(modelPath: modelPath)
-                try await recognizer.load()
-                self.recognizer = recognizer
-                transition(.modelLoaded)
-            } catch {
-                Log.error("Model load failed: \(error.localizedDescription)")
-                transition(.modelFailed(error.localizedDescription))
-                scheduleErrorDismiss(after: 3)
             }
+            _ = try await recognizerCache.recognizer(
+                id: model.id, modelPath: modelStore.installedURL(for: model))
+            transition(.modelLoaded)
+        } catch {
+            Log.error("Model warm failed: \(error.localizedDescription)")
+            transition(.modelFailed(error.localizedDescription))
+            scheduleErrorDismiss(after: 3)
         }
     }
 
     private func reloadModel() {
-        recognizer?.unload()
-        recognizer = nil
-        loadModel()
+        Task { await recognizerCache.evictAll(); await warmDefaultModel() }
     }
 
     // MARK: - Recording flow
@@ -158,13 +169,14 @@ final class DictationController {
         Log.info("Recording stopped (\(String(format: "%.1f", Double(samples.count) / AudioRecorder.sampleRate))s)")
         updateOverlay()
         Task {
-            guard let recognizer else {
-                finishWithError("Model not loaded")
-                return
+            guard let model = modelStore.catalog.defaultModel else {
+                finishWithError("No model"); return
             }
             do {
+                let recognizer = try await recognizerCache.recognizer(
+                    id: model.id, modelPath: modelStore.installedURL(for: model))
                 let inferenceStart = Date()
-                let text = try await recognizer.transcribe(samples: samples)
+                let text = try await recognizer.transcribe(samples: samples, language: model.defaultLanguage)
                 Log.info("Inference completed in \(String(format: "%.2f", -inferenceStart.timeIntervalSinceNow))s")
                 guard !text.isEmpty else {
                     finishWithError("No speech detected")

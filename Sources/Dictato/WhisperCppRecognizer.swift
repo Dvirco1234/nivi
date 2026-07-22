@@ -3,15 +3,13 @@ import CWhisper
 
 final class WhisperCppRecognizer: SpeechRecognizer {
     private let modelPath: URL
-    private let language: String
     private var context: OpaquePointer?
     private let queue = DispatchQueue(label: "com.dvir.dictato.whisper", qos: .userInitiated)
 
     var isLoaded: Bool { context != nil }
 
-    init(modelPath: URL, language: String = "he") {
+    init(modelPath: URL) {
         self.modelPath = modelPath
-        self.language = language
     }
 
     deinit { unload() }
@@ -30,7 +28,7 @@ final class WhisperCppRecognizer: SpeechRecognizer {
         Log.info("Model loaded: \(path)")
     }
 
-    func transcribe(samples: [Float]) async throws -> String {
+    func transcribe(samples: [Float], language: String) async throws -> String {
         guard let context else { throw SpeechRecognizerError.notLoaded }
         // whisper_full requires at least ~1s of audio; pad short clips with silence.
         var audio = samples
@@ -38,13 +36,12 @@ final class WhisperCppRecognizer: SpeechRecognizer {
         if audio.count < minSamples {
             audio.append(contentsOf: [Float](repeating: 0, count: minSamples - audio.count))
         }
-        let language = self.language
         return try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
-                let lang = strdup(language)
-                defer { free(lang) }
-                params.language = UnsafePointer(lang)
+                let lang = language == "auto" ? nil : strdup(language)
+                defer { if let lang { free(lang) } }
+                params.language = lang.map { UnsafePointer($0) }
                 params.translate = false
                 params.n_threads = Int32(min(8, ProcessInfo.processInfo.activeProcessorCount))
                 params.no_timestamps = true

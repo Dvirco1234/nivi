@@ -1,101 +1,82 @@
 import Foundation
 import DictatoCore
 
-final class ModelManager: NSObject {
-    private let spec: ModelSpec
+/// Downloads (or copies, for local sources) a model into a destination, validating ggml.
+final class ModelDownloader: NSObject {
     private var progressHandler: ((Double) -> Void)?
-    private var downloadContinuation: CheckedContinuation<URL, Error>?
+    private var continuation: CheckedContinuation<URL, Error>?
     private var resumeData: Data?
 
-    init(spec: ModelSpec = .ivritTurbo) {
-        self.spec = spec
-    }
-
-    var modelURL: URL {
-        if let override = Settings().modelPathOverride {
-            return URL(fileURLWithPath: override)
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Dictato/models", isDirectory: true)
-            .appendingPathComponent(spec.fileName)
-    }
-
-    /// Returns the validated local model path, downloading it first if needed.
-    func ensureModel(progress: @escaping (Double) -> Void) async throws -> URL {
-        let destination = modelURL
-        switch spec.validate(fileAt: destination) {
-        case .ok:
-            return destination
-        case .missing:
-            Log.info("Model missing, downloading")
-        case .tooSmall, .badMagic:
-            Log.error("Model file invalid, deleting and redownloading")
-            try? FileManager.default.removeItem(at: destination)
-        }
+    func download(_ model: ManagedModel, to destination: URL,
+                  progress: @escaping (Double) -> Void) async throws {
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let temp = try await download(progress: progress)
+
+        if case .localFile(let path) = model.source {
+            let src = URL(fileURLWithPath: path)
+            guard validate(src, model: model) else {
+                throw err("Local file is not a valid ggml model")
+            }
+            if src != destination {
+                try? FileManager.default.removeItem(at: destination)
+                try FileManager.default.copyItem(at: src, to: destination)
+            }
+            return
+        }
+
+        guard let url = model.source.downloadURL else { throw err("No download URL") }
+        self.progressHandler = progress
+        let temp = try await runDownload(url: url)
         try? FileManager.default.removeItem(at: destination)
         try FileManager.default.moveItem(at: temp, to: destination)
-        guard spec.validate(fileAt: destination) == .ok else {
+        guard validate(destination, model: model) else {
             try? FileManager.default.removeItem(at: destination)
-            throw NSError(domain: "Dictato", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "Downloaded model failed validation"])
+            throw err("Downloaded file failed validation")
         }
-        Log.info("Model downloaded to \(destination.path)")
-        return destination
     }
 
-    func deleteModel() throws {
-        try FileManager.default.removeItem(at: modelURL)
+    private func validate(_ url: URL, model: ManagedModel) -> Bool {
+        ModelSpec(fileName: model.localFileName, url: url, minSizeBytes: model.minSizeBytes)
+            .validate(fileAt: url) == .ok
     }
 
-    private func download(progress: @escaping (Double) -> Void) async throws -> URL {
-        progressHandler = progress
+    private func err(_ msg: String) -> NSError {
+        NSError(domain: "Dictato", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+    }
+
+    private func runDownload(url: URL) async throws -> URL {
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
-        return try await withCheckedThrowingContinuation { continuation in
-            downloadContinuation = continuation
+        return try await withCheckedThrowingContinuation { cont in
+            continuation = cont
             let task: URLSessionDownloadTask
-            if let resumeData {
-                task = session.downloadTask(withResumeData: resumeData)
-                self.resumeData = nil
-            } else {
-                task = session.downloadTask(with: spec.url)
-            }
+            if let resumeData { task = session.downloadTask(withResumeData: resumeData); self.resumeData = nil }
+            else { task = session.downloadTask(with: url) }
             task.resume()
         }
     }
 }
 
-extension ModelManager: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
-        guard totalBytesExpectedToWrite > 0 else { return }
-        let fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        DispatchQueue.main.async { [weak self] in self?.progressHandler?(fraction) }
+extension ModelDownloader: URLSessionDownloadDelegate {
+    func urlSession(_ s: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData a: Int64, totalBytesWritten b: Int64, totalBytesExpectedToWrite c: Int64) {
+        guard c > 0 else { return }
+        let f = Double(b) / Double(c)
+        DispatchQueue.main.async { [weak self] in self?.progressHandler?(f) }
     }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        // Move out of the system temp slot synchronously — it is deleted when this returns.
+    func urlSession(_ s: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         let holding = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dictato-model-download.bin")
+            .appendingPathComponent("dictato-dl-\(UUID().uuidString).bin")
         do {
-            try? FileManager.default.removeItem(at: holding)
             try FileManager.default.moveItem(at: location, to: holding)
-            downloadContinuation?.resume(returning: holding)
-        } catch {
-            downloadContinuation?.resume(throwing: error)
-        }
-        downloadContinuation = nil
+            continuation?.resume(returning: holding)
+        } catch { continuation?.resume(throwing: error) }
+        continuation = nil
     }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let error else { return }  // success handled in didFinishDownloadingTo
+    func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error else { return }
         resumeData = (error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data
-        downloadContinuation?.resume(throwing: error)
-        downloadContinuation = nil
+        continuation?.resume(throwing: error)
+        continuation = nil
     }
 }

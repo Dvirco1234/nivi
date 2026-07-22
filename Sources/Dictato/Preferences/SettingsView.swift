@@ -2,20 +2,71 @@ import SwiftUI
 import AppKit
 import DictatoCore
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            GeneralTab().tabItem { Label("General", systemImage: "gearshape") }
-            HotkeysTab().tabItem { Label("Hotkeys", systemImage: "keyboard") }
-            SpeechTab().tabItem { Label("Speech", systemImage: "waveform") }
-            DebugTab().tabItem { Label("Debug", systemImage: "ladybug") }
+enum PrefSection: String, CaseIterable, Identifiable {
+    case general = "General"
+    case models = "Dictation Models"
+    case hotkeys = "Hotkeys"
+    case speech = "Speech"
+    case debug = "Debug"
+    var id: String { rawValue }
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .models: return "cpu"
+        case .hotkeys: return "keyboard"
+        case .speech: return "waveform"
+        case .debug: return "ladybug"
         }
-        .frame(width: 520, height: 380)
-        .padding()
     }
 }
 
-private struct GeneralTab: View {
+struct SettingsView: View {
+    @ObservedObject var store: ModelStore
+    @State private var section: PrefSection = .general
+
+    var body: some View {
+        NavigationSplitView {
+            List(selection: $section) {
+                Section {
+                    ForEach(PrefSection.allCases) { s in
+                        Label(s.rawValue, systemImage: s.icon).tag(s)
+                    }
+                } header: {
+                    brandHeader
+                }
+            }
+            .navigationSplitViewColumnWidth(210)
+        } detail: {
+            ScrollView { detail.padding(20).frame(maxWidth: .infinity, alignment: .leading) }
+                .frame(minWidth: 460, minHeight: 460)
+        }
+        .frame(width: 720, height: 500)
+    }
+
+    private var brandHeader: some View {
+        HStack(spacing: 8) {
+            if let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
+               let img = NSImage(contentsOf: url) {
+                Image(nsImage: img).resizable().frame(width: 26, height: 26)
+            }
+            Text("Dictato").font(.title3.weight(.semibold))
+        }
+        .padding(.vertical, 8)
+        .textCase(nil)
+    }
+
+    @ViewBuilder private var detail: some View {
+        switch section {
+        case .general: GeneralSection()
+        case .models: ModelsSection(store: store)
+        case .hotkeys: HotkeysSection()
+        case .speech: SpeechSection()
+        case .debug: DebugSection()
+        }
+    }
+}
+
+private struct GeneralSection: View {
     private var settings = Settings()
     @State private var autoPaste = Settings().autoPaste
     @State private var showOverlay = Settings().showOverlay
@@ -59,7 +110,7 @@ private struct LaunchAtLoginToggle: View {
     }
 }
 
-private struct HotkeysTab: View {
+private struct HotkeysSection: View {
     private var settings = Settings()
     var body: some View {
         Form {
@@ -75,19 +126,21 @@ private struct HotkeysTab: View {
     }
 }
 
-private struct SpeechTab: View {
+private struct SpeechSection: View {
+    private var settings = Settings()
+    @State private var cacheCap = Settings().recognizerCacheCapacity
     var body: some View {
         Form {
-            LabeledContent("Model", value: "ivrit-ai large-v3-turbo")
-            LabeledContent("Language", value: "Hebrew (he)")
             LabeledContent("Sample rate", value: "16 kHz")
-            Text("More models and languages arrive with streaming mode.")
+            Stepper("Models kept in memory: \(cacheCap)", value: $cacheCap, in: 1...4)
+                .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
+            Text("Higher keeps more models resident for instant switching (more RAM).")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
 }
 
-private struct DebugTab: View {
+private struct DebugSection: View {
     private var settings = Settings()
     @State private var showInference = Settings().showInferenceTime
     @State private var showDuration = Settings().showAudioDuration

@@ -5,7 +5,7 @@ import Foundation
 protocol SpeechRecognizer: AnyObject {
     var isLoaded: Bool { get }
     func load() async throws
-    func transcribe(samples: [Float]) async throws -> String
+    func transcribe(samples: [Float], language: String) async throws -> String
     func unload()
 }
 

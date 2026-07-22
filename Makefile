@@ -46,6 +46,9 @@ app: release
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	cp Resources/Dictato.icns $(APP)/Contents/Resources/Dictato.icns
 	cp Resources/DictatoLogo.png $(APP)/Contents/Resources/DictatoLogo.png
+	cp Resources/DictatoLogoEn.png $(APP)/Contents/Resources/DictatoLogoEn.png
+	cp Resources/MenuBarAleph.png $(APP)/Contents/Resources/MenuBarAleph.png
+	cp Resources/MenuBarLatinA.png $(APP)/Contents/Resources/MenuBarLatinA.png
 	codesign --force --sign "$(SIGN_ID)" $(APP)
 	@echo "Built $(APP) (signed: $(SIGN_ID))"
 

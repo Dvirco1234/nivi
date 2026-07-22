@@ -12,6 +12,7 @@ final class MenuBarController: NSObject {
 
     private var dictateHint = ""
     private var startStopBase = "Start Recording"
+    private var primaryLanguage = "he"
 
     override init() {
         super.init()
@@ -41,6 +42,7 @@ final class MenuBarController: NSObject {
     }
 
     func update(state: DictationState) {
+        lastState = state
         switch state {
         case .loadingModel:
             statusMenuItem.title = "Loading Hebrew model…"
@@ -50,7 +52,7 @@ final class MenuBarController: NSObject {
             statusMenuItem.title = "Ready"
             startStopBase = "Start Recording"; applyStartStopTitle()
             startStopItem.isEnabled = true
-            setLogoIcon()
+            setLanguageGlyph()
         case .recording:
             statusMenuItem.title = "Recording…"
             startStopBase = "Stop Recording"; applyStartStopTitle()
@@ -85,14 +87,23 @@ final class MenuBarController: NSObject {
             systemSymbolName: systemName, accessibilityDescription: "Dictato")
     }
 
-    private func setLogoIcon() {
-        guard let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
-              let img = NSImage(contentsOf: url) else {
+    /// Primary (default) model's language drives the menu-bar glyph.
+    func setPrimaryLanguage(_ language: String) {
+        primaryLanguage = language
+        if case .idle = lastState { setLanguageGlyph() }
+    }
+
+    private var lastState: DictationState = .loadingModel
+
+    private func setLanguageGlyph() {
+        guard let img = LanguageGlyph.image(named: LanguageGlyph.menuBarName(for: primaryLanguage)) else {
             setIcon(systemName: "waveform")
             return
         }
-        img.size = NSSize(width: 18, height: 18)
-        img.isTemplate = false
+        let aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
+        let h: CGFloat = 15
+        img.size = NSSize(width: h * aspect, height: h)
+        img.isTemplate = true   // monochrome; macOS tints for light/dark menu bar
         statusItem.button?.image = img
     }
 

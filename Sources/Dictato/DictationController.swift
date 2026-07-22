@@ -106,6 +106,7 @@ final class DictationController {
             }
             _ = try await recognizerCache.recognizer(
                 id: model.id, modelPath: modelStore.installedURL(for: model))
+            menuBar.setPrimaryLanguage(model.defaultLanguage)
             transition(.modelLoaded)
         } catch {
             Log.error("Model warm failed: \(error.localizedDescription)")
@@ -150,6 +151,7 @@ final class DictationController {
             }
             let front = NSWorkspace.shared.frontmostApplication
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
+            overlayModel.languageCode = modelStore.catalog.defaultModel?.defaultLanguage ?? "he"
             let mouse = NSEvent.mouseLocation
             overlayPanel.preferredScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
             transition(.startRequested)

@@ -84,8 +84,7 @@ struct OverlayView: View {
 
     private var logo: some View {
         Group {
-            if let url = Bundle.main.url(forResource: "DictatoLogo", withExtension: "png"),
-               let img = NSImage(contentsOf: url) {
+            if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
                 Image(nsImage: img).resizable().frame(width: 18, height: 18)
             } else {
                 Image(systemName: "waveform").frame(width: 18, height: 18)

@@ -19,10 +19,12 @@ final class OverlayModel: ObservableObject {
         targetAppIcon = icon
     }
 
+    static let waveformSlots = 46
+
     func pushLevel(_ level: Float) {
         levels.append(level)
-        if levels.count > 30 {
-            levels.removeFirst(levels.count - 30)
+        if levels.count > Self.waveformSlots {
+            levels.removeFirst(levels.count - Self.waveformSlots)
         }
     }
 

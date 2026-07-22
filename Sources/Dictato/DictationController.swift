@@ -122,6 +122,8 @@ final class DictationController {
             }
             let front = NSWorkspace.shared.frontmostApplication
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
+            let mouse = NSEvent.mouseLocation
+            overlayPanel.preferredScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
             transition(.startRequested)
             Log.info("Recording started")
             recordingStarted = Date()

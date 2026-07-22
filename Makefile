@@ -1,7 +1,14 @@
 WHISPER_TAG ?= v1.7.2  # bump freely; anything >= v1.7.0 supports large-v3-turbo
 VENDOR := vendor/whisper.cpp
 
-.PHONY: vendor build release test app run clean
+# Stable self-signed identity keeps TCC (Accessibility/Mic) grants across rebuilds.
+# Falls back to ad-hoc "-" if the cert is absent (run `make cert` to create it).
+SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | grep -o 'Dictato Self-Signed' | head -1)
+ifeq ($(SIGN_ID),)
+SIGN_ID := -
+endif
+
+.PHONY: vendor build release test app run clean icon dmg cert
 
 vendor:
 	@if [ ! -d $(VENDOR) ]; then \
@@ -39,8 +46,11 @@ app: release
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
 	cp Resources/Dictato.icns $(APP)/Contents/Resources/Dictato.icns
 	cp Resources/DictatoLogo.png $(APP)/Contents/Resources/DictatoLogo.png
-	codesign --force --sign - $(APP)
-	@echo "Built $(APP)"
+	codesign --force --sign "$(SIGN_ID)" $(APP)
+	@echo "Built $(APP) (signed: $(SIGN_ID))"
+
+cert:
+	bash Tools/make-signing-cert.sh
 
 icon:
 	bash Tools/make-iconset.sh

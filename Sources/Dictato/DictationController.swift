@@ -11,37 +11,36 @@ final class DictationController {
     private lazy var overlayPanel = OverlayPanel(model: overlayModel)
     private let recorder = AudioRecorder()
     private let inserter = TextInserter()
-    let modelStore = ModelStore()
+    let modelStore: ModelStore
     private lazy var recognizerCache = RecognizerCache(capacity: settings.recognizerCacheCapacity)
 
-    private let detector: ModifierTapDetector
-    private let hotkeys: HotkeyMonitor
+    let profileStore: ProfileStore
+    private let router: HotkeyRouter
+    private var activeProfileID: String?
 
     private var recordingStarted: Date?
     private var recordingTimer: Timer?
     private var idleUnloadTimer: Timer?
 
     init() {
-        let binding = settings.dictateBinding
-        let count: Int = { if case .modifierTap(_, let c) = binding { return c }; return 2 }()
-        detector = ModifierTapDetector(
-            doubleTapWindow: Double(settings.doubleTapWindowMs) / 1000.0,
-            now: { ProcessInfo.processInfo.systemUptime }
-        )
-        detector.mode = count >= 2 ? .doubleTap : .singleTap
-        hotkeys = HotkeyMonitor(detector: detector,
-                                dictateBinding: binding,
-                                cancelBinding: settings.cancelBinding)
+        let store = ModelStore()
+        let primaryModel = store.catalog.defaultModel
+        profileStore = ProfileStore(defaultModelID: primaryModel?.id,
+                                    defaultLanguage: primaryModel?.defaultLanguage ?? "he")
+        router = HotkeyRouter(doubleTapWindowMs: settings.doubleTapWindowMs)
+        modelStore = store
     }
 
     func start() {
-        detector.onActivate = { [weak self] in
-            Task { @MainActor in self?.hotkeyActivated() }
+        router.onActivate = { [weak self] pid in
+            Task { @MainActor in self?.hotkeyActivated(profileID: pid) }
         }
-        hotkeys.onCancel = { [weak self] in
+        router.onCancel = { [weak self] in
             Task { @MainActor in self?.cancelRecording() }
         }
-        hotkeys.start()
+        router.rebuild(profiles: profileStore.set, cancel: profileStore.cancelBinding)
+        router.start()
+
         recorder.onLevel = { [weak self] level in self?.overlayModel.pushLevel(level) }
         overlayModel.onCancel = { [weak self] in
             Task { @MainActor in self?.cancelRecording() }
@@ -53,16 +52,20 @@ final class DictationController {
         if !PermissionManager.inputMonitoringGranted {
             PermissionManager.requestInputMonitoring()   // needed for Esc-to-cancel
         }
-        NotificationCenter.default.addObserver(forName: .dictatoDefaultModelChanged, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in await self?.warmDefaultModel() }
+        NotificationCenter.default.addObserver(forName: .dictatoProfilesChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.router.rebuild(profiles: self.profileStore.set, cancel: self.profileStore.cancelBinding)
+                await self.warmPrimaryModel()
+            }
         }
         // Global NSEvent monitors can stop delivering after sleep — re-arm on wake.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
             Log.info("System woke — re-arming hotkey monitors")
-            self.hotkeys.stop()
-            self.hotkeys.start()
+            self.router.stop()
+            self.router.start()
         }
         loadModel()
     }
@@ -74,12 +77,12 @@ final class DictationController {
         menuBar.onReloadModel = { [weak self] in
             Task { @MainActor in self?.reloadModel() }
         }
-        menuBar.setDictateHint(settings.dictateBinding.displayString)
+        menuBar.setDictateHint(profileStore.set.primary?.hotkey.displayString ?? "")
         PreferencesWindow.configure(store: modelStore)
     }
 
     func toggleFromMenu() {
-        hotkeyActivated()
+        hotkeyActivated(profileID: profileStore.set.primaryID)
     }
 
     // MARK: - Model
@@ -87,12 +90,13 @@ final class DictationController {
     private func loadModel() {
         machine = DictationStateMachine()
         menuBar.update(state: machine.state)
-        Task { await warmDefaultModel() }
+        Task { await warmPrimaryModel() }
     }
 
-    private func warmDefaultModel() async {
-        guard let model = modelStore.catalog.defaultModel else {
-            transition(.modelFailed("No default model configured"))
+    private func warmPrimaryModel() async {
+        guard let profile = profileStore.set.primary,
+              let model = modelStore.catalog.model(id: profile.modelID) else {
+            transition(.modelFailed("No primary profile model configured"))
             return
         }
         do {
@@ -106,7 +110,7 @@ final class DictationController {
             }
             _ = try await recognizerCache.recognizer(
                 id: model.id, modelPath: modelStore.installedURL(for: model))
-            menuBar.setPrimaryLanguage(model.defaultLanguage)
+            menuBar.setPrimaryLanguage(profile.language)
             transition(.modelLoaded)
         } catch {
             Log.error("Model warm failed: \(error.localizedDescription)")
@@ -116,15 +120,16 @@ final class DictationController {
     }
 
     private func reloadModel() {
-        Task { await recognizerCache.evictAll(); await warmDefaultModel() }
+        Task { await recognizerCache.evictAll(); await warmPrimaryModel() }
     }
 
     // MARK: - Recording flow
 
-    private func hotkeyActivated() {
-        Log.info("Hotkey activated (state: \(machine.state))")
+    private func hotkeyActivated(profileID: String) {
+        Log.info("Hotkey activated for profile \(profileID) (state: \(machine.state))")
         switch machine.state {
         case .idle:
+            activeProfileID = profileID
             startRecording()
         case .recording:
             stopAndTranscribe()
@@ -151,7 +156,9 @@ final class DictationController {
             }
             let front = NSWorkspace.shared.frontmostApplication
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
-            overlayModel.languageCode = modelStore.catalog.defaultModel?.defaultLanguage ?? "he"
+            let profile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID)
+            overlayModel.languageCode = profile?.language ?? "he"
+            router.beginRecording(profileID: profile?.id ?? profileStore.set.primaryID)
             let mouse = NSEvent.mouseLocation
             overlayPanel.preferredScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
             transition(.startRequested)
@@ -184,14 +191,15 @@ final class DictationController {
         Log.info("Recording stopped (\(String(format: "%.1f", Double(samples.count) / AudioRecorder.sampleRate))s)")
         updateOverlay()
         Task {
-            guard let model = modelStore.catalog.defaultModel else {
+            guard let profile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID),
+                  let model = modelStore.catalog.model(id: profile.modelID) else {
                 finishWithError("No model"); return
             }
             do {
                 let recognizer = try await recognizerCache.recognizer(
                     id: model.id, modelPath: modelStore.installedURL(for: model))
                 let inferenceStart = Date()
-                let text = try await recognizer.transcribe(samples: samples, language: model.defaultLanguage)
+                let text = try await recognizer.transcribe(samples: samples, language: profile.language)
                 Log.info("Inference completed in \(String(format: "%.2f", -inferenceStart.timeIntervalSinceNow))s")
                 guard !text.isEmpty else {
                     finishWithError("No speech detected")
@@ -223,11 +231,10 @@ final class DictationController {
     private func transition(_ event: DictationEvent) {
         machine.handle(event)
         menuBar.update(state: machine.state)
-        hotkeys.cancelEnabled = machine.state == .recording
-        if case .modifierTap(_, let c) = settings.dictateBinding, c >= 2 {
-            detector.mode = machine.state == .recording ? .singleTap : .doubleTap
-        } else {
-            detector.mode = .singleTap
+        router.cancelEnabled = machine.state == .recording
+        if machine.state != .recording {
+            router.endRecording()
+            activeProfileID = nil
         }
         if machine.state == .idle { scheduleIdleUnload() }
         updateOverlay()

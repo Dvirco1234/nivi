@@ -5,6 +5,7 @@ import DictatoCore
 enum PrefSection: String, CaseIterable, Identifiable {
     case general = "General"
     case models = "Dictation Models"
+    case profiles = "Profiles"
     case hotkeys = "Hotkeys"
     case speech = "Speech"
     case debug = "Debug"
@@ -13,6 +14,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape"
         case .models: return "cpu"
+        case .profiles: return "person.crop.rectangle.stack"
         case .hotkeys: return "keyboard"
         case .speech: return "waveform"
         case .debug: return "ladybug"
@@ -22,6 +24,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @ObservedObject var store: ModelStore
+    @ObservedObject var profileStore: ProfileStore
     @State private var section: PrefSection = .general
 
     var body: some View {
@@ -64,6 +67,7 @@ struct SettingsView: View {
         switch section {
         case .general: GeneralSection()
         case .models: ModelsSection(store: store)
+        case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
         case .hotkeys: HotkeysSection()
         case .speech: SpeechSection()
         case .debug: DebugSection()
@@ -125,14 +129,11 @@ private struct HotkeysSection: View {
     var body: some View {
         Form {
             Section {
-                HotkeyRecorderView(title: "Dictate", binding: settings.dictateBinding) {
-                    settings.dictateBinding = $0
-                }
                 HotkeyRecorderView(title: "Cancel", binding: settings.cancelBinding) {
                     settings.cancelBinding = $0
                 }
             } footer: {
-                Text("Changes apply after you quit and reopen Dictato.")
+                Text("Global cancel key while recording. Dictate hotkeys are set per profile.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

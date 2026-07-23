@@ -78,7 +78,7 @@ final class DictationController {
             Task { @MainActor in self?.reloadModel() }
         }
         menuBar.setDictateHint(profileStore.set.primary?.hotkey.displayString ?? "")
-        PreferencesWindow.configure(store: modelStore)
+        PreferencesWindow.configure(store: modelStore, profileStore: profileStore)
     }
 
     func toggleFromMenu() {

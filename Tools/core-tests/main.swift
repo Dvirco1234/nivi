@@ -92,4 +92,51 @@ try? FileManager.default.removeItem(at: base)
 // --- recognizerCacheCapacity ---
 check(Settings(defaults: suite).recognizerCacheCapacity == 2, "default cache capacity 2")
 
+// --- DictationProfile / ProfileSet ---
+let he = DictationProfile(id: "p1", name: "Hebrew", modelID: "ivrit-large-v3-turbo",
+                          language: "he", mode: .batch,
+                          hotkey: .modifierTap(.rightCommand, count: 2))
+let en = DictationProfile(id: "p2", name: "English", modelID: "whisper-small-en",
+                          language: "en", mode: .batch,
+                          hotkey: .modifierTap(.rightOption, count: 2))
+var set0 = ProfileSet(profiles: [he, en], primaryID: "p1")
+check(set0.primary?.id == "p1", "primary resolves")
+check(set0.profile(id: "p2")?.language == "en", "lookup by id")
+
+// json round-trip
+let data = try! JSONEncoder().encode(set0)
+let decoded = try! JSONDecoder().decode(ProfileSet.self, from: data)
+check(decoded == set0, "ProfileSet json round-trip")
+
+// conflict detection
+let cancel = HotkeyBinding.keyCombo(keyCode: 53, modifiers: 0)
+check(set0.conflict(for: .modifierTap(.rightOption, count: 2), excluding: nil, cancel: cancel),
+      "duplicate hotkey conflicts")
+check(set0.conflict(for: .modifierTap(.rightControl, count: 1), excluding: "p2", cancel: cancel) == false,
+      "excluded profile does not self-conflict")
+check(set0.conflict(for: .keyCombo(keyCode: 53, modifiers: 0), excluding: nil, cancel: cancel),
+      "cancel-equal hotkey conflicts")
+// same modifier key, different tap count still conflicts (one detector per key)
+check(set0.conflict(for: .modifierTap(.rightCommand, count: 1), excluding: "p2", cancel: cancel),
+      "same modifier key different count conflicts")
+
+// migration from legacy single binding
+let mig = ProfileSet.migrated(from: .modifierTap(.rightCommand, count: 2),
+                              modelID: "ivrit-large-v3-turbo", language: "he", name: "Hebrew")
+check(mig.profiles.count == 1, "migration seeds one profile")
+check(mig.primary?.modelID == "ivrit-large-v3-turbo", "migration primary model")
+check(mig.primary?.hotkey == .modifierTap(.rightCommand, count: 2), "migration keeps hotkey")
+
+// removing: last profile cannot be removed
+let solo = ProfileSet(profiles: [he], primaryID: "p1")
+check(solo.removing(id: "p1").profiles.count == 1, "cannot remove last profile")
+// removing primary promotes another
+let afterRemove = set0.removing(id: "p1")
+check(afterRemove.profiles.count == 1, "removed one")
+check(afterRemove.primary?.id == "p2", "primary promoted after removal")
+
+// normalizedPrimary repairs dangling primary
+var broken = ProfileSet(profiles: [he, en], primaryID: "gone")
+check(broken.normalizedPrimary().primaryID == "p1", "dangling primary repaired to first")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

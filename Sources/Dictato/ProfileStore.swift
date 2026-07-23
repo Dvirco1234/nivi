@@ -13,6 +13,7 @@ final class ProfileStore: ObservableObject {
     init(defaultModelID: String?, defaultLanguage: String) {
         if let decoded = Self.load(from: settings.profilesJSON), !decoded.profiles.isEmpty {
             set = decoded.normalizedPrimary()
+            if set != decoded { persist() }
         } else {
             let name = ProfileStore.languageName(defaultLanguage)
             set = ProfileSet.migrated(from: settings.dictateBinding,

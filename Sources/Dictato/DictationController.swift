@@ -40,6 +40,7 @@ final class DictationController {
         }
         router.rebuild(profiles: profileStore.set, cancel: profileStore.cancelBinding)
         router.start()
+        syncCatalogDefaultToPrimary()
 
         recorder.onLevel = { [weak self] level in self?.overlayModel.pushLevel(level) }
         overlayModel.onCancel = { [weak self] in
@@ -55,7 +56,14 @@ final class DictationController {
         NotificationCenter.default.addObserver(forName: .dictatoProfilesChanged, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
+                // Don't disturb an in-flight recording: rebuilding the router / re-warming the
+                // model mid-recording would swap out state under the active session. The next
+                // idle transition re-warms normally via scheduleIdleUnload/loadModel, so it's
+                // safe to just skip the sync here and let it catch up later.
+                guard self.machine.state != .recording else { return }
                 self.router.rebuild(profiles: self.profileStore.set, cancel: self.profileStore.cancelBinding)
+                self.menuBar.setDictateHint(self.profileStore.set.primary?.hotkey.displayString ?? "")
+                self.syncCatalogDefaultToPrimary()
                 await self.warmPrimaryModel()
             }
         }
@@ -121,6 +129,14 @@ final class DictationController {
 
     private func reloadModel() {
         Task { await recognizerCache.evictAll(); await warmPrimaryModel() }
+    }
+
+    /// The primary profile is the single source of truth for which model is active;
+    /// keep the catalog's "default model" following it.
+    private func syncCatalogDefaultToPrimary() {
+        guard let primaryModelID = profileStore.set.primary?.modelID,
+              primaryModelID != modelStore.catalog.defaultModelID else { return }
+        modelStore.setDefault(primaryModelID)
     }
 
     // MARK: - Recording flow

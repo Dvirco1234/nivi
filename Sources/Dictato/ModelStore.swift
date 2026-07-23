@@ -70,7 +70,6 @@ final class ModelStore: ObservableObject {
         guard catalog.model(id: id) != nil else { return }
         catalog.defaultModelID = id
         persist()
-        NotificationCenter.default.post(name: .dictatoDefaultModelChanged, object: id)
     }
 
     func addModel(_ model: ManagedModel) {
@@ -83,8 +82,4 @@ final class ModelStore: ObservableObject {
     private func persist() {
         ModelCatalogStore.save(catalog, to: catalogURL)
     }
-}
-
-extension Notification.Name {
-    static let dictatoDefaultModelChanged = Notification.Name("dictatoDefaultModelChanged")
 }

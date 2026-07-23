@@ -66,7 +66,7 @@ struct SettingsView: View {
     @ViewBuilder private var detail: some View {
         switch section {
         case .general: GeneralSection()
-        case .models: ModelsSection(store: store)
+        case .models: ModelsSection(store: store, profileStore: profileStore)
         case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
         case .hotkeys: HotkeysSection()
         case .speech: SpeechSection()

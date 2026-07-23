@@ -29,6 +29,7 @@ public struct Settings {
             Key.excludeFromClipboardHistory: true,
             Key.recognizerCacheCapacity: 2,
             Key.idleUnloadSeconds: 300,
+            Key.profilesJSON: "",
         ])
     }
 
@@ -49,6 +50,7 @@ public struct Settings {
         static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
         static let recognizerCacheCapacity = "recognizerCacheCapacity"
         static let idleUnloadSeconds = "idleUnloadSeconds"
+        static let profilesJSON = "profilesJSON"
     }
 
     public var autoPaste: Bool {
@@ -130,5 +132,10 @@ public struct Settings {
     public var idleUnloadSeconds: Int {
         get { defaults.integer(forKey: Key.idleUnloadSeconds) }
         nonmutating set { defaults.set(newValue, forKey: Key.idleUnloadSeconds) }
+    }
+
+    public var profilesJSON: String {
+        get { defaults.string(forKey: Key.profilesJSON) ?? "" }
+        nonmutating set { defaults.set(newValue, forKey: Key.profilesJSON) }
     }
 }

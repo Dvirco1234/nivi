@@ -4,7 +4,12 @@ import DictatoCore
 
 struct ModelsSection: View {
     @ObservedObject var store: ModelStore
+    @ObservedObject var profileStore: ProfileStore
     @State private var showingAdd = false
+
+    private var modelIDsInUseByProfiles: Set<String> {
+        Set(profileStore.set.profiles.map(\.modelID))
+    }
 
     var body: some View {
         ScrollView {
@@ -18,9 +23,9 @@ struct ModelsSection: View {
                     ModelCard(model: model,
                               state: store.installStates[model.id] ?? .notInstalled,
                               isDefault: model.id == store.catalog.defaultModelID,
+                              isInUseByProfile: modelIDsInUseByProfiles.contains(model.id),
                               onDownload: { Task { await store.install(model) } },
-                              onDelete: { store.delete(model.id) },
-                              onSetDefault: { store.setDefault(model.id) })
+                              onDelete: { store.delete(model.id) })
                 }
             }
             .padding(20)
@@ -38,9 +43,9 @@ private struct ModelCard: View {
     let model: ManagedModel
     let state: InstallState
     let isDefault: Bool
+    let isInUseByProfile: Bool
     let onDownload: () -> Void
     let onDelete: () -> Void
-    let onSetDefault: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -79,13 +84,16 @@ private struct ModelCard: View {
             HStack(spacing: 8) {
                 if isDefault {
                     Label("Default", systemImage: "checkmark.circle.fill").foregroundStyle(.blue)
-                } else {
-                    Button("Set default", action: onSetDefault)
                 }
                 Menu {
-                    if !isDefault { Button("Delete", role: .destructive, action: onDelete) }
+                    if !isDefault && !isInUseByProfile {
+                        Button("Delete", role: .destructive, action: onDelete)
+                    } else {
+                        Text("In use by a profile")
+                    }
                 } label: { Image(systemName: "ellipsis.circle") }
                     .menuStyle(.borderlessButton).frame(width: 28)
+                    .help(isInUseByProfile ? "In use by a profile" : "")
             }
         case .downloading(let f):
             ProgressView(value: f).frame(width: 120)

@@ -82,7 +82,13 @@ final class StreamingTranscriber {
             guard !Task.isCancelled else { return }
             let stable = tracker.update(text)
             let update = StreamingUpdate(fullText: text, stableText: stable)
-            await MainActor.run { self.onUpdate(update) }
+            // Re-check inside the hop, not just before it: `stop()` can land while this
+            // block waits for a busy main actor, and delivering an update after stop
+            // would type stale text the append-only insertion can never retract.
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                self.onUpdate(update)
+            }
         } catch {
             // A dropped pass is not worth surfacing — the next one usually succeeds and
             // the final pass is authoritative. Log once so a systematic failure is still

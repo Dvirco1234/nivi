@@ -6,7 +6,7 @@ struct OverlayView: View {
     @State private var hovering = false
 
     private let cardWidth: CGFloat = 360
-    private let cardHeight: CGFloat = 78
+    private var cardHeight: CGFloat { model.liveText.isEmpty ? 78 : 104 }
 
     var body: some View {
         content
@@ -33,11 +33,18 @@ struct OverlayView: View {
     }
 
     private var recordingBody: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             HStack {
                 targetApp
                 Spacer(minLength: 8)
                 brand
+            }
+            if !model.liveText.isEmpty {
+                Text(model.liveText)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .truncationMode(.head)   // keep the newest words visible
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             waveform
         }

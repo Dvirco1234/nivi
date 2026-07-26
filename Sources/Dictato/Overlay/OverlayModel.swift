@@ -14,6 +14,7 @@ final class OverlayModel: ObservableObject {
     @Published var targetAppName: String?
     @Published var targetAppIcon: NSImage?
     @Published var languageCode: String = "he"   // running model's language → logo choice
+    @Published var liveText: String = ""
     var onCancel: (() -> Void)?
 
     func setTarget(name: String?, icon: NSImage?) {
@@ -32,5 +33,6 @@ final class OverlayModel: ObservableObject {
 
     func reset() {
         levels = []
+        liveText = ""
     }
 }

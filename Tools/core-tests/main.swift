@@ -139,4 +139,49 @@ check(afterRemove.primary?.id == "p2", "primary promoted after removal")
 var broken = ProfileSet(profiles: [he, en], primaryID: "gone")
 check(broken.normalizedPrimary().primaryID == "p1", "dangling primary repaired to first")
 
+// --- StablePrefixTracker ---
+var tracker = StablePrefixTracker(stabilityPasses: 2)
+check(tracker.update("hello") == "", "first pass commits nothing")
+check(tracker.update("hello world") == "hello", "word stable across two passes commits")
+check(tracker.update("hello world") == "hello world", "all words stable commit")
+
+// a correction before stabilization must not commit the wrong word
+var t2 = StablePrefixTracker(stabilityPasses: 2)
+_ = t2.update("hello word")
+let afterCorrection = t2.update("hello world")
+check(afterCorrection == "hello", "unstable trailing word not committed")
+check(t2.update("hello world") == "hello world", "converges once stable")
+
+// monotonic: a shorter later transcript never shrinks the committed prefix
+var t3 = StablePrefixTracker(stabilityPasses: 2)
+_ = t3.update("one two three")
+_ = t3.update("one two three")
+check(t3.update("one") == "one two three", "committed prefix never shrinks")
+
+// instances are independent (fresh tracker per recording)
+var t4 = StablePrefixTracker(stabilityPasses: 2)
+check(t4.update("alpha") == "", "fresh instance starts empty")
+
+// stabilityPasses 3 needs three identical passes
+var t5 = StablePrefixTracker(stabilityPasses: 3)
+_ = t5.update("a b")
+_ = t5.update("a b")
+check(t5.update("a b") == "a b", "three-pass stability commits on third")
+
+// whitespace/newlines collapse to single-space joins
+var t6 = StablePrefixTracker(stabilityPasses: 2)
+_ = t6.update("  spaced   out \n text ")
+check(t6.update("  spaced   out \n text ") == "spaced out text", "whitespace normalized")
+
+// --- streaming settings ---
+let ssuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
+let st = Settings(defaults: ssuite)
+check(st.maxStreamingSeconds == 30, "default maxStreamingSeconds")
+check(st.streamingIntervalMs == 500, "default streamingIntervalMs")
+st.maxStreamingSeconds = 45
+st.streamingIntervalMs = 700
+let st2 = Settings(defaults: ssuite)
+check(st2.maxStreamingSeconds == 45, "maxStreamingSeconds persists")
+check(st2.streamingIntervalMs == 700, "streamingIntervalMs persists")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

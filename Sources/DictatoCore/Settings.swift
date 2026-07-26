@@ -3,8 +3,6 @@ import Foundation
 public enum InsertionMode: String, Codable, CaseIterable {
     case batch, overlayLive, inAppLive
 
-    public var isImplemented: Bool { self == .batch }   // 2a: only batch
-
     public var displayName: String {
         switch self {
         case .batch: return "Batch (record, then paste)"

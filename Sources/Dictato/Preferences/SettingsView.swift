@@ -85,7 +85,6 @@ private struct GeneralSection: View {
     @State private var showOverlay = Settings().showOverlay
     @State private var playSounds = Settings().playSounds
     @State private var copyOnly = Settings().copyOnly
-    @State private var mode = Settings().insertionMode
     @State private var excludeHistory = Settings().excludeFromClipboardHistory
 
     var body: some View {
@@ -103,15 +102,6 @@ private struct GeneralSection: View {
                     .onChange(of: playSounds) { settings.playSounds = $0 }
             }
             Section {
-                Picker("Insertion mode", selection: $mode) {
-                    ForEach(InsertionMode.allCases, id: \.self) { m in
-                        Text(m.isImplemented ? m.displayName : "\(m.displayName) — coming soon").tag(m)
-                    }
-                }
-                .onChange(of: mode) { newValue in
-                    settings.insertionMode = newValue.isImplemented ? newValue : .batch
-                    if !newValue.isImplemented { mode = settings.insertionMode }
-                }
                 LaunchAtLoginToggle()
             }
         }
@@ -150,6 +140,8 @@ private struct SpeechSection: View {
     private var settings = Settings()
     @State private var cacheCap = Settings().recognizerCacheCapacity
     @State private var idleMinutes = Settings().idleUnloadSeconds / 60
+    @State private var streamingInterval = Settings().streamingIntervalMs
+    @State private var maxStreaming = Settings().maxStreamingSeconds
     var body: some View {
         Form {
             Section {
@@ -169,6 +161,17 @@ private struct SpeechSection: View {
                     .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
             } footer: {
                 Text("Frees ~1.6 GB when unused; the model reloads (~1 s) on your next dictation.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Stepper("Live update interval: \(streamingInterval) ms",
+                        value: $streamingInterval, in: 200...2000, step: 100)
+                    .onChange(of: streamingInterval) { settings.streamingIntervalMs = $0 }
+                Stepper("Freeze live preview after \(maxStreaming) s",
+                        value: $maxStreaming, in: 10...120, step: 5)
+                    .onChange(of: maxStreaming) { settings.maxStreamingSeconds = $0 }
+            } footer: {
+                Text("Live modes re-transcribe the whole recording each interval. Past the freeze point the preview stops updating, but the final text still covers everything you said.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

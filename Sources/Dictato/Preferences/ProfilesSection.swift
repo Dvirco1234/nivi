@@ -109,9 +109,7 @@ private struct ProfileCard: View {
             isPrimary ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isPrimary ? 1.5 : 1))
     }
 
-    private var modeLabel: String {
-        profile.mode.isImplemented ? "Batch" : profile.mode.displayName
-    }
+    private var modeLabel: String { profile.mode.displayName }
 }
 
 private struct ProfileEditSheet: View {
@@ -134,10 +132,9 @@ private struct ProfileEditSheet: View {
             }
             Picker("Insertion mode", selection: $draft.mode) {
                 ForEach(InsertionMode.allCases, id: \.self) { m in
-                    Text(m.isImplemented ? m.displayName : "\(m.displayName) — coming soon").tag(m)
+                    Text(m.displayName).tag(m)
                 }
             }
-            .onChange(of: draft.mode) { if !$0.isImplemented { draft.mode = .batch } }
             HotkeyRecorderView(title: "Hotkey", binding: draft.hotkey) { draft.hotkey = $0 }
             if hotkeyConflict {
                 Label("This hotkey is already used by another profile or Cancel.", systemImage: "exclamationmark.triangle")

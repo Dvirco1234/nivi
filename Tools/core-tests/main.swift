@@ -20,7 +20,6 @@ let suite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 suite.removePersistentDomain(forName: "com.dvir.dictato.coretest")
 var s = Settings(defaults: suite)
 check(s.insertionMode == .batch, "default insertion mode batch")
-check(InsertionMode.overlayLive.isImplemented == false, "overlayLive not impl in 2a")
 check(s.dictateBinding == .defaultDictate, "default dictate binding")
 s.insertionMode = .overlayLive
 s.dictateBinding = .modifierTap(.leftCommand, count: 2)

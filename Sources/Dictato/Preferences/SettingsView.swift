@@ -30,10 +30,10 @@ struct SettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider()
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 760, height: 520)
+        .frame(minWidth: 820, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
+        .ignoresSafeArea(.all)   // draw under the transparent titlebar so the sidebar hosts the traffic lights
     }
 
     private var sidebar: some View {
@@ -45,21 +45,25 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
         }
-        .frame(width: 210)
-        .background(.black.opacity(0.15))
+        .frame(width: 220)
+        .frame(maxHeight: .infinity)
+        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.07), lineWidth: 1))
+        .padding(10)
     }
 
     private var brandHeader: some View {
         HStack(spacing: 8) {
             if let img = LanguageGlyph.image(named: "DictatoLogo") {
-                Image(nsImage: img).resizable().frame(width: 26, height: 26)
+                Image(nsImage: img).resizable().frame(width: 24, height: 24)
             }
             Text("Dictato").font(.title3.weight(.semibold))
         }
         .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 40)     // clear the traffic-light buttons + breathing room above the brand
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

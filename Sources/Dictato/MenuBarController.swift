@@ -101,7 +101,7 @@ final class MenuBarController: NSObject {
             return
         }
         let aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
-        let h: CGFloat = 15
+        let h: CGFloat = 16
         img.size = NSSize(width: h * aspect, height: h)
         img.isTemplate = true   // monochrome; macOS tints for light/dark menu bar
         statusItem.button?.image = img

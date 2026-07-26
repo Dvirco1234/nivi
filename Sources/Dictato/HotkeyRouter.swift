@@ -96,6 +96,12 @@ final class HotkeyRouter {
     }
 
     private func handleKeyDown(_ event: NSEvent) {
+        // Esc arrives here from a global monitor, which macOS gates behind Input Monitoring.
+        // Logging it is the fastest way to tell "permission missing" from "wiring broken",
+        // but it fires on every Esc system-wide, so keep it behind verbose logging.
+        if event.keyCode == 53, Settings().verboseLogging {
+            Log.info("Esc keyDown observed (cancelEnabled=\(cancelEnabled))")
+        }
         if cancelEnabled, case .keyCombo(let kc, _) = cancelBinding, event.keyCode == kc {
             onCancel?()
             return

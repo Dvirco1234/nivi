@@ -47,11 +47,17 @@ final class DictationController {
             Task { @MainActor in self?.cancelRecording() }
         }
 
+        Log.info("Permissions — Accessibility: \(PermissionManager.accessibilityGranted), InputMonitoring: \(PermissionManager.inputMonitoringGranted)")
         if !PermissionManager.accessibilityGranted {
             PermissionManager.promptForAccessibility()
         }
         if !PermissionManager.inputMonitoringGranted {
-            PermissionManager.requestInputMonitoring()   // needed for Esc-to-cancel
+            // Esc-to-cancel relies on a global keyDown monitor, which macOS gates behind
+            // Input Monitoring (separate from Accessibility). Prompt AND open the pane so
+            // the toggle is one click away — the IOHID prompt alone is easy to miss.
+            PermissionManager.requestInputMonitoring()
+            PermissionManager.openInputMonitoringSettings()
+            Log.info("Input Monitoring not granted — opened settings pane for Esc-to-cancel")
         }
         NotificationCenter.default.addObserver(forName: .dictatoProfilesChanged, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in

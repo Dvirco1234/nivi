@@ -219,7 +219,9 @@ final class DictationController {
                   let recognizer = try? await self.recognizerCache.recognizer(
                       id: model.id, modelPath: self.modelStore.installedURL(for: model))
             else {
-                Log.error("Streaming unavailable — falling back to batch for this recording")
+                // The mode is unchanged, so the final pass still inserts per the profile's
+                // mode — only the live preview is missing for this recording.
+                Log.error("Streaming preview unavailable; will insert the full text at stop")
                 return
             }
             guard case .recording = self.machine.state else { return }
@@ -368,9 +370,13 @@ final class DictationController {
             }
             overlayPanel.show()
         case .transcribing, .inserting:
+            // Clear the preview as soon as recording ends: the card sizes itself from
+            // liveText, so leaving it set keeps the processing card oversized.
+            overlayModel.liveText = ""
             overlayModel.phase = .processing
             overlayPanel.show()
         case .error(let message):
+            overlayModel.liveText = ""
             overlayModel.phase = .error(message)
             overlayPanel.show()
         case .idle, .loadingModel:

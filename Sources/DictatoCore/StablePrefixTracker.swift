@@ -6,8 +6,9 @@ import Foundation
 /// Each streaming pass re-transcribes the whole recording, so earlier words can
 /// change as later context arrives. A word is only safe to show as final once it
 /// has survived several consecutive passes unchanged. The committed prefix never
-/// shrinks: In-app-live has already typed those words into the user's document
-/// and there is no reliable way to take them back, so retracting would be a lie.
+/// shrinks, and already-committed words are never rewritten: In-app-live has
+/// already typed those words into the user's document and there is no reliable
+/// way to take them back, so retracting or revising would be a lie.
 public struct StablePrefixTracker {
     private let stabilityPasses: Int
     private var history: [[String]] = []
@@ -31,7 +32,11 @@ public struct StablePrefixTracker {
                 stable += 1
             }
             if stable > committed.count {
-                committed = Array(words.prefix(stable))
+                // Append only the positions past what is already committed. Never
+                // rewrite an existing entry: those words have already been typed into
+                // the user's document, and the sliding history window means a later
+                // contradicting-then-agreeing pair could otherwise revise them.
+                committed += Array(words.prefix(stable)).dropFirst(committed.count)
             }
         }
         return committed.joined(separator: " ")

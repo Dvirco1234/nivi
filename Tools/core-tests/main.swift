@@ -173,6 +173,16 @@ var t6 = StablePrefixTracker(stabilityPasses: 2)
 _ = t6.update("  spaced   out \n text ")
 check(t6.update("  spaced   out \n text ") == "spaced out text", "whitespace normalized")
 
+// committed CONTENT is permanent, not just its length: once the passes that
+// justified an early word evict from the history window, a contradicting-then-
+// agreeing pair must not rewrite it (those words are already in the document).
+var t7 = StablePrefixTracker(stabilityPasses: 2)
+_ = t7.update("a b c")
+_ = t7.update("a b c")           // commits "a b c"
+_ = t7.update("x b c d")         // disagrees at position 0
+let rewritten = t7.update("x b c d")   // history now agrees, but "a" is already committed
+check(rewritten.hasPrefix("a b c"), "already-committed words are never rewritten")
+
 // --- streaming settings ---
 let ssuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 let st = Settings(defaults: ssuite)

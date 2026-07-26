@@ -5,7 +5,11 @@
 set -euo pipefail
 
 NAME="Dictato Self-Signed"
-if security find-identity -v -p codesigning | grep -q "$NAME"; then
+# Capture first, then match. Piping into `grep -q` exits on first match, sending
+# SIGPIPE to `security`, which trips `set -o pipefail` and makes this idempotency
+# check fail with 141 instead of returning cleanly.
+EXISTING=$(security find-identity -v -p codesigning 2>/dev/null || true)
+if printf '%s' "$EXISTING" | grep -F "$NAME" >/dev/null 2>&1; then
     echo "Identity '$NAME' already exists."
     exit 0
 fi

@@ -42,4 +42,32 @@ final class TextInserter {
         keyVDown?.post(tap: .cghidEventTap)
         keyVUp?.post(tap: .cghidEventTap)
     }
+
+    /// Types text into the frontmost app as Unicode key events.
+    ///
+    /// Used by In-app-live, where the clipboard path is wrong: it would clobber the
+    /// user's clipboard on every stabilized word. Unicode events are also layout
+    /// independent, so Hebrew arrives correctly regardless of the active keyboard
+    /// layout. Requires Accessibility, which the app already needs for auto-paste.
+    func typeUnicode(_ string: String) {
+        guard !string.isEmpty, PermissionManager.accessibilityGranted else { return }
+        let source = CGEventSource(stateID: .combinedSessionState)
+        // CGEventKeyboardSetUnicodeString takes UTF-16; chunk it so long strings
+        // don't exceed what a single event will carry.
+        for chunk in Array(string.utf16).chunked(into: 16) {
+            guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else { continue }
+            var buffer = chunk
+            down.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: &buffer)
+            up.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: &buffer)
+            down.post(tap: .cghidEventTap)
+            up.post(tap: .cghidEventTap)
+        }
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
+    }
 }

@@ -48,6 +48,13 @@ final class AudioRecorder {
         return samplesQueue.sync { samples }
     }
 
+    /// A snapshot of everything recorded so far. Recording continues; the streaming
+    /// loop re-transcribes this growing buffer. Taken under `samplesQueue` because
+    /// the audio tap appends to `samples` from a real-time thread.
+    func currentSamples() -> [Float] {
+        samplesQueue.sync { samples }
+    }
+
     func cancel() {
         tearDown()
         samplesQueue.sync { samples.removeAll() }

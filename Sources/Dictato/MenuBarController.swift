@@ -2,7 +2,9 @@ import AppKit
 import DictatoCore
 
 final class MenuBarController: NSObject {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    // The language glyphs are wider than tall (~1.8:1), so a square slot would clip
+    // their sides. Variable length lets the item size itself to the image.
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let statusMenuItem = NSMenuItem(title: "Loading…", action: nil, keyEquivalent: "")
     private let startStopItem = NSMenuItem(title: "Start Recording", action: #selector(startStopClicked), keyEquivalent: "")
     private let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(launchAtLoginClicked), keyEquivalent: "")
@@ -101,7 +103,10 @@ final class MenuBarController: NSObject {
             return
         }
         let aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
-        let h: CGFloat = 16
+        // The menu bar is ~22pt tall; 14 leaves the vertical breathing room the
+        // system icons have, so the glyph reads as part of the bar rather than
+        // filling it edge to edge.
+        let h: CGFloat = 14
         img.size = NSSize(width: h * aspect, height: h)
         img.isTemplate = true   // monochrome; macOS tints for light/dark menu bar
         statusItem.button?.image = img

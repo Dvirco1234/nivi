@@ -5,8 +5,18 @@ struct OverlayView: View {
     @ObservedObject var model: OverlayModel
     @State private var hovering = false
 
-    private let cardWidth: CGFloat = 360
-    private var cardHeight: CGFloat { model.liveText.isEmpty ? 78 : 104 }
+    /// Shared with OverlayPanel, which must resize its content rect to match — a card
+    /// taller than the panel is simply clipped.
+    static let cardWidth: CGFloat = 360
+    static let collapsedHeight: CGFloat = 78
+    static let liveTextHeight: CGFloat = 104
+
+    static func cardHeight(liveText: String) -> CGFloat {
+        liveText.isEmpty ? collapsedHeight : liveTextHeight
+    }
+
+    private var cardWidth: CGFloat { Self.cardWidth }
+    private var cardHeight: CGFloat { Self.cardHeight(liveText: model.liveText) }
 
     var body: some View {
         content

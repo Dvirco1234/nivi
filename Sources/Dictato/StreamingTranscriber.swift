@@ -13,13 +13,14 @@ struct StreamingUpdate {
 /// context correct earlier words — the same reason the final pass exists. Passes never
 /// overlap: the next one is scheduled `intervalMs` after the previous *finishes*,
 /// because the recognizer serializes internally and a backlog would only grow.
+@MainActor
 final class StreamingTranscriber {
     private let recognizer: SpeechRecognizer
     private let language: String
     private let sampleProvider: () -> [Float]
     private let intervalMs: Int
     private let maxSeconds: Int
-    private let onUpdate: (StreamingUpdate) -> Void
+    private let onUpdate: @MainActor (StreamingUpdate) -> Void
 
     private var task: Task<Void, Never>?
     private var tracker = StablePrefixTracker()
@@ -31,12 +32,14 @@ final class StreamingTranscriber {
          sampleProvider: @escaping () -> [Float],
          intervalMs: Int,
          maxSeconds: Int,
-         onUpdate: @escaping (StreamingUpdate) -> Void) {
+         onUpdate: @escaping @MainActor (StreamingUpdate) -> Void) {
         self.recognizer = recognizer
         self.language = language
         self.sampleProvider = sampleProvider
         self.intervalMs = intervalMs
-        self.maxSeconds = maxSeconds
+        // A non-positive cap would freeze the preview before the first pass; `defaults
+        // write maxStreamingSeconds` is a supported config path, so clamp it here.
+        self.maxSeconds = max(1, maxSeconds)
         self.onUpdate = onUpdate
     }
 
@@ -82,13 +85,11 @@ final class StreamingTranscriber {
             guard !Task.isCancelled else { return }
             let stable = tracker.update(text)
             let update = StreamingUpdate(fullText: text, stableText: stable)
-            // Re-check inside the hop, not just before it: `stop()` can land while this
-            // block waits for a busy main actor, and delivering an update after stop
-            // would type stale text the append-only insertion can never retract.
-            await MainActor.run {
-                guard !Task.isCancelled else { return }
-                self.onUpdate(update)
-            }
+            // Re-check after the await, not just before it: `stop()` can land while the
+            // transcribe is in flight, and delivering an update after stop would type
+            // stale text the append-only insertion can never retract.
+            guard !Task.isCancelled else { return }
+            onUpdate(update)
         } catch {
             // A dropped pass is not worth surfacing — the next one usually succeeds and
             // the final pass is authoritative. Log once so a systematic failure is still

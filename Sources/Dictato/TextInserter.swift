@@ -65,6 +65,11 @@ final class TextInserter {
             up.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: &buffer)
             down.post(tap: .cghidEventTap)
             up.post(tap: .cghidEventTap)
+            // Pace the stream. The final pass of a long dictation can emit thousands of
+            // synthetic events at once, and Electron apps (Slack) drop or reorder a burst
+            // that arrives faster than they drain it. Insertion is append-only, so a
+            // dropped chunk can never be repaired.
+            usleep(1000)
         }
     }
 }

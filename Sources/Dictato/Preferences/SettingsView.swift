@@ -164,8 +164,8 @@ private struct SpeechSection: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
-                Stepper("Live update interval: \(streamingInterval) ms",
-                        value: $streamingInterval, in: 200...2000, step: 100)
+                Stepper("Minimum gap between live updates: \(streamingInterval) ms",
+                        value: $streamingInterval, in: 500...2000, step: 100)
                     .onChange(of: streamingInterval) { settings.streamingIntervalMs = $0 }
                 Stepper("Freeze live preview after \(maxStreaming) s",
                         value: $maxStreaming, in: 10...120, step: 5)

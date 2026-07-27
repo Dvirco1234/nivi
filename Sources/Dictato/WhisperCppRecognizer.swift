@@ -33,7 +33,6 @@ final class WhisperCppRecognizer: SpeechRecognizer {
     }
 
     func transcribe(samples: [Float], language: String) async throws -> String {
-        guard let context else { throw SpeechRecognizerError.notLoaded }
         // whisper_full requires at least ~1s of audio; pad short clips with silence.
         var audio = samples
         let minSamples = Int(AudioRecorder.sampleRate * 1.2)
@@ -42,6 +41,14 @@ final class WhisperCppRecognizer: SpeechRecognizer {
         }
         return try await withCheckedThrowingContinuation { continuation in
             queue.async {
+                // Read the pointer on the serial queue, not before enqueuing: padding a
+                // long buffer takes long enough that an unload could otherwise slip in
+                // between the read and this block, ordering the free ahead of the
+                // inference and running whisper_full on freed memory.
+                guard let context = self.context else {
+                    continuation.resume(throwing: SpeechRecognizerError.notLoaded)
+                    return
+                }
                 var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
                 let lang = language == "auto" ? nil : strdup(language)
                 defer { if let lang { free(lang) } }
@@ -79,11 +86,14 @@ final class WhisperCppRecognizer: SpeechRecognizer {
     /// further `transcribe` fail fast; routing the free through the serial queue makes
     /// it land after whatever pass is already running.
     func unload() async {
-        guard let context else { return }
-        self.context = nil
         await withCheckedContinuation { continuation in
             queue.async {
-                whisper_free(context)
+                // Read and clear on the same serial queue that runs inference, so the
+                // pointer is only ever touched from one thread.
+                if let context = self.context {
+                    self.context = nil
+                    whisper_free(context)
+                }
                 continuation.resume()
             }
         }

@@ -407,6 +407,13 @@ final class DictationController {
     }
 
     private func showTransientError(_ message: String) {
+        // This resets the state machine out of .recording without going through
+        // stopAndTranscribe/cancelRecording, so tear the streamer down here too —
+        // otherwise it is orphaned and `streamer == nil` wedges live preview off for
+        // the rest of the process.
+        streamer?.stop()
+        streamer = nil
+        typedText = ""
         machine = DictationStateMachine()
         machine.handle(.modelFailed(message))  // reuse error state
         menuBar.update(state: machine.state)

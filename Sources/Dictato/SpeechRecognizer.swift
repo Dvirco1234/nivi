@@ -6,7 +6,9 @@ protocol SpeechRecognizer: AnyObject {
     var isLoaded: Bool { get }
     func load() async throws
     func transcribe(samples: [Float], language: String) async throws -> String
-    func unload()
+    /// Releases the model. Async because freeing must be serialized against any
+    /// in-flight inference — a free that overlaps one is a use-after-free.
+    func unload() async
 }
 
 enum SpeechRecognizerError: LocalizedError {

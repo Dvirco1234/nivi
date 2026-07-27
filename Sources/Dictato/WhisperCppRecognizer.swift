@@ -12,7 +12,11 @@ final class WhisperCppRecognizer: SpeechRecognizer {
         self.modelPath = modelPath
     }
 
-    deinit { unload() }
+    deinit {
+        // Free on the inference queue so a still-running whisper_full can never see a
+        // freed context. Deliberately captures only the pointer, never self.
+        if let context { queue.async { whisper_free(context) } }
+    }
 
     func load() async throws {
         let path = modelPath.path
@@ -68,10 +72,20 @@ final class WhisperCppRecognizer: SpeechRecognizer {
         }
     }
 
-    func unload() {
-        if let context {
-            whisper_free(context)
-            self.context = nil
+    /// Frees the whisper context on the inference queue. `whisper_free` while
+    /// `whisper_full` is running is a use-after-free, and with live streaming an
+    /// in-flight transcribe is the normal state — "Reload model" and the idle-unload
+    /// timer are both reachable mid-recording. Clearing `context` first makes any
+    /// further `transcribe` fail fast; routing the free through the serial queue makes
+    /// it land after whatever pass is already running.
+    func unload() async {
+        guard let context else { return }
+        self.context = nil
+        await withCheckedContinuation { continuation in
+            queue.async {
+                whisper_free(context)
+                continuation.resume()
+            }
         }
     }
 }

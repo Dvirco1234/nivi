@@ -11,9 +11,9 @@ actor RecognizerCache {
         self.capacity = max(1, capacity)
     }
 
-    func setCapacity(_ n: Int) {
+    func setCapacity(_ n: Int) async {
         capacity = max(1, n)
-        evictIfNeeded()
+        await evictIfNeeded()
     }
 
     func recognizer(id: String, modelPath: URL) async throws -> SpeechRecognizer {
@@ -26,14 +26,17 @@ actor RecognizerCache {
         loaded[id] = recognizer
         order.append(id)
         Log.info("Recognizer loaded into cache: \(id)")
-        evictIfNeeded()
+        await evictIfNeeded()
         return recognizer
     }
 
-    func evictAll() {
-        for (_, r) in loaded { r.unload() }
+    func evictAll() async {
+        // Drop them from the cache before awaiting the frees, so a concurrent
+        // `recognizer(id:)` loads a fresh one instead of handing out a dying context.
+        let victims = Array(loaded.values)
         loaded.removeAll()
         order.removeAll()
+        for recognizer in victims { await recognizer.unload() }
     }
 
     private func touch(_ id: String) {
@@ -41,11 +44,11 @@ actor RecognizerCache {
         order.append(id)
     }
 
-    private func evictIfNeeded() {
+    private func evictIfNeeded() async {
         while order.count > capacity {
             let victim = order.removeFirst()
-            loaded[victim]?.unload()
-            loaded[victim] = nil
+            let recognizer = loaded.removeValue(forKey: victim)
+            await recognizer?.unload()
             Log.info("Recognizer evicted from cache: \(victim)")
         }
     }

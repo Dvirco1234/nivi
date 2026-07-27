@@ -22,7 +22,13 @@ final class DictationController {
     private var recordingTimer: Timer?
     private var idleUnloadTimer: Timer?
     private var streamer: StreamingTranscriber?
-    private var typedLength = 0
+    /// Exactly what in-app-live has already typed into the user's document. The
+    /// append-only invariant is enforced against this text, so it must be reset for
+    /// every recording rather than left to a later path to clear.
+    private var typedText = ""
+    /// Identifies the current recording. Async work started for one recording must not
+    /// act on a later one: `state == .recording` cannot tell two recordings apart.
+    private var recordingGeneration = 0
 
     init() {
         let store = ModelStore()
@@ -164,6 +170,12 @@ final class DictationController {
 
     private func startRecording() {
         cancelIdleUnload()
+        // Invalidate any async work still in flight for a previous recording, and clear
+        // the append-only bookkeeping unconditionally: it must never carry over from a
+        // recording whose final pass failed or was abandoned.
+        recordingGeneration &+= 1
+        let generation = recordingGeneration
+        typedText = ""
         Task {
             guard await PermissionManager.microphoneGranted() else {
                 Log.error("Microphone permission denied")
@@ -188,7 +200,7 @@ final class DictationController {
             transition(.startRequested)
             if settings.playSounds { SoundPlayer.playStart() }
             if profile?.mode != .batch, let profile {
-                startStreaming(for: profile)
+                startStreaming(for: profile, generation: generation)
             }
             Log.info("Recording started")
             recordingStarted = Date()
@@ -210,8 +222,7 @@ final class DictationController {
         }
     }
 
-    private func startStreaming(for profile: DictationProfile) {
-        typedLength = 0
+    private func startStreaming(for profile: DictationProfile, generation: Int) {
         overlayModel.liveText = ""
         Task { [weak self] in
             guard let self,
@@ -224,7 +235,17 @@ final class DictationController {
                 Log.error("Streaming preview unavailable; will insert the full text at stop")
                 return
             }
-            guard case .recording = self.machine.state else { return }
+            // Loading a cold model takes ~1s, in which the user can stop this recording and
+            // start another. `state == .recording` cannot tell the two apart, so without the
+            // generation check this streamer would attach to the *new* recording — typing
+            // the old profile's transcript into the document during what may even be a batch
+            // recording, and orphaning a streamer that stop() can no longer reach.
+            guard generation == self.recordingGeneration,
+                  case .recording = self.machine.state,
+                  self.streamer == nil else {
+                Log.info("Discarding streaming setup for a superseded recording")
+                return
+            }
             let streamer = StreamingTranscriber(
                 recognizer: recognizer,
                 language: profile.language,
@@ -232,36 +253,34 @@ final class DictationController {
                 intervalMs: self.settings.streamingIntervalMs,
                 maxSeconds: self.settings.maxStreamingSeconds,
                 onUpdate: { [weak self] update in
-                    Task { @MainActor in self?.handleStreamingUpdate(update, mode: profile.mode) }
+                    self?.handleStreamingUpdate(update, mode: profile.mode, generation: generation)
                 })
             self.streamer = streamer
             streamer.start()
         }
     }
 
-    private func handleStreamingUpdate(_ update: StreamingUpdate, mode: InsertionMode) {
-        guard case .recording = machine.state else { return }
+    private func handleStreamingUpdate(_ update: StreamingUpdate, mode: InsertionMode, generation: Int) {
+        guard generation == recordingGeneration, case .recording = machine.state else { return }
         switch mode {
         case .overlayLive:
             overlayModel.liveText = update.fullText
         case .inAppLive:
             overlayModel.liveText = update.fullText
-            typeStabilized(update.stableText)
+            typeAppendOnly(update.stableText)
         case .batch:
             break
         }
     }
 
-    /// Types only the part of the stabilized text we haven't typed yet. Append-only:
-    /// if the tracker's committed prefix somehow disagrees with what we typed, we
-    /// still only ever add. Rewriting the user's document would be worse than an
-    /// imperfect tail.
-    private func typeStabilized(_ stableText: String) {
-        guard stableText.count > typedLength else { return }
-        let tail = String(stableText.dropFirst(typedLength))
-        let toType = typedLength == 0 ? tail : " " + tail.trimmingCharacters(in: .whitespaces)
-        inserter.typeUnicode(toType)
-        typedLength = stableText.count
+    /// Types only the part of `text` that isn't in the document yet. Append-only: if the
+    /// new text disagrees with what we typed, we still only ever add. Rewriting the
+    /// user's document would be worse than an imperfect seam.
+    private func typeAppendOnly(_ text: String) {
+        let tail = appendOnlyTail(alreadyTyped: typedText, fullText: text)
+        guard !tail.isEmpty else { return }
+        inserter.typeUnicode(tail)
+        typedText += tail
     }
 
     private func stopAndTranscribe() {
@@ -295,17 +314,11 @@ final class DictationController {
                                     autoPaste: settings.autoPaste,
                                     excludeFromHistory: settings.excludeFromClipboardHistory)
                 case .inAppLive:
-                    // Type only what streaming hasn't already typed. If the final text
-                    // diverges from what was typed, we accept the seam rather than
-                    // rewriting the user's document.
-                    if text.count > typedLength {
-                        let tail = String(text.dropFirst(typedLength))
-                        inserter.typeUnicode(typedLength == 0 ? tail : " " + tail.trimmingCharacters(in: .whitespaces))
-                    } else {
-                        Log.info("Final text shorter than typed text; leaving document as-is")
-                    }
+                    // Type only what streaming hasn't already typed. The final pass
+                    // re-punctuates and re-capitalizes words already in the document, so
+                    // the seam is found by word, not by character offset.
+                    typeAppendOnly(text)
                 }
-                typedLength = 0
                 transition(.insertionCompleted)
             } catch {
                 Log.error("Inference failed: \(error.localizedDescription)")
@@ -319,7 +332,7 @@ final class DictationController {
         stopTimer()
         streamer?.stop()
         streamer = nil
-        typedLength = 0
+        typedText = ""
         overlayModel.liveText = ""
         recorder.cancel()
         transition(.cancelRequested)
@@ -387,6 +400,8 @@ final class DictationController {
     }
 
     private func finishWithError(_ message: String) {
+        // The recording is over; nothing more will be appended for it.
+        typedText = ""
         transition(.transcriptionFailed(message))
         scheduleErrorDismiss(after: 1.5)
     }

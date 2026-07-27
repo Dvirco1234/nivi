@@ -193,4 +193,42 @@ let st2 = Settings(defaults: ssuite)
 check(st2.maxStreamingSeconds == 45, "maxStreamingSeconds persists")
 check(st2.streamingIntervalMs == 700, "streamingIntervalMs persists")
 
+// --- appendOnlyTail: the seam between streamed typing and the final pass ---
+// Insertion is append-only, so the tail must never contain text that is already in
+// the document, and must never require deleting anything to be correct.
+
+check(appendOnlyTail(alreadyTyped: "", fullText: "Hello world") == "Hello world",
+      "nothing typed yet: emit the whole text, no leading space")
+
+check(appendOnlyTail(alreadyTyped: "Hello world", fullText: "Hello world this is a test")
+        == " this is a test",
+      "exact prefix continuation appends only the new words")
+
+// The headline case: the final pass re-punctuates and re-capitalizes what was
+// already typed, so a character-offset seam would re-emit part of a typed word.
+check(appendOnlyTail(alreadyTyped: "Hello world this is",
+                     fullText: "Hello, world. This is a test.") == " a test.",
+      "re-punctuated prefix does not duplicate words")
+
+check(appendOnlyTail(alreadyTyped: "Hello world this is a test",
+                     fullText: "Hello world this is") == "",
+      "final text shorter than typed adds nothing")
+
+check(appendOnlyTail(alreadyTyped: "Hello world", fullText: "") == "",
+      "empty final text adds nothing")
+
+check(appendOnlyTail(alreadyTyped: "", fullText: "") == "",
+      "nothing typed and nothing final adds nothing")
+
+// No common prefix at all: none of the final text is in the document, so appending
+// all of it is the append-only choice. Dropping it would silently lose speech.
+check(appendOnlyTail(alreadyTyped: "alpha beta", fullText: "gamma delta") == " gamma delta",
+      "fully divergent final text is appended whole")
+
+check(appendOnlyTail(alreadyTyped: "Hello world ", fullText: "Hello world again") == "again",
+      "typed text already ending in a space is not double-spaced")
+
+check(appendOnlyTail(alreadyTyped: "שלום עולם", fullText: "שלום עולם, מה נשמע") == " מה נשמע",
+      "non-latin script matches on word boundaries too")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

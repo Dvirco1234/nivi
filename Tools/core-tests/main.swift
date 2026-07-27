@@ -18,13 +18,10 @@ check(HotkeyBinding.from(json: bnd.encodedJSON()) == bnd, "binding json round-tr
 // --- Settings new keys ---
 let suite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 suite.removePersistentDomain(forName: "com.dvir.dictato.coretest")
-var s = Settings(defaults: suite)
-check(s.insertionMode == .batch, "default insertion mode batch")
+let s = Settings(defaults: suite)
 check(s.dictateBinding == .defaultDictate, "default dictate binding")
-s.insertionMode = .overlayLive
 s.dictateBinding = .modifierTap(.leftCommand, count: 2)
 let s2 = Settings(defaults: suite)
-check(s2.insertionMode == .overlayLive, "insertion mode persists")
 check(s2.dictateBinding == .modifierTap(.leftCommand, count: 2), "dictate binding persists")
 
 // --- ModifierTapDetector ---

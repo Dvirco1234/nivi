@@ -40,7 +40,6 @@ public struct Settings {
         static let maxRecordingSeconds = "maxRecordingSeconds"
         static let verboseLogging = "verboseLogging"
         static let modelPathOverride = "modelPathOverride"
-        static let insertionMode = "insertionMode"
         static let playSounds = "playSounds"
         static let copyOnly = "copyOnly"
         static let showInferenceTime = "showInferenceTime"
@@ -83,11 +82,6 @@ public struct Settings {
     public var modelPathOverride: String? {
         get { defaults.string(forKey: Key.modelPathOverride) }
         nonmutating set { defaults.set(newValue, forKey: Key.modelPathOverride) }
-    }
-
-    public var insertionMode: InsertionMode {
-        get { InsertionMode(rawValue: defaults.string(forKey: Key.insertionMode) ?? "") ?? .batch }
-        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.insertionMode) }
     }
 
     public var playSounds: Bool {

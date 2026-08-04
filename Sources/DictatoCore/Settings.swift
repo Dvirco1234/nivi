@@ -30,6 +30,7 @@ public struct Settings {
             Key.profilesJSON: "",
             Key.maxStreamingSeconds: 30,
             Key.streamingIntervalMs: 500,
+            Key.streamingWindowSeconds: 10,
         ])
     }
 
@@ -52,6 +53,7 @@ public struct Settings {
         static let profilesJSON = "profilesJSON"
         static let maxStreamingSeconds = "maxStreamingSeconds"
         static let streamingIntervalMs = "streamingIntervalMs"
+        static let streamingWindowSeconds = "streamingWindowSeconds"
     }
 
     public var autoPaste: Bool {
@@ -143,5 +145,10 @@ public struct Settings {
     public var streamingIntervalMs: Int {
         get { defaults.integer(forKey: Key.streamingIntervalMs) }
         nonmutating set { defaults.set(newValue, forKey: Key.streamingIntervalMs) }
+    }
+
+    public var streamingWindowSeconds: Int {
+        get { defaults.integer(forKey: Key.streamingWindowSeconds) }
+        nonmutating set { defaults.set(newValue, forKey: Key.streamingWindowSeconds) }
     }
 }

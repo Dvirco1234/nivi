@@ -228,4 +228,76 @@ check(appendOnlyTail(alreadyTyped: "Hello world ", fullText: "Hello world again"
 check(appendOnlyTail(alreadyTyped: "שלום עולם", fullText: "שלום עולם, מה נשמע") == " מה נשמע",
       "non-latin script matches on word boundaries too")
 
+// --- StreamWindow ---
+func seg(_ t: String, _ s: Int, _ e: Int) -> TranscriptSegment {
+    TranscriptSegment(text: t, startMs: s, endMs: e)
+}
+let rate = 16_000
+let tenSeconds = rate * 10
+
+// Under the window length: nothing freezes, live text is just the window.
+var w1 = StreamWindow()
+let live1 = w1.advance(segments: [seg("hello world", 0, 2000)],
+                       windowSampleCount: rate * 3, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(live1 == "hello world", "short window returns window text")
+check(w1.frozenText.isEmpty, "nothing frozen under the cap")
+check(w1.windowStartSample == 0, "window start unmoved under the cap")
+
+// Over the cap: leading segments freeze and the window start advances to that segment's end.
+var w2 = StreamWindow()
+let live2 = w2.advance(segments: [seg("first part", 0, 3000), seg("second part", 3000, 12000)],
+                       windowSampleCount: rate * 12, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(w2.frozenText == "first part", "leading segment frozen once past the cap")
+check(w2.windowStartSample == rate * 3, "window start advanced to the frozen segment end")
+check(live2 == "first part second part", "live text stitches frozen and window text")
+
+// Several segments can freeze in one pass.
+var w3 = StreamWindow()
+_ = w3.advance(segments: [seg("a", 0, 2000), seg("b", 2000, 4000), seg("c", 4000, 14000)],
+               windowSampleCount: rate * 14, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(w3.frozenText == "a b", "multiple segments freeze in one pass")
+check(w3.windowStartSample == rate * 4, "window start advanced past the last frozen segment")
+
+// The final segment never freezes, even if it alone exceeds the window: it is still
+// being spoken and its text will keep changing.
+var w4 = StreamWindow()
+_ = w4.advance(segments: [seg("one long unbroken stretch", 0, 20000)],
+               windowSampleCount: rate * 20, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(w4.frozenText.isEmpty, "sole segment never freezes")
+check(w4.windowStartSample == 0, "window start unmoved when only one segment exists")
+
+// A failed/empty pass must not freeze or move the window.
+var w5 = StreamWindow()
+_ = w5.advance(segments: [seg("kept", 0, 3000), seg("tail", 3000, 12000)],
+               windowSampleCount: rate * 12, maxWindowSamples: tenSeconds, sampleRate: rate)
+let frozenBefore = w5.frozenText
+let startBefore = w5.windowStartSample
+let live5 = w5.advance(segments: [], windowSampleCount: rate * 13,
+                       maxWindowSamples: tenSeconds, sampleRate: rate)
+check(w5.frozenText == frozenBefore, "empty pass does not change frozen text")
+check(w5.windowStartSample == startBefore, "empty pass does not move the window")
+check(live5 == frozenBefore, "empty pass returns the frozen text alone")
+
+// Window start advances monotonically across passes.
+var w6 = StreamWindow()
+_ = w6.advance(segments: [seg("x", 0, 2000), seg("y", 2000, 12000)],
+               windowSampleCount: rate * 12, maxWindowSamples: tenSeconds, sampleRate: rate)
+let afterFirst = w6.windowStartSample
+_ = w6.advance(segments: [seg("y", 0, 1000), seg("z", 1000, 11000)],
+               windowSampleCount: rate * 11, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(w6.windowStartSample >= afterFirst, "window start never goes backwards")
+
+// Stitching produces single spaces, no doubling, and trims segment whitespace.
+var w7 = StreamWindow()
+let live7 = w7.advance(segments: [seg("  padded  ", 0, 3000), seg("  text  ", 3000, 12000)],
+                       windowSampleCount: rate * 12, maxWindowSamples: tenSeconds, sampleRate: rate)
+check(live7 == "padded text", "segment whitespace trimmed and joined with single spaces")
+
+// --- settings ---
+let wsuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
+let wset = Settings(defaults: wsuite)
+check(wset.streamingWindowSeconds == 10, "default streamingWindowSeconds")
+wset.streamingWindowSeconds = 15
+check(Settings(defaults: wsuite).streamingWindowSeconds == 15, "streamingWindowSeconds persists")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

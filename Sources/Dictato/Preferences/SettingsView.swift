@@ -141,7 +141,7 @@ private struct SpeechSection: View {
     @State private var cacheCap = Settings().recognizerCacheCapacity
     @State private var idleMinutes = Settings().idleUnloadSeconds / 60
     @State private var streamingInterval = Settings().streamingIntervalMs
-    @State private var maxStreaming = Settings().maxStreamingSeconds
+    @State private var windowSeconds = Settings().streamingWindowSeconds
     var body: some View {
         Form {
             Section {
@@ -167,11 +167,11 @@ private struct SpeechSection: View {
                 Stepper("Minimum gap between live updates: \(streamingInterval) ms",
                         value: $streamingInterval, in: 500...2000, step: 100)
                     .onChange(of: streamingInterval) { settings.streamingIntervalMs = $0 }
-                Stepper("Freeze live preview after \(maxStreaming) s",
-                        value: $maxStreaming, in: 10...120, step: 5)
-                    .onChange(of: maxStreaming) { settings.maxStreamingSeconds = $0 }
+                Stepper("Live preview window: \(windowSeconds) s",
+                        value: $windowSeconds, in: 4...30, step: 1)
+                    .onChange(of: windowSeconds) { settings.streamingWindowSeconds = $0 }
             } footer: {
-                Text("Live modes re-transcribe the whole recording each interval. Past the freeze point the preview stops updating, but the final text still covers everything you said.")
+                Text("Live modes re-transcribe only the last few seconds each pass, so the preview keeps up however long you speak. A shorter window is faster; a longer one gives whisper more context to correct itself.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

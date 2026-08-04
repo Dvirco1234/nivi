@@ -182,12 +182,9 @@ check(rewritten.hasPrefix("a b c"), "already-committed words are never rewritten
 // --- streaming settings ---
 let ssuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 let st = Settings(defaults: ssuite)
-check(st.maxStreamingSeconds == 30, "default maxStreamingSeconds")
 check(st.streamingIntervalMs == 500, "default streamingIntervalMs")
-st.maxStreamingSeconds = 45
 st.streamingIntervalMs = 700
 let st2 = Settings(defaults: ssuite)
-check(st2.maxStreamingSeconds == 45, "maxStreamingSeconds persists")
 check(st2.streamingIntervalMs == 700, "streamingIntervalMs persists")
 
 // --- appendOnlyTail: the seam between streamed typing and the final pass ---

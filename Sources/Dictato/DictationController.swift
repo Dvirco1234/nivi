@@ -251,7 +251,7 @@ final class DictationController {
                 language: profile.language,
                 sampleProvider: { [weak self] in self?.recorder.currentSamples() ?? [] },
                 intervalMs: self.settings.streamingIntervalMs,
-                maxSeconds: self.settings.maxStreamingSeconds,
+                windowSeconds: self.settings.streamingWindowSeconds,
                 onUpdate: { [weak self] update in
                     self?.handleStreamingUpdate(update, mode: profile.mode, generation: generation)
                 })
@@ -286,6 +286,10 @@ final class DictationController {
 
     private func stopAndTranscribe() {
         stopTimer()
+        // Keep what streaming already resolved: the frozen prefix needs no re-transcription,
+        // so the final pass only has to cover the tail the window never froze.
+        let streamedTailStart = streamer?.windowStartSample ?? 0
+        let streamedPrefix = overlayModel.liveText
         streamer?.stop()
         streamer = nil
         let samples = recorder.stop()
@@ -308,7 +312,18 @@ final class DictationController {
                 let recognizer = try await recognizerCache.recognizer(
                     id: model.id, modelPath: modelStore.installedURL(for: model))
                 let inferenceStart = Date()
-                let text = try await recognizer.transcribe(samples: samples, language: profile.language)
+                let text: String
+                if streamedTailStart > 0, samples.count > streamedTailStart {
+                    // Re-transcribe only the un-frozen tail, at full context for quality.
+                    // Bounding this is what keeps stopping fast after a long dictation; the
+                    // cost is that frozen text never gets a whole-buffer correction.
+                    let tail = Array(samples[streamedTailStart...])
+                    let tailText = try await recognizer.transcribe(samples: tail, language: profile.language)
+                    let frozen = Self.frozenPrefix(of: streamedPrefix, tailText: tailText)
+                    text = frozen.isEmpty ? tailText : frozen + " " + tailText
+                } else {
+                    text = try await recognizer.transcribe(samples: samples, language: profile.language)
+                }
                 Log.info("Inference completed in \(String(format: "%.2f", -inferenceStart.timeIntervalSinceNow))s")
                 guard !text.isEmpty else {
                     finishWithError("No speech detected")
@@ -332,6 +347,23 @@ final class DictationController {
                 finishWithError("Could not transcribe")
             }
         }
+    }
+
+    /// The part of the streamed text that the tail pass does not cover. The streamed text
+    /// ends with the window's own transcript, which the tail pass is about to redo, so that
+    /// overlap is dropped rather than duplicated.
+    private static func frozenPrefix(of streamedText: String, tailText: String) -> String {
+        let streamedWords = streamedText.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        let tailWords = tailText.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        guard !streamedWords.isEmpty, !tailWords.isEmpty else { return streamedText }
+        // Find the longest suffix of the streamed text that the tail text starts with.
+        let maxOverlap = min(streamedWords.count, tailWords.count)
+        for overlap in stride(from: maxOverlap, through: 1, by: -1) {
+            if Array(streamedWords.suffix(overlap)) == Array(tailWords.prefix(overlap)) {
+                return streamedWords.dropLast(overlap).joined(separator: " ")
+            }
+        }
+        return streamedWords.joined(separator: " ")
     }
 
     private func cancelRecording() {

@@ -28,7 +28,6 @@ public struct Settings {
             Key.recognizerCacheCapacity: 2,
             Key.idleUnloadSeconds: 300,
             Key.profilesJSON: "",
-            Key.maxStreamingSeconds: 30,
             Key.streamingIntervalMs: 500,
             Key.streamingWindowSeconds: 10,
         ])
@@ -51,7 +50,6 @@ public struct Settings {
         static let recognizerCacheCapacity = "recognizerCacheCapacity"
         static let idleUnloadSeconds = "idleUnloadSeconds"
         static let profilesJSON = "profilesJSON"
-        static let maxStreamingSeconds = "maxStreamingSeconds"
         static let streamingIntervalMs = "streamingIntervalMs"
         static let streamingWindowSeconds = "streamingWindowSeconds"
     }
@@ -135,11 +133,6 @@ public struct Settings {
     public var profilesJSON: String {
         get { defaults.string(forKey: Key.profilesJSON) ?? "" }
         nonmutating set { defaults.set(newValue, forKey: Key.profilesJSON) }
-    }
-
-    public var maxStreamingSeconds: Int {
-        get { defaults.integer(forKey: Key.maxStreamingSeconds) }
-        nonmutating set { defaults.set(newValue, forKey: Key.maxStreamingSeconds) }
     }
 
     public var streamingIntervalMs: Int {

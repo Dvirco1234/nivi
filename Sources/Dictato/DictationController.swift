@@ -255,6 +255,7 @@ final class DictationController {
                 onUpdate: { [weak self] update in
                     self?.handleStreamingUpdate(update, mode: profile.mode, generation: generation)
                 })
+            Log.info("Streaming: profile \(profile.id), model \(model.id), language \(profile.language)")
             self.streamer = streamer
             streamer.start()
         }
@@ -289,14 +290,20 @@ final class DictationController {
         streamer = nil
         let samples = recorder.stop()
         if settings.playSounds { SoundPlayer.playStop() }
+        // Resolve the profile BEFORE transitioning: leaving .recording clears
+        // activeProfileID, so the async pass below would fall back to the primary
+        // profile and transcribe with the wrong model and language — which is why a
+        // non-primary English profile produced Hebrew from the final pass.
+        let activeProfile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID)
         transition(.stopRequested)
         Log.info("Recording stopped (\(String(format: "%.1f", Double(samples.count) / AudioRecorder.sampleRate))s)")
         updateOverlay()
         Task {
-            guard let profile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID),
+            guard let profile = activeProfile,
                   let model = modelStore.catalog.model(id: profile.modelID) else {
                 finishWithError("No model"); return
             }
+            Log.info("Final pass: profile \(profile.id), model \(model.id), language \(profile.language)")
             do {
                 let recognizer = try await recognizerCache.recognizer(
                     id: model.id, modelPath: modelStore.installedURL(for: model))

@@ -33,6 +33,11 @@ final class StreamingTranscriber {
     /// re-transcribes only what the preview never froze.
     var windowStartSample: Int { window.windowStartSample }
 
+    /// Transcript for audio already frozen out of the live window. Together with a pass
+    /// over everything from `windowStartSample`, this covers the whole recording exactly
+    /// once — so the final text needs no overlap-guessing between the two.
+    var frozenText: String { window.frozenText }
+
     /// Whisper's encoder always runs a fixed 30s context unless told otherwise, so a short
     /// window is only cheaper if the context shrinks with it. The floor keeps accuracy from
     /// falling off a cliff — this is a lossy optimization, not a free one.

@@ -289,7 +289,7 @@ final class DictationController {
         // Keep what streaming already resolved: the frozen prefix needs no re-transcription,
         // so the final pass only has to cover the tail the window never froze.
         let streamedTailStart = streamer?.windowStartSample ?? 0
-        let streamedPrefix = overlayModel.liveText
+        let frozenText = streamer?.frozenText ?? ""
         streamer?.stop()
         streamer = nil
         let samples = recorder.stop()
@@ -319,8 +319,16 @@ final class DictationController {
                     // cost is that frozen text never gets a whole-buffer correction.
                     let tail = Array(samples[streamedTailStart...])
                     let tailText = try await recognizer.transcribe(samples: tail, language: profile.language)
-                    let frozen = Self.frozenPrefix(of: streamedPrefix, tailText: tailText)
-                    text = frozen.isEmpty ? tailText : frozen + " " + tailText
+                    // No overlap to reconcile: `frozenText` is exactly the transcript for
+                    // [0, streamedTailStart) and the tail pass covers [streamedTailStart, end),
+                    // so the two partition the recording. Plain concatenation is the whole join.
+                    if frozenText.isEmpty {
+                        text = tailText
+                    } else if tailText.isEmpty {
+                        text = frozenText
+                    } else {
+                        text = frozenText + " " + tailText
+                    }
                 } else {
                     text = try await recognizer.transcribe(samples: samples, language: profile.language)
                 }
@@ -347,23 +355,6 @@ final class DictationController {
                 finishWithError("Could not transcribe")
             }
         }
-    }
-
-    /// The part of the streamed text that the tail pass does not cover. The streamed text
-    /// ends with the window's own transcript, which the tail pass is about to redo, so that
-    /// overlap is dropped rather than duplicated.
-    private static func frozenPrefix(of streamedText: String, tailText: String) -> String {
-        let streamedWords = streamedText.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        let tailWords = tailText.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        guard !streamedWords.isEmpty, !tailWords.isEmpty else { return streamedText }
-        // Find the longest suffix of the streamed text that the tail text starts with.
-        let maxOverlap = min(streamedWords.count, tailWords.count)
-        for overlap in stride(from: maxOverlap, through: 1, by: -1) {
-            if Array(streamedWords.suffix(overlap)) == Array(tailWords.prefix(overlap)) {
-                return streamedWords.dropLast(overlap).joined(separator: " ")
-            }
-        }
-        return streamedWords.joined(separator: " ")
     }
 
     private func cancelRecording() {

@@ -28,6 +28,7 @@ final class StreamingTranscriber {
     private var tracker = StablePrefixTracker()
     private var window = StreamWindow()
     private var loggedFailure = false
+    private var loggedStall = false
 
     /// Where the un-frozen tail begins. The controller's final pass starts here so it
     /// re-transcribes only what the preview never froze.
@@ -41,6 +42,11 @@ final class StreamingTranscriber {
     /// Whisper's encoder always runs a fixed 30s context unless told otherwise, so a short
     /// window is only cheaper if the context shrinks with it. The floor keeps accuracy from
     /// falling off a cliff — this is a lossy optimization, not a free one.
+    ///
+    /// It is derived from the *configured* window, not the live one: when `StreamWindow`
+    /// lets the window run long on an overflowing final segment, audio past the nominal
+    /// length is not encoded at all. That is self-correcting — the final tail pass covers
+    /// that audio at full context — but the preview will lag until the window advances.
     private var audioCtx: Int {
         max(256, 1500 * windowSeconds / 30)
     }
@@ -55,10 +61,10 @@ final class StreamingTranscriber {
         self.language = language
         self.sampleProvider = sampleProvider
         self.intervalMs = intervalMs
-        // Under about two seconds whisper has too little to work with, and the padding it
+        // Under a few seconds whisper has too little to work with, and the padding it
         // adds dominates; `defaults write streamingWindowSeconds` is a supported config
-        // path, so clamp it here.
-        self.windowSeconds = max(2, windowSeconds)
+        // path that bypasses the Preferences stepper, so clamp to the stepper's floor.
+        self.windowSeconds = max(4, windowSeconds)
         self.onUpdate = onUpdate
     }
 
@@ -94,6 +100,18 @@ final class StreamingTranscriber {
             let segments = try await recognizer.transcribeSegments(
                 samples: windowSamples, language: language, audioCtx: audioCtx)
             guard !Task.isCancelled else { return }
+            // `StreamWindow` never freezes the last segment, so a pass that returns a single
+            // segment can never advance the window. Sustained single-segment output means the
+            // window grows without bound while `audioCtx` still truncates the encoder at the
+            // nominal length: the preview silently stalls on the first few seconds and the
+            // final pass falls back to the slow whole-buffer path. Don't clamp the slice —
+            // dropping audio no frozen text covers would lose words — just make it visible.
+            if !loggedStall,
+               segments.count < 2,
+               windowSamples.count > 2 * Int(AudioRecorder.sampleRate) * windowSeconds {
+                Log.error("Streaming window is not advancing: whisper returned a single segment for \(String(format: "%.1f", Double(windowSamples.count) / AudioRecorder.sampleRate))s of audio (window is \(windowSeconds)s)")
+                loggedStall = true
+            }
             let fullText = window.advance(
                 segments: segments,
                 windowSampleCount: windowSamples.count,

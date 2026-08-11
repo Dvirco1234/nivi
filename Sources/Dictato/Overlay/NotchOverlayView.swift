@@ -55,40 +55,39 @@ struct NotchOverlayView: View {
         .clipShape(BottomRoundedRectangle(radius: 12))
     }
 
+    /// Identity on one side, the meter on the other — the two sides show different
+    /// things rather than mirroring, so nothing appears twice.
     private var leftSide: some View {
         HStack(spacing: 8) {
-            Spacer(minLength: 0)
-            if let icon = model.targetAppIcon {
-                Image(nsImage: icon).resizable().frame(width: 16, height: 16)
+            if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
+                Image(nsImage: img).resizable().frame(width: 16, height: 16)
             }
-            waveform(mirrored: true)
-                .frame(width: 78)
+            if let icon = model.targetAppIcon {
+                Image(nsImage: icon).resizable().frame(width: 15, height: 15).opacity(0.8)
+            }
+            Spacer(minLength: 0)
         }
-        .padding(.leading, 12)
+        .padding(.leading, 14)
         .padding(.trailing, 8)
     }
 
     private var rightSide: some View {
-        HStack(spacing: 8) {
-            waveform(mirrored: false)
-                .frame(width: 78)
-            if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
-                Image(nsImage: img).resizable().frame(width: 16, height: 16)
-            }
+        HStack(spacing: 0) {
             Spacer(minLength: 0)
+            waveform
         }
         .padding(.leading, 8)
-        .padding(.trailing, 12)
+        .padding(.trailing, 14)
     }
 
-    /// Levels run outward from the notch on both sides, so the newest audio is nearest
-    /// the centre and the bar reads as one symmetric meter.
-    private func waveform(mirrored: Bool) -> some View {
-        let slots = 18
+    /// Newest levels sit at the right edge and the bars grow from a fixed centre line,
+    /// so the row never shifts as the level changes.
+    private var waveform: some View {
+        let slots = 26
         let levels = model.levels
         return HStack(spacing: 2) {
             ForEach(0..<slots, id: \.self) { i in
-                let index = mirrored ? i : slots - 1 - i
+                let index = slots - 1 - i
                 let level = levels.count > index ? levels[levels.count - 1 - index] : 0
                 let clamped = CGFloat(min(max(level, 0), 1))
                 Capsule()

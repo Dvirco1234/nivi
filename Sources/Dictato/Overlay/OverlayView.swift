@@ -7,9 +7,9 @@ struct OverlayView: View {
 
     /// Shared with OverlayPanel, which must resize its content rect to match — a card
     /// taller than the panel is simply clipped.
-    static let cardWidth: CGFloat = 360
-    static let collapsedHeight: CGFloat = 78
-    static let liveTextHeight: CGFloat = 104
+    static let cardWidth: CGFloat = 330
+    static let collapsedHeight: CGFloat = 62
+    static let liveTextHeight: CGFloat = 86
 
     static func cardHeight(liveText: String) -> CGFloat {
         liveText.isEmpty ? collapsedHeight : liveTextHeight
@@ -76,12 +76,12 @@ struct OverlayView: View {
     private var targetApp: some View {
         HStack(spacing: 6) {
             if let icon = model.targetAppIcon {
-                Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                Image(nsImage: icon).resizable().frame(width: 17, height: 17)
             } else {
-                Image(systemName: "app.dashed").frame(width: 20, height: 20)
+                Image(systemName: "app.dashed").frame(width: 17, height: 17)
             }
             Text(model.targetAppName ?? "")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -91,7 +91,7 @@ struct OverlayView: View {
         HStack(spacing: 6) {
             logo
             Text("Dictato")
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize()
@@ -102,9 +102,9 @@ struct OverlayView: View {
     private var logo: some View {
         Group {
             if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
-                Image(nsImage: img).resizable().frame(width: 18, height: 18)
+                Image(nsImage: img).resizable().frame(width: 16, height: 16)
             } else {
-                Image(systemName: "waveform").frame(width: 18, height: 18)
+                Image(systemName: "waveform").frame(width: 16, height: 16)
             }
         }
     }
@@ -115,6 +115,7 @@ struct OverlayView: View {
         let slots = OverlayModel.waveformSlots
         let levels = model.levels
         let pad = max(0, slots - levels.count)
+        let trackHeight: CGFloat = 20
         return GeometryReader { geo in
             let colW = geo.size.width / CGFloat(slots)
             HStack(spacing: 0) {
@@ -123,12 +124,16 @@ struct OverlayView: View {
                     let clamped = CGFloat(min(max(level, 0), 1))
                     Capsule()
                         .fill(.primary.opacity(0.3 + Double(clamped) * 0.55))
-                        .frame(width: min(3, colW * 0.7), height: max(3, clamped * 26))
+                        .frame(width: min(3, colW * 0.7), height: max(3, clamped * trackHeight))
                         .frame(width: colW)
                 }
             }
+            // Fill the reader and centre: a GeometryReader pins its child to the top, so
+            // without this the whole row rides up when the bars are short and drops as
+            // they grow. Bars should extend symmetrically from a fixed centre line.
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
         }
-        .frame(height: 28)
+        .frame(height: trackHeight)
         .animation(.linear(duration: 0.05), value: model.levels)
     }
 
@@ -138,8 +143,8 @@ struct OverlayView: View {
 
     private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         content()
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .frame(width: cardWidth, height: cardHeight)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(

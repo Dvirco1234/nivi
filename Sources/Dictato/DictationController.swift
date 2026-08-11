@@ -342,6 +342,7 @@ final class DictationController {
                 case .batch, .overlayLive:
                     inserter.insert(text,
                                     autoPaste: settings.autoPaste,
+                                    copyOnly: settings.copyOnly,
                                     excludeFromHistory: settings.excludeFromClipboardHistory)
                 case .inAppLive:
                     // Type only what streaming hasn't already typed. The final pass

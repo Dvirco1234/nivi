@@ -86,6 +86,7 @@ private struct GeneralSection: View {
     @State private var playSounds = Settings().playSounds
     @State private var copyOnly = Settings().copyOnly
     @State private var excludeHistory = Settings().excludeFromClipboardHistory
+    @State private var display = Settings().recordingDisplay
 
     var body: some View {
         Form {
@@ -100,6 +101,18 @@ private struct GeneralSection: View {
                     .onChange(of: showOverlay) { settings.showOverlay = $0 }
                 Toggle("Play sounds", isOn: $playSounds)
                     .onChange(of: playSounds) { settings.playSounds = $0 }
+            }
+            Section {
+                Picker("Recording display", selection: $display) {
+                    ForEach(RecordingDisplay.allCases, id: \.self) { d in
+                        Text(d.displayName).tag(d)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: display) { settings.recordingDisplay = $0 }
+            } footer: {
+                Text("Panel floats near the bottom of the screen. Notch hugs the top, merging with the MacBook notch where there is one.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 LaunchAtLoginToggle()

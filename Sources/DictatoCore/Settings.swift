@@ -30,6 +30,7 @@ public struct Settings {
             Key.profilesJSON: "",
             Key.streamingIntervalMs: 500,
             Key.streamingWindowSeconds: 10,
+            Key.recordingDisplay: RecordingDisplay.panel.rawValue,
         ])
     }
 
@@ -52,6 +53,7 @@ public struct Settings {
         static let profilesJSON = "profilesJSON"
         static let streamingIntervalMs = "streamingIntervalMs"
         static let streamingWindowSeconds = "streamingWindowSeconds"
+        static let recordingDisplay = "recordingDisplay"
     }
 
     public var autoPaste: Bool {
@@ -138,6 +140,11 @@ public struct Settings {
     public var streamingIntervalMs: Int {
         get { defaults.integer(forKey: Key.streamingIntervalMs) }
         nonmutating set { defaults.set(newValue, forKey: Key.streamingIntervalMs) }
+    }
+
+    public var recordingDisplay: RecordingDisplay {
+        get { RecordingDisplay(rawValue: defaults.string(forKey: Key.recordingDisplay) ?? "") ?? .panel }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.recordingDisplay) }
     }
 
     public var streamingWindowSeconds: Int {

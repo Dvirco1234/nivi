@@ -9,6 +9,7 @@ final class DictationController {
     private let menuBar = MenuBarController()
     private let overlayModel = OverlayModel()
     private lazy var overlayPanel = OverlayPanel(model: overlayModel)
+    private lazy var notchPanel = NotchOverlayPanel(model: overlayModel)
     private let recorder = AudioRecorder()
     private let inserter = TextInserter()
     let modelStore: ModelStore
@@ -196,7 +197,9 @@ final class DictationController {
             overlayModel.languageCode = profile?.language ?? "he"
             router.beginRecording(profileID: profile?.id ?? profileStore.set.primaryID)
             let mouse = NSEvent.mouseLocation
-            overlayPanel.preferredScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+            let activeScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+            overlayPanel.preferredScreen = activeScreen
+            notchPanel.preferredScreen = activeScreen
             transition(.startRequested)
             if settings.playSounds { SoundPlayer.playStart() }
             if profile?.mode != .batch, let profile {
@@ -405,6 +408,25 @@ final class DictationController {
         idleUnloadTimer = nil
     }
 
+    /// Routes to whichever recording display the user picked. Both panels share one
+    /// model, so only the presentation differs; hiding both on the way out avoids
+    /// leaving the other style on screen if the setting changed mid-session.
+    private func showOverlayPanel() {
+        switch settings.recordingDisplay {
+        case .panel:
+            notchPanel.hide()
+            overlayPanel.show()
+        case .notch:
+            overlayPanel.hide()
+            notchPanel.show()
+        }
+    }
+
+    private func hideOverlayPanels() {
+        overlayPanel.hide()
+        notchPanel.hide()
+    }
+
     private func updateOverlay() {
         guard settings.showOverlay else { return }
         switch machine.state {
@@ -412,21 +434,21 @@ final class DictationController {
             if case .recording = overlayModel.phase {} else {
                 overlayModel.phase = .recording(elapsed: 0)
             }
-            overlayPanel.show()
+            showOverlayPanel()
         case .transcribing, .inserting:
             // Clear the preview as soon as recording ends: the card sizes itself from
             // liveText, so leaving it set keeps the processing card oversized.
             overlayModel.liveText = ""
             overlayModel.phase = .processing
-            overlayPanel.show()
+            showOverlayPanel()
         case .error(let message):
             overlayModel.liveText = ""
             overlayModel.phase = .error(message)
-            overlayPanel.show()
+            showOverlayPanel()
         case .idle, .loadingModel:
             overlayModel.liveText = ""
             overlayModel.phase = .hidden
-            overlayPanel.hide()
+            hideOverlayPanels()
         }
     }
 
@@ -449,7 +471,7 @@ final class DictationController {
         machine.handle(.modelFailed(message))  // reuse error state
         menuBar.update(state: machine.state)
         overlayModel.phase = .error(message)
-        overlayPanel.show()
+        showOverlayPanel()
         scheduleErrorDismiss(after: 1.5)
     }
 

@@ -40,3 +40,19 @@ public struct ModelSpec {
         return magic.littleEndian == Self.ggmlMagic ? .ok : .badMagic
     }
 }
+
+/// How the recording UI is presented while dictating.
+public enum RecordingDisplay: String, Codable, CaseIterable {
+    /// Floating card near the bottom of the screen.
+    case panel
+    /// Bar hugging the top of the screen, merging with the MacBook notch where there
+    /// is one and rendering as a floating top bar where there isn't.
+    case notch
+
+    public var displayName: String {
+        switch self {
+        case .panel: return "Panel"
+        case .notch: return "Notch"
+        }
+    }
+}

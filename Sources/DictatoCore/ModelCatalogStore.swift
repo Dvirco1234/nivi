@@ -38,10 +38,32 @@ public enum ModelCatalogStore {
 
     public static func bootstrap(catalogURL: URL, modelsDir: URL) -> ModelCatalog {
         migrateLegacy(modelsDir: modelsDir)
-        if let existing = load(from: catalogURL) { return existing }
-        let seeded = ModelCatalog.seeded()
-        save(seeded, to: catalogURL)
-        return seeded
+        guard let existing = load(from: catalogURL) else {
+            let seeded = ModelCatalog.seeded()
+            save(seeded, to: catalogURL)
+            return seeded
+        }
+        let merged = mergingPresets(into: existing)
+        if merged != existing { save(merged, to: catalogURL) }
+        return merged
+    }
+
+    /// Folds the current built-in presets into a saved catalog.
+    ///
+    /// Without this, a catalog saved before a preset existed would never show it: the
+    /// seed only ran on first launch, so anyone who had already used the app never saw
+    /// models added later. Presets are refreshed in place so corrected metadata reaches
+    /// existing installs too, while models the user added themselves are left alone.
+    public static func mergingPresets(into existing: ModelCatalog) -> ModelCatalog {
+        var models = existing.models
+        for preset in ModelCatalog.seeded().models {
+            if let index = models.firstIndex(where: { $0.id == preset.id }) {
+                models[index] = preset
+            } else {
+                models.append(preset)
+            }
+        }
+        return ModelCatalog(models: models, defaultModelID: existing.defaultModelID)
     }
 
     public static func isInstalled(_ model: ManagedModel, base: URL) -> Bool {

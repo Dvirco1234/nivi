@@ -25,6 +25,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @ObservedObject var store: ModelStore
     @ObservedObject var profileStore: ProfileStore
+    @ObservedObject var tester: ModelTester
     @State private var section: PrefSection = .general
 
     var body: some View {
@@ -70,7 +71,7 @@ struct SettingsView: View {
     @ViewBuilder private var detail: some View {
         switch section {
         case .general: GeneralSection()
-        case .models: ModelsSection(store: store, profileStore: profileStore)
+        case .models: ModelsSection(store: store, profileStore: profileStore, tester: tester)
         case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
         case .hotkeys: HotkeysSection()
         case .speech: SpeechSection()

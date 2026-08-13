@@ -14,6 +14,8 @@ final class DictationController {
     private let inserter = TextInserter()
     let modelStore: ModelStore
     private lazy var recognizerCache = RecognizerCache(capacity: settings.recognizerCacheCapacity)
+    /// Shares the recognizer cache so previewing a model costs no extra memory.
+    private lazy var modelTester = ModelTester(cache: recognizerCache, modelStore: modelStore)
 
     let profileStore: ProfileStore
     private let router: HotkeyRouter
@@ -101,7 +103,8 @@ final class DictationController {
             Task { @MainActor in self?.reloadModel() }
         }
         menuBar.setDictateHint(profileStore.set.primary?.hotkey.displayString ?? "")
-        PreferencesWindow.configure(store: modelStore, profileStore: profileStore)
+        modelTester.isDictationBusy = { [weak self] in self?.machine.state == .recording }
+        PreferencesWindow.configure(store: modelStore, profileStore: profileStore, tester: modelTester)
     }
 
     func toggleFromMenu() {

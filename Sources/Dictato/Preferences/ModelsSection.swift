@@ -5,7 +5,9 @@ import DictatoCore
 struct ModelsSection: View {
     @ObservedObject var store: ModelStore
     @ObservedObject var profileStore: ProfileStore
+    @ObservedObject var tester: ModelTester
     @State private var showingAdd = false
+    @State private var testingModel: ManagedModel?
 
     private var modelIDsInUseByProfiles: Set<String> {
         Set(profileStore.set.profiles.map(\.modelID))
@@ -25,7 +27,8 @@ struct ModelsSection: View {
                               isDefault: model.id == store.catalog.defaultModelID,
                               isInUseByProfile: modelIDsInUseByProfiles.contains(model.id),
                               onDownload: { Task { await store.install(model) } },
-                              onDelete: { store.delete(model.id) })
+                              onDelete: { store.delete(model.id) },
+                              onTest: { testingModel = model })
                 }
             }
             .padding(20)
@@ -35,6 +38,9 @@ struct ModelsSection: View {
         .sheet(isPresented: $showingAdd) {
             AddModelSheet(onAdd: { store.addModel($0); showingAdd = false },
                           onCancel: { showingAdd = false })
+        }
+        .sheet(item: $testingModel) { model in
+            ModelTestSheet(model: model, tester: tester) { testingModel = nil }
         }
     }
 }
@@ -46,6 +52,8 @@ private struct ModelCard: View {
     let isInUseByProfile: Bool
     let onDownload: () -> Void
     let onDelete: () -> Void
+    let onTest: () -> Void
+    @State private var hovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -76,12 +84,19 @@ private struct ModelCard: View {
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(
             isDefault ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isDefault ? 1.5 : 1))
+        .onHover { hovering = $0 }
     }
 
     @ViewBuilder private var action: some View {
         switch state {
         case .installed:
             HStack(spacing: 8) {
+                // Only on hover: the card is otherwise a dense row of metadata, and a
+                // permanent extra button competes with Default for attention.
+                if hovering {
+                    Button(action: onTest) { Label("Test it", systemImage: "mic") }
+                        .buttonStyle(.link)
+                }
                 if isDefault {
                     Label("Default", systemImage: "checkmark.circle.fill").foregroundStyle(.blue)
                 }

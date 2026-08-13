@@ -6,17 +6,19 @@ enum PreferencesWindow {
     private static var store: ModelStore?
     private static var profileStore: ProfileStore?
     private static var trafficLights: TrafficLightLayout?
+    private static var tester: ModelTester?
 
-    static func configure(store: ModelStore, profileStore: ProfileStore) {
+    static func configure(store: ModelStore, profileStore: ProfileStore, tester: ModelTester) {
         self.store = store
         self.profileStore = profileStore
+        self.tester = tester
     }
 
     static func show() {
         if let window {
             window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return
         }
-        guard let store, let profileStore else { return }
+        guard let store, let profileStore, let tester else { return }
         let win = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 880, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -30,7 +32,7 @@ enum PreferencesWindow {
         win.maxSize = NSSize(width: 1600, height: 1200)
         win.collectionBehavior.insert(.fullScreenPrimary)   // native green-button fullscreen
         win.center()
-        win.contentView = NSHostingView(rootView: SettingsView(store: store, profileStore: profileStore))
+        win.contentView = NSHostingView(rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
 
         // Nudge the traffic lights down/right so they sit inside the inset sidebar panel.
         let layout = TrafficLightLayout()

@@ -54,6 +54,24 @@ check(cat.models.filter { $0.isRunnable }.count == 3, "three seeded models are r
 check(cat.model(id: "parakeet-tdt-0.6b-v3")?.engine == .parakeet, "parakeet v3 declares its engine")
 check(cat.model(id: "parakeet-tdt-0.6b-v3")?.isRunnable == false, "parakeet is not runnable yet")
 check(cat.model(id: "ivrit-large-v3-turbo")?.isRunnable == true, "whisper models stay runnable")
+
+// A catalog saved before a preset existed must gain it, or models added in a later
+// release would never appear for anyone who had already run the app.
+let staleCatalog = ModelCatalog(
+    models: [ManagedModel(id: "ivrit-large-v3-turbo", displayName: "stale name",
+                          source: .huggingFace(repo: "r", file: "f"),
+                          defaultLanguage: "he", minSizeBytes: 1),
+             ManagedModel(id: "my-own", displayName: "User model",
+                          source: .localFile(path: "/tmp/x.bin"),
+                          defaultLanguage: "he", minSizeBytes: 1)],
+    defaultModelID: "ivrit-large-v3-turbo")
+let mergedCatalog = ModelCatalogStore.mergingPresets(into: staleCatalog)
+check(mergedCatalog.model(id: "parakeet-tdt-0.6b-v3") != nil, "merge adds presets missing from a saved catalog")
+check(mergedCatalog.model(id: "my-own") != nil, "merge keeps user-added models")
+check(mergedCatalog.defaultModelID == "ivrit-large-v3-turbo", "merge keeps the saved default")
+check(mergedCatalog.model(id: "ivrit-large-v3-turbo")?.displayName == "ivrit-ai Large v3 Turbo",
+      "merge refreshes preset metadata")
+check(ModelCatalogStore.mergingPresets(into: mergedCatalog) == mergedCatalog, "merging twice changes nothing")
 // Catalogs written before engines existed decode as whisper.cpp rather than failing.
 let legacyJSON = #"{"id":"legacy","displayName":"Legacy","source":{"huggingFace":{"repo":"r","file":"f"}},"defaultLanguage":"he","minSizeBytes":1}"#
 if let legacy = try? JSONDecoder().decode(ManagedModel.self, from: Data(legacyJSON.utf8)) {

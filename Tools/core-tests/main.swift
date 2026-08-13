@@ -48,7 +48,19 @@ check(ModelSource.localFile(path: "/tmp/m.bin").downloadURL == nil, "local has n
 
 let cat = ModelCatalog.seeded()
 check(cat.defaultModelID == "ivrit-large-v3-turbo", "seeded default")
-check(cat.models.count == 3, "seeded has 3 presets")
+check(cat.models.count == 5, "seeded has 5 presets")
+// A model is only offered for download if an engine here can actually run it.
+check(cat.models.filter { $0.isRunnable }.count == 3, "three seeded models are runnable")
+check(cat.model(id: "parakeet-tdt-0.6b-v3")?.engine == .parakeet, "parakeet v3 declares its engine")
+check(cat.model(id: "parakeet-tdt-0.6b-v3")?.isRunnable == false, "parakeet is not runnable yet")
+check(cat.model(id: "ivrit-large-v3-turbo")?.isRunnable == true, "whisper models stay runnable")
+// Catalogs written before engines existed decode as whisper.cpp rather than failing.
+let legacyJSON = #"{"id":"legacy","displayName":"Legacy","source":{"huggingFace":{"repo":"r","file":"f"}},"defaultLanguage":"he","minSizeBytes":1}"#
+if let legacy = try? JSONDecoder().decode(ManagedModel.self, from: Data(legacyJSON.utf8)) {
+    check(legacy.engine == .whisperCpp, "model without an engine decodes as whisper.cpp")
+} else {
+    check(false, "legacy model JSON still decodes")
+}
 check(cat.defaultModel?.localFileName == "ivrit-large-v3-turbo.bin", "local file name")
 check(cat.model(id: "whisper-small-en")?.defaultLanguage == "en", "english preset lang")
 let catData = try! JSONEncoder().encode(cat)

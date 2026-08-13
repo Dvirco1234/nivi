@@ -17,6 +17,14 @@ public enum ModelSource: Codable, Equatable {
     }
 }
 
+/// Which inference engine a model needs. Whisper models run on the vendored
+/// whisper.cpp; Parakeet is NVIDIA's FastConformer and needs a different runtime
+/// entirely, so listing one does not make it runnable.
+public enum ModelEngine: String, Codable, Equatable {
+    case whisperCpp
+    case parakeet
+}
+
 public struct ManagedModel: Codable, Equatable, Identifiable {
     public var id: String
     public var displayName: String
@@ -28,16 +36,28 @@ public struct ManagedModel: Codable, Equatable, Identifiable {
     public var accuracy: Int?
     public var speed: Int?
     public var badge: String?
+    /// Absent in catalogs written before engines existed, which were all whisper.cpp.
+    public var engineRaw: ModelEngine?
 
     public init(id: String, displayName: String, source: ModelSource,
                 defaultLanguage: String, minSizeBytes: Int,
                 summary: String? = nil, sizeBytesApprox: Int? = nil,
-                accuracy: Int? = nil, speed: Int? = nil, badge: String? = nil) {
+                accuracy: Int? = nil, speed: Int? = nil, badge: String? = nil,
+                engine: ModelEngine = .whisperCpp) {
         self.id = id; self.displayName = displayName; self.source = source
         self.defaultLanguage = defaultLanguage; self.minSizeBytes = minSizeBytes
         self.summary = summary; self.sizeBytesApprox = sizeBytesApprox
         self.accuracy = accuracy; self.speed = speed; self.badge = badge
+        self.engineRaw = engine
     }
+
+    public var engine: ModelEngine { engineRaw ?? .whisperCpp }
+
+    /// Whether the app can actually run this model today. Unsupported models are still
+    /// listed so the catalog shows where things are heading, but they cannot be
+    /// downloaded — a 496 MB download that then refuses to load would be worse than
+    /// showing the model as not yet available.
+    public var isRunnable: Bool { engine == .whisperCpp }
 
     public var localFileName: String { "\(id).bin" }
 
@@ -86,6 +106,22 @@ public struct ModelCatalog: Codable, Equatable {
                 defaultLanguage: "en", minSizeBytes: 400_000_000,
                 summary: "Fast English-only transcription. Small footprint.",
                 sizeBytesApprox: 488_000_000, accuracy: 3, speed: 5, badge: "Fast · English"),
+            ManagedModel(
+                id: "parakeet-tdt-0.6b-v3",
+                displayName: "NVIDIA Parakeet TDT 0.6B v3",
+                source: .huggingFace(repo: "nvidia/parakeet-tdt-0.6b-v3", file: "parakeet-tdt-0.6b-v3.nemo"),
+                defaultLanguage: "auto", minSizeBytes: 400_000_000,
+                summary: "Ultra-fast transcription powered by NVIDIA FastConformer. Optimized for conversational speech and voice commands.",
+                sizeBytesApprox: 496_000_000, accuracy: 5, speed: 5, badge: "Best for Multilingual",
+                engine: .parakeet),
+            ManagedModel(
+                id: "parakeet-tdt-0.6b-v2",
+                displayName: "NVIDIA Parakeet TDT 0.6B v2",
+                source: .huggingFace(repo: "nvidia/parakeet-tdt-0.6b-v2", file: "parakeet-tdt-0.6b-v2.nemo"),
+                defaultLanguage: "en", minSizeBytes: 400_000_000,
+                summary: "Ultra-fast English-only transcription powered by NVIDIA FastConformer V2. Optimized for English dictation and voice commands.",
+                sizeBytesApprox: 496_000_000, accuracy: 5, speed: 5, badge: "Best for English",
+                engine: .parakeet),
         ], defaultModelID: "ivrit-large-v3-turbo")
     }
 }

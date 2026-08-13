@@ -101,7 +101,17 @@ private struct ModelCard: View {
             HStack { Text("Failed").foregroundStyle(.red); Button("Retry", action: onDownload) }
                 .help(msg)
         case .notInstalled:
-            Button(action: onDownload) { Label("Download", systemImage: "arrow.down.circle") }
+            if model.isRunnable {
+                Button(action: onDownload) { Label("Download", systemImage: "arrow.down.circle") }
+            } else {
+                // Listed so the catalog shows what is coming, but not downloadable: no
+                // engine here can run it yet, and half a gigabyte that then refuses to
+                // load would be worse than an honest label.
+                Text("Engine coming soon")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help("Needs the NVIDIA Parakeet engine, which Dictato does not ship yet")
+            }
         }
     }
 

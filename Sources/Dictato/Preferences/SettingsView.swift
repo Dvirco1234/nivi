@@ -103,13 +103,17 @@ private struct GeneralSection: View {
                     .onChange(of: playSounds) { settings.playSounds = $0 }
             }
             Section {
-                Picker("Recording display", selection: $display) {
-                    ForEach(RecordingDisplay.allCases, id: \.self) { d in
-                        Text(d.displayName).tag(d)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Recording display").font(.body)
+                        Text("Choose how the dictation interface looks.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
+                    Spacer(minLength: 16)
+                    RecordingDisplayPicker(selection: $display)
+                        .onChange(of: display) { settings.recordingDisplay = $0 }
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: display) { settings.recordingDisplay = $0 }
+                .padding(.vertical, 4)
             } footer: {
                 Text("Panel floats near the bottom of the screen. Notch hugs the top, merging with the MacBook notch where there is one.")
                     .font(.caption).foregroundStyle(.secondary)

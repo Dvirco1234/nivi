@@ -15,7 +15,7 @@ struct ModelsSection: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: UITuning.cardSpacing) {
                 HStack {
                     Text("Dictation Models").font(.title2.weight(.semibold))
                     Spacer()
@@ -31,7 +31,7 @@ struct ModelsSection: View {
                               onTest: { testingModel = model })
                 }
             }
-            .padding(20)
+            .padding(UITuning.contentPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("Dictation Models")
@@ -79,10 +79,10 @@ private struct ModelCard: View {
             }
             .font(.caption)
         }
-        .padding(14)
+        .padding(UITuning.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
+        .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner).strokeBorder(
             isDefault ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isDefault ? 1.5 : 1))
         .onHover { hovering = $0 }
     }

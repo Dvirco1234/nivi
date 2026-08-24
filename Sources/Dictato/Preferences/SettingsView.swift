@@ -48,11 +48,11 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
         }
-        .frame(width: 220)
+        .frame(width: UITuning.sidebarWidth)
         .frame(maxHeight: .infinity)
-        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.07), lineWidth: 1))
-        .padding(10)
+        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
+        .overlay(RoundedRectangle(cornerRadius: UITuning.sidebarCorner).strokeBorder(.white.opacity(0.07), lineWidth: 1))
+        .padding(UITuning.sidebarInset)
     }
 
     private var brandHeader: some View {
@@ -62,9 +62,9 @@ struct SettingsView: View {
             }
             Text("Dictato").font(.title3.weight(.semibold))
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 40)     // clear the traffic-light buttons + breathing room above the brand
-        .padding(.bottom, 10)
+        .padding(.horizontal, UITuning.brandLeading)
+        .padding(.top, UITuning.brandTop)     // clear the traffic-light buttons + breathing room above the brand
+        .padding(.bottom, UITuning.brandBottom)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

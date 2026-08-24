@@ -10,7 +10,7 @@ struct ProfilesSection: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: UITuning.cardSpacing) {
                 HStack {
                     Text("Profiles").font(.title2.weight(.semibold))
                     Spacer()
@@ -32,7 +32,7 @@ struct ProfilesSection: View {
                         onDelete: { profileStore.remove(profile.id) })
                 }
             }
-            .padding(20)
+            .padding(UITuning.contentPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("Profiles")
@@ -102,10 +102,10 @@ private struct ProfileCard: View {
                     .disabled(!canDelete)
             }
         }
-        .padding(14)
+        .padding(UITuning.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
+        .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner).strokeBorder(
             isPrimary ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isPrimary ? 1.5 : 1))
     }
 

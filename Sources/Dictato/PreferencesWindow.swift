@@ -16,9 +16,14 @@ enum PreferencesWindow {
 
     static func show() {
         if let window {
+            // Rebuild the SwiftUI tree on every open so tweaked UITuning values take
+            // effect by closing and reopening, without restarting the app. The view is
+            // cheap to build and this only runs when the user opens Preferences.
+            if let store, let profileStore, let tester {
+                window.contentView = NSHostingView(
+                    rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
+            }
             window.makeKeyAndOrderFront(nil)
-            // Re-apply on every open so a tweaked trafficLight* default takes effect by
-            // closing and reopening, without restarting the app.
             trafficLights?.reposition(window)
             NSApp.activate(ignoringOtherApps: true)
             return

@@ -109,18 +109,18 @@ public struct ModelCatalog: Codable, Equatable {
             ManagedModel(
                 id: "parakeet-tdt-0.6b-v3",
                 displayName: "NVIDIA Parakeet TDT 0.6B v3",
-                source: .huggingFace(repo: "nvidia/parakeet-tdt-0.6b-v3", file: "parakeet-tdt-0.6b-v3.nemo"),
-                defaultLanguage: "auto", minSizeBytes: 400_000_000,
-                summary: "Ultra-fast transcription powered by NVIDIA FastConformer. Optimized for conversational speech and voice commands.",
-                sizeBytesApprox: 496_000_000, accuracy: 5, speed: 5, badge: "Best for Multilingual",
+                source: .huggingFace(repo: "FluidInference/parakeet-tdt-0.6b-v3-coreml", file: "parakeet-tdt-0.6b-v3-coreml"),
+                defaultLanguage: "en", minSizeBytes: 300_000_000,
+                summary: "Very fast transcription via NVIDIA FastConformer. Covers 25 European languages — no Hebrew.",
+                sizeBytesApprox: 632_000_000, accuracy: 5, speed: 5, badge: "European languages",
                 engine: .parakeet),
             ManagedModel(
                 id: "parakeet-tdt-0.6b-v2",
                 displayName: "NVIDIA Parakeet TDT 0.6B v2",
-                source: .huggingFace(repo: "nvidia/parakeet-tdt-0.6b-v2", file: "parakeet-tdt-0.6b-v2.nemo"),
-                defaultLanguage: "en", minSizeBytes: 400_000_000,
-                summary: "Ultra-fast English-only transcription powered by NVIDIA FastConformer V2. Optimized for English dictation and voice commands.",
-                sizeBytesApprox: 496_000_000, accuracy: 5, speed: 5, badge: "Best for English",
+                source: .huggingFace(repo: "FluidInference/parakeet-tdt-0.6b-v2-coreml", file: "parakeet-tdt-0.6b-v2-coreml"),
+                defaultLanguage: "en", minSizeBytes: 300_000_000,
+                summary: "Very fast English-only transcription via NVIDIA FastConformer. Around 5x faster than Whisper turbo on Apple Silicon.",
+                sizeBytesApprox: 632_000_000, accuracy: 5, speed: 5, badge: "Fastest for English",
                 engine: .parakeet),
         ], defaultModelID: "ivrit-large-v3-turbo")
     }

@@ -22,14 +22,12 @@ keys: ${KEYS[*]}
 USAGE
 }
 
-defaults_for() { grep -A1 "\"$1\"" Sources/Dictato/UITuning.swift | grep -o '[0-9]\+)' | head -1 | tr -d ')'; }
-
 case "${1:-}" in
 list)
     printf '%-20s %-10s %s\n' KEY CURRENT DEFAULT
     for k in "${KEYS[@]}"; do
         cur=$(defaults read "$DOMAIN" "$k" 2>/dev/null || echo "-")
-        def=$(grep -o "(\"$k\", [0-9]*)" Sources/Dictato/UITuning.swift | grep -o '[0-9]*)' | tr -d ')')
+        def=$(grep -o "(\"$k\", [0-9]*)" Sources/Dictato/UITuning.swift | grep -o '[0-9]*)' | tr -d ')' | head -1)
         printf '%-20s %-10s %s\n' "$k" "$cur" "${def:-?}"
     done
     ;;

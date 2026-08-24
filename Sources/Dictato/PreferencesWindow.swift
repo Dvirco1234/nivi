@@ -15,6 +15,7 @@ enum PreferencesWindow {
     }
 
     static func show() {
+        UITuning.reload()
         if let window {
             // Rebuild the SwiftUI tree on every open so tweaked UITuning values take
             // effect by closing and reopening, without restarting the app. The view is
@@ -64,15 +65,10 @@ private final class TrafficLightLayout: NSObject, NSWindowDelegate {
     // Read at layout time rather than baked in, so the position can be nudged with
     // `defaults write` and seen by reopening the window — finding the pixel that looks
     // right is guesswork that shouldn't need a rebuild each try.
-    private var x: CGFloat { Self.tunable("trafficLightX", default: 22) }
-    private var topMargin: CGFloat { Self.tunable("trafficLightTop", default: 22) }
-    private var pitch: CGFloat { Self.tunable("trafficLightPitch", default: 20) }
+    private var x: CGFloat { UITuning.trafficLightX }
+    private var topMargin: CGFloat { UITuning.trafficLightTop }
+    private var pitch: CGFloat { UITuning.trafficLightPitch }
     private var inFullScreen = false
-
-    private static func tunable(_ key: String, default fallback: CGFloat) -> CGFloat {
-        let value = UserDefaults.standard.double(forKey: key)
-        return value > 0 ? CGFloat(value) : fallback
-    }
 
     func reposition(_ window: NSWindow) {
         guard !inFullScreen else { return }   // system owns the buttons in fullscreen

@@ -8,6 +8,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = DictationController()
         controller.wireMenu()
         controller.start()
+        // Seed the layout tuning file at launch so it is there to edit without having
+        // to open Preferences first to bring it into existence.
+        UITuning.reload()
         self.controller = controller
         Log.info("Dictato launched")
     }

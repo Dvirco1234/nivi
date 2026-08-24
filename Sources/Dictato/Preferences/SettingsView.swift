@@ -29,6 +29,7 @@ struct SettingsView: View {
     @ObservedObject var profileStore: ProfileStore
     @ObservedObject var tester: ModelTester
     @ObservedObject private var tuning = UITuning.Store.shared
+    @ObservedObject private var chrome = PreferencesWindowChrome.shared
     @State private var section: PrefSection = .general
 
     var body: some View {
@@ -37,6 +38,12 @@ struct SettingsView: View {
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 820, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
+        // The window itself is clear so it can draw rounded corners, so this view owns the
+        // background. Without it the desktop shows straight through the whole window.
+        .background(WindowMaterial(material: .windowBackground))
+        // Same radius the window rounds itself to, otherwise square corners poke out past
+        // the window's mask. It goes to 0 in fullscreen, along with the window.
+        .clipShape(RoundedRectangle(cornerRadius: chrome.cornerRadius))
         .ignoresSafeArea(.all)   // draw under the transparent titlebar so the sidebar hosts the traffic lights
     }
 
@@ -53,7 +60,8 @@ struct SettingsView: View {
         }
         .frame(width: UITuning.sidebarWidth)
         .frame(maxHeight: .infinity)
-        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
+        .background(WindowMaterial(material: .sidebar))
+        .clipShape(RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
         .overlay(RoundedRectangle(cornerRadius: UITuning.sidebarCorner).strokeBorder(.white.opacity(0.07), lineWidth: 1))
         .padding(UITuning.sidebarInset)
     }
@@ -81,6 +89,26 @@ struct SettingsView: View {
         case .layout: LayoutTuningSection()
         case .debug: DebugSection()
         }
+    }
+}
+
+/// A native macOS blurred background. Used instead of a flat colour so the window keeps
+/// the depth a real Mac app has, and follows light and dark mode without extra work.
+private struct WindowMaterial: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = .behindWindow
+        // Without .active the blur greys out whenever the window loses focus, which reads
+        // as the window having gone half-transparent again.
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.material = material
     }
 }
 

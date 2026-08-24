@@ -1,6 +1,14 @@
 import AppKit
 import SwiftUI
 
+/// The rounded corners the window draws for itself, published so SwiftUI can clip its
+/// background to exactly the same shape. Without a shared value the background would keep
+/// its rounded corners in fullscreen, where the window itself is squared off.
+final class PreferencesWindowChrome: ObservableObject {
+    static let shared = PreferencesWindowChrome()
+    @Published fileprivate(set) var cornerRadius: CGFloat = UITuning.sidebarCorner
+}
+
 enum PreferencesWindow {
     private static var window: NSWindow?
     private static var store: ModelStore?
@@ -29,8 +37,10 @@ enum PreferencesWindow {
             return window.contentView?.layer
         }() else { return }
         let fullScreen = window.styleMask.contains(.fullScreen)
-        layer.cornerRadius = fullScreen ? 0 : UITuning.sidebarCorner
+        let radius = fullScreen ? 0 : UITuning.sidebarCorner
+        layer.cornerRadius = radius
         layer.masksToBounds = true
+        PreferencesWindowChrome.shared.cornerRadius = radius
     }
 
     static func show() {
@@ -63,7 +73,9 @@ enum PreferencesWindow {
         win.maxSize = NSSize(width: 1600, height: 1200)
         win.collectionBehavior.insert(.fullScreenPrimary)   // native green-button fullscreen
         // The window is rounded to match the sidebar panel, which means drawing its own
-        // corners: a clear, non-opaque window plus a masked content layer.
+        // corners: a clear, non-opaque window plus a masked content layer. Nothing paints
+        // the window background any more, so SettingsView has to supply one — see the
+        // material behind its root view.
         win.isOpaque = false
         win.backgroundColor = .clear
         win.center()
@@ -122,6 +134,7 @@ private final class TrafficLightLayout: NSObject, NSWindowDelegate {
         // report .fullScreen yet at this point.
         if let win = notification.object as? NSWindow {
             win.contentView?.layer?.cornerRadius = 0
+            PreferencesWindowChrome.shared.cornerRadius = 0
         }
     }
     func windowDidExitFullScreen(_ notification: Notification) {

@@ -14,6 +14,11 @@ enum PreferencesWindow {
         self.tester = tester
     }
 
+    /// Re-runs the AppKit button layout after a tuning change; SwiftUI redraws itself.
+    static func refreshTrafficLights() {
+        if let window { trafficLights?.reposition(window) }
+    }
+
     static func show() {
         UITuning.reload()
         if let window {

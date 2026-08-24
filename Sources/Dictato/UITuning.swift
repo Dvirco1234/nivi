@@ -34,7 +34,14 @@ enum UITuning {
         ("trafficLightPitch", 20, "traffic lights: spacing between the three buttons"),
     ]
 
-    private static var overrides: [String: CGFloat] = [:]
+    /// Observable so a change redraws the Preferences tree immediately: dragging a
+    /// slider and watching the layout move is the whole point of tuning by eye.
+    final class Store: ObservableObject {
+        static let shared = Store()
+        @Published fileprivate(set) var overrides: [String: CGFloat] = [:]
+    }
+
+    private static var overrides: [String: CGFloat] { Store.shared.overrides }
 
     // Sidebar
     static var sidebarWidth: CGFloat { value("sidebarWidth") }
@@ -57,9 +64,44 @@ enum UITuning {
     static var trafficLightTop: CGFloat { value("trafficLightTop") }
     static var trafficLightPitch: CGFloat { value("trafficLightPitch") }
 
-    private static func value(_ key: String) -> CGFloat {
+    static func value(_ key: String) -> CGFloat {
         if let override = overrides[key] { return override }
         return shipped.first { $0.key == key }?.value ?? 0
+    }
+
+    /// Applies a value live and persists it. The file stays the source of truth so a
+    /// session's tweaks survive a restart and can still be edited by hand.
+    static func set(_ key: String, to newValue: CGFloat) {
+        Store.shared.overrides[key] = newValue
+        save()
+    }
+
+    static func resetAll() {
+        Store.shared.overrides = [:]
+        try? FileManager.default.removeItem(at: fileURL)
+        writeTemplateIfMissing()
+    }
+
+    /// The current values in the file's own format, for pasting back into `shipped`.
+    static func exportText() -> String {
+        shipped.map { "\($0.key) = \(Int(value($0.key)))" }.joined(separator: "\n")
+    }
+
+    private static func save() {
+        var lines = [
+            "# Dictato layout tuning.",
+            "# Edit here or drag the sliders in Preferences > Debug.",
+            "# Delete this file to go back to the shipped values.",
+            "",
+        ]
+        for entry in shipped {
+            lines.append("# \(entry.note)")
+            lines.append("\(entry.key) = \(Int(value(entry.key)))")
+            lines.append("")
+        }
+        try? FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? lines.joined(separator: "\n").write(to: fileURL, atomically: true, encoding: .utf8)
     }
 
     /// Re-reads the file. Called when Preferences opens, so editing the file and
@@ -79,7 +121,7 @@ enum UITuning {
             guard let number = Double(raw), number > 0 else { continue }
             parsed[key] = CGFloat(number)
         }
-        overrides = parsed
+        Store.shared.overrides = parsed
     }
 
     /// Writes the file with every key at its shipped value, so there is something to

@@ -8,6 +8,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
     case profiles = "Profiles"
     case hotkeys = "Hotkeys"
     case speech = "Speech"
+    case layout = "Layout"
     case debug = "Debug"
     var id: String { rawValue }
     var icon: String {
@@ -17,6 +18,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
         case .profiles: return "person.crop.rectangle.stack"
         case .hotkeys: return "keyboard"
         case .speech: return "waveform"
+        case .layout: return "ruler"
         case .debug: return "ladybug"
         }
     }
@@ -26,6 +28,7 @@ struct SettingsView: View {
     @ObservedObject var store: ModelStore
     @ObservedObject var profileStore: ProfileStore
     @ObservedObject var tester: ModelTester
+    @ObservedObject private var tuning = UITuning.Store.shared
     @State private var section: PrefSection = .general
 
     var body: some View {
@@ -75,6 +78,7 @@ struct SettingsView: View {
         case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
         case .hotkeys: HotkeysSection()
         case .speech: SpeechSection()
+        case .layout: LayoutTuningSection()
         case .debug: DebugSection()
         }
     }

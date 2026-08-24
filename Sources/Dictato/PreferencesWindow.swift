@@ -16,7 +16,12 @@ enum PreferencesWindow {
 
     static func show() {
         if let window {
-            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return
+            window.makeKeyAndOrderFront(nil)
+            // Re-apply on every open so a tweaked trafficLight* default takes effect by
+            // closing and reopening, without restarting the app.
+            trafficLights?.reposition(window)
+            NSApp.activate(ignoringOtherApps: true)
+            return
         }
         guard let store, let profileStore, let tester else { return }
         let win = NSWindow(
@@ -50,10 +55,19 @@ enum PreferencesWindow {
 private final class TrafficLightLayout: NSObject, NSWindowDelegate {
     // Panel inset (10) matches SettingsView's sidebar `.padding(10)`, plus an
     // interior margin so the lights sit comfortably inside the rounded corner.
-    private let x: CGFloat = 22
-    private let topMargin: CGFloat = 22
-    private let pitch: CGFloat = 20
+    //
+    // Read at layout time rather than baked in, so the position can be nudged with
+    // `defaults write` and seen by reopening the window — finding the pixel that looks
+    // right is guesswork that shouldn't need a rebuild each try.
+    private var x: CGFloat { Self.tunable("trafficLightX", default: 22) }
+    private var topMargin: CGFloat { Self.tunable("trafficLightTop", default: 22) }
+    private var pitch: CGFloat { Self.tunable("trafficLightPitch", default: 20) }
     private var inFullScreen = false
+
+    private static func tunable(_ key: String, default fallback: CGFloat) -> CGFloat {
+        let value = UserDefaults.standard.double(forKey: key)
+        return value > 0 ? CGFloat(value) : fallback
+    }
 
     func reposition(_ window: NSWindow) {
         guard !inFullScreen else { return }   // system owns the buttons in fullscreen

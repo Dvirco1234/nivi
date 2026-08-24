@@ -19,19 +19,19 @@ enum UITuning {
 
     /// What ships. The file only ever overrides these.
     static let shipped: [(key: String, value: CGFloat, note: String)] = [
-        ("sidebarWidth", 220, "sidebar panel width"),
-        ("sidebarInset", 10, "gap between the sidebar panel and the window edges"),
-        ("sidebarCorner", 14, "sidebar corner radius"),
-        ("brandTop", 40, "space above the Dictato title; also clears the traffic lights"),
-        ("brandBottom", 10, "space below the Dictato title"),
+        ("sidebarWidth", 228, "sidebar panel width"),
+        ("sidebarInset", 6, "gap between the sidebar panel and the window edges"),
+        ("sidebarCorner", 24, "sidebar corner radius; the window is rounded to match"),
+        ("brandTop", 42, "space above the Dictato title; also clears the traffic lights"),
+        ("brandBottom", 6, "space below the Dictato title"),
         ("brandLeading", 16, "left inset of the title row"),
-        ("contentPadding", 20, "padding around the Models and Profiles content"),
+        ("contentPadding", 18, "padding around the Models and Profiles content"),
         ("cardSpacing", 12, "gap between cards"),
         ("cardPadding", 14, "padding inside each card"),
         ("cardCorner", 12, "card corner radius"),
         ("trafficLightX", 22, "traffic lights: distance from the left edge"),
-        ("trafficLightTop", 22, "traffic lights: distance from the top edge"),
-        ("trafficLightPitch", 20, "traffic lights: spacing between the three buttons"),
+        ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
+        ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),
     ]
 
     /// Observable so a change redraws the Preferences tree immediately: dragging a

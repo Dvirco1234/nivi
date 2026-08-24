@@ -16,7 +16,21 @@ enum PreferencesWindow {
 
     /// Re-runs the AppKit button layout after a tuning change; SwiftUI redraws itself.
     static func refreshTrafficLights() {
-        if let window { trafficLights?.reposition(window) }
+        guard let window else { return }
+        trafficLights?.reposition(window)
+        applyCornerRadius(to: window)
+    }
+
+    /// Rounds the window to the same radius as the sidebar panel. Skipped in fullscreen,
+    /// where rounded corners against the screen edge just look like a mistake.
+    static func applyCornerRadius(to window: NSWindow) {
+        guard let layer = window.contentView?.layer ?? {
+            window.contentView?.wantsLayer = true
+            return window.contentView?.layer
+        }() else { return }
+        let fullScreen = window.styleMask.contains(.fullScreen)
+        layer.cornerRadius = fullScreen ? 0 : UITuning.sidebarCorner
+        layer.masksToBounds = true
     }
 
     static func show() {
@@ -29,6 +43,7 @@ enum PreferencesWindow {
                 window.contentView = NSHostingView(
                     rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
             }
+            applyCornerRadius(to: window)
             window.makeKeyAndOrderFront(nil)
             trafficLights?.reposition(window)
             NSApp.activate(ignoringOtherApps: true)
@@ -47,8 +62,13 @@ enum PreferencesWindow {
         win.minSize = NSSize(width: 760, height: 520)
         win.maxSize = NSSize(width: 1600, height: 1200)
         win.collectionBehavior.insert(.fullScreenPrimary)   // native green-button fullscreen
+        // The window is rounded to match the sidebar panel, which means drawing its own
+        // corners: a clear, non-opaque window plus a masked content layer.
+        win.isOpaque = false
+        win.backgroundColor = .clear
         win.center()
         win.contentView = NSHostingView(rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
+        applyCornerRadius(to: win)
 
         // Nudge the traffic lights down/right so they sit inside the inset sidebar panel.
         let layout = TrafficLightLayout()
@@ -96,9 +116,19 @@ private final class TrafficLightLayout: NSObject, NSWindowDelegate {
     func windowDidEndLiveResize(_ notification: Notification) {
         if let win = notification.object as? NSWindow { reposition(win) }
     }
-    func windowWillEnterFullScreen(_ notification: Notification) { inFullScreen = true }
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        inFullScreen = true
+        // Squared off directly rather than via applyCornerRadius: the style mask does not
+        // report .fullScreen yet at this point.
+        if let win = notification.object as? NSWindow {
+            win.contentView?.layer?.cornerRadius = 0
+        }
+    }
     func windowDidExitFullScreen(_ notification: Notification) {
         inFullScreen = false
-        if let win = notification.object as? NSWindow { reposition(win) }
+        if let win = notification.object as? NSWindow {
+            reposition(win)
+            PreferencesWindow.applyCornerRadius(to: win)
+        }
     }
 }

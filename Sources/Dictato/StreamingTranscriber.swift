@@ -39,18 +39,6 @@ final class StreamingTranscriber {
     /// once — so the final text needs no overlap-guessing between the two.
     var frozenText: String { window.frozenText }
 
-    /// Whisper's encoder always runs a fixed 30s context unless told otherwise, so a short
-    /// window is only cheaper if the context shrinks with it. The floor keeps accuracy from
-    /// falling off a cliff — this is a lossy optimization, not a free one.
-    ///
-    /// It is derived from the *configured* window, not the live one: when `StreamWindow`
-    /// lets the window run long on an overflowing final segment, audio past the nominal
-    /// length is not encoded at all. That is self-correcting — the final tail pass covers
-    /// that audio at full context — but the preview will lag until the window advances.
-    private var audioCtx: Int {
-        max(256, 1500 * windowSeconds / 30)
-    }
-
     init(recognizer: SpeechRecognizer,
          language: String,
          sampleProvider: @escaping () -> [Float],
@@ -96,16 +84,21 @@ final class StreamingTranscriber {
         // whisper needs ~1s of audio to say anything useful; skip until we have it.
         guard windowSamples.count >= Int(AudioRecorder.sampleRate) else { return }
 
+        // Size the encoder context to this slice, not to the configured window: the window
+        // runs long whenever the final segment is still being spoken, and a context cut to
+        // the nominal length would drop that overrun before whisper ever heard it.
+        let audioCtx = audioContext(forSampleCount: windowSamples.count,
+                                    sampleRate: Int(AudioRecorder.sampleRate))
+
         do {
             let segments = try await recognizer.transcribeSegments(
                 samples: windowSamples, language: language, audioCtx: audioCtx)
             guard !Task.isCancelled else { return }
             // `StreamWindow` never freezes the last segment, so a pass that returns a single
             // segment can never advance the window. Sustained single-segment output means the
-            // window grows without bound while `audioCtx` still truncates the encoder at the
-            // nominal length: the preview silently stalls on the first few seconds and the
-            // final pass falls back to the slow whole-buffer path. Don't clamp the slice —
-            // dropping audio no frozen text covers would lose words — just make it visible.
+            // window grows without bound, so every pass gets slower and the final pass falls
+            // back to the slow whole-buffer path. Don't clamp the slice — dropping audio no
+            // frozen text covers would lose words — just make it visible.
             if !loggedStall,
                segments.count < 2,
                windowSamples.count > 2 * Int(AudioRecorder.sampleRate) * windowSeconds {

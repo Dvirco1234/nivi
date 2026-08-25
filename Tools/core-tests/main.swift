@@ -320,6 +320,21 @@ let live7 = w7.advance(segments: [seg("  padded  ", 0, 3000), seg("  text  ", 30
                        windowSampleCount: rate * 12, maxWindowSamples: tenSeconds, sampleRate: rate)
 check(live7 == "padded text", "segment whitespace trimmed and joined with single spaces")
 
+// --- audio context sizing ---
+let audioRate = 16000
+check(audioContext(forSampleCount: audioRate / 2, sampleRate: audioRate) == 256,
+      "a very short slice clamps to the floor")
+check(audioContext(forSampleCount: audioRate * 30, sampleRate: audioRate) == 1500,
+      "a 30s slice asks for whisper's full context")
+check(audioContext(forSampleCount: audioRate * 120, sampleRate: audioRate) == 1500,
+      "an over-long slice clamps to whisper's full context")
+check(audioContext(forSampleCount: audioRate * 10, sampleRate: audioRate) == 628,
+      "a 10s slice is proportional plus slack")
+check(audioContext(forSampleCount: audioRate * 12, sampleRate: audioRate) == 728,
+      "an overrunning window gets more context than the nominal window would")
+check(audioContext(forSampleCount: 0, sampleRate: audioRate) == 256,
+      "an empty slice falls back to the floor")
+
 // --- settings ---
 let wsuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 let wset = Settings(defaults: wsuite)

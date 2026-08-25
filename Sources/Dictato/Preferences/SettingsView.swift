@@ -40,7 +40,7 @@ struct SettingsView: View {
         .frame(minWidth: 820, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
         // The window itself is clear so it can draw rounded corners, so this view owns the
         // background. Without it the desktop shows straight through the whole window.
-        .background(WindowMaterial(material: .windowBackground))
+        .background(windowBackground)
         // Same radius the window rounds itself to, otherwise square corners poke out past
         // the window's mask. It goes to 0 in fullscreen, along with the window.
         .clipShape(RoundedRectangle(cornerRadius: chrome.cornerRadius))
@@ -60,10 +60,33 @@ struct SettingsView: View {
         }
         .frame(width: UITuning.sidebarWidth)
         .frame(maxHeight: .infinity)
-        .background(WindowMaterial(material: .sidebar))
+        .background(sidebarBackground)
         .clipShape(RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
         .overlay(RoundedRectangle(cornerRadius: UITuning.sidebarCorner).strokeBorder(.white.opacity(0.07), lineWidth: 1))
         .padding(UITuning.sidebarInset)
+    }
+
+    /// An opaque base with a blur on top of it. The blur alone would be `.behindWindow`,
+    /// which samples the desktop: on a colourful wallpaper the window picked up patches of
+    /// it and looked broken rather than translucent. Painting a solid colour first and
+    /// blending `.withinWindow` keeps the native depth but makes the result the same
+    /// whatever is behind the window.
+    private var windowBackground: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            WindowMaterial(material: .windowBackground, blending: .withinWindow)
+        }
+    }
+
+    /// The sidebar panel has to read as clearly lighter than the detail pane. The sidebar
+    /// material on its own is a subtle effect, so a light tint is laid over it to keep the
+    /// two panes apart in both light and dark mode.
+    private var sidebarBackground: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            WindowMaterial(material: .sidebar, blending: .withinWindow)
+            Color.primary.opacity(0.07)
+        }
     }
 
     private var brandHeader: some View {
@@ -96,11 +119,12 @@ struct SettingsView: View {
 /// the depth a real Mac app has, and follows light and dark mode without extra work.
 private struct WindowMaterial: NSViewRepresentable {
     let material: NSVisualEffectView.Material
+    var blending: NSVisualEffectView.BlendingMode = .behindWindow
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
-        view.blendingMode = .behindWindow
+        view.blendingMode = blending
         // Without .active the blur greys out whenever the window loses focus, which reads
         // as the window having gone half-transparent again.
         view.state = .active
@@ -109,6 +133,7 @@ private struct WindowMaterial: NSViewRepresentable {
 
     func updateNSView(_ view: NSVisualEffectView, context: Context) {
         view.material = material
+        view.blendingMode = blending
     }
 }
 

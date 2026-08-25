@@ -13,14 +13,26 @@ struct ModelsSection: View {
         Set(profileStore.set.profiles.map(\.modelID))
     }
 
+    private var modelsDirectory: URL { ModelPaths.modelsDir(base: store.base) }
+
+    /// Adds up the model files on disk. Cheap enough to read every redraw: the folder
+    /// holds a handful of files, not a tree.
+    private var spaceUsed: String {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: modelsDirectory,
+            includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let bytes = files.reduce(0) { total, url in
+            total + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+        }
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: UITuning.cardSpacing) {
-                HStack {
-                    Text("Dictation Models").font(.title2.weight(.semibold))
-                    Spacer()
-                    Button { showingAdd = true } label: { Label("Add model", systemImage: "plus") }
-                }
+        PrefPage(title: "Dictation models",
+                 description: "Download the speech models Dictato runs on your Mac. Nothing is sent anywhere.") {
+            PrefCardList("Installed and available") {
+                Button { showingAdd = true } label: { Label("Add model", systemImage: "plus") }
+            } content: {
                 ForEach(store.catalog.models) { model in
                     ModelCard(model: model,
                               state: store.installStates[model.id] ?? .notInstalled,
@@ -31,8 +43,19 @@ struct ModelsSection: View {
                               onTest: { testingModel = model })
                 }
             }
-            .padding(UITuning.contentPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            PrefGroup("Storage") {
+                PrefValueRow(icon: "folder",
+                             "Where models are saved",
+                             value: modelsDirectory.path)
+                PrefButtonRow(icon: "arrow.up.forward.app",
+                              "Show the models folder",
+                              buttonTitle: "Reveal in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([modelsDirectory])
+                }
+                PrefValueRow(icon: "internaldrive",
+                             "Space used by models",
+                             value: spaceUsed)
+            }
         }
         .navigationTitle("Dictation Models")
         .sheet(isPresented: $showingAdd) {

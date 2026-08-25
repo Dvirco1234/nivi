@@ -57,6 +57,7 @@ struct SettingsView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            versionFooter
         }
         .frame(width: UITuning.sidebarWidth)
         .frame(maxHeight: .infinity)
@@ -89,6 +90,23 @@ struct SettingsView: View {
         }
     }
 
+    /// Which build this is, so a bug report can name it. Text only: the sidebar's
+    /// material behind it already draws the background.
+    private var versionFooter: some View {
+        Text(Self.versionString)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(10)
+    }
+
+    private static var versionString: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "0"
+        let build = info?["CFBundleVersion"] as? String ?? "0"
+        return "v\(short) (\(build))"
+    }
+
     private var brandHeader: some View {
         HStack(spacing: 8) {
             if let img = LanguageGlyph.image(named: "DictatoLogo") {
@@ -107,7 +125,8 @@ struct SettingsView: View {
         case .general: GeneralSection()
         case .models: ModelsSection(store: store, profileStore: profileStore, tester: tester)
         case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
-        case .hotkeys: HotkeysSection()
+        case .hotkeys: HotkeysSection(profileStore: profileStore,
+                                       openProfiles: { section = .profiles })
         case .speech: SpeechSection()
         case .layout: LayoutTuningSection()
         case .debug: DebugSection()
@@ -165,7 +184,7 @@ private struct GeneralSection: View {
                 }
             }
 
-            PrefGroup("Behaviour") {
+            PrefGroup("Behavior") {
                 PrefToggleRow(icon: "rectangle.on.rectangle",
                               "Show the recording window",
                               isOn: $showOverlay)
@@ -209,19 +228,47 @@ private struct LaunchAtLoginRow: View {
 }
 
 private struct HotkeysSection: View {
+    @ObservedObject var profileStore: ProfileStore
+    let openProfiles: () -> Void
     private var settings = Settings()
+    @State private var cancelBinding = Settings().cancelBinding
+
+    init(profileStore: ProfileStore, openProfiles: @escaping () -> Void) {
+        self.profileStore = profileStore
+        self.openProfiles = openProfiles
+    }
+
     var body: some View {
-        Form {
-            Section {
-                HotkeyRecorderView(title: "Cancel", binding: settings.cancelBinding) {
-                    settings.cancelBinding = $0
+        PrefPage(title: "Hotkeys",
+                 description: "The keys that start, stop and cancel a recording.") {
+            if !PermissionManager.inputMonitoringGranted {
+                PrefBanner(.warning,
+                           icon: "exclamationmark.triangle.fill",
+                           title: "Esc to cancel is not working",
+                           message: "Give Dictato Input Monitoring access so it can see the Escape key in other apps.",
+                           actionTitle: "Open Settings") {
+                    PermissionManager.openInputMonitoringSettings()
                 }
-            } footer: {
-                Text("Global cancel key while recording. Dictate hotkeys are set per profile.")
-                    .font(.caption).foregroundStyle(.secondary)
+            }
+            PrefGroup("Cancel", footer: "Works in any app while a recording is running.") {
+                PrefRow(icon: "escape", "Cancel a recording") {
+                    HotkeyMenu(binding: cancelBinding) { newBinding in
+                        cancelBinding = newBinding
+                        settings.cancelBinding = newBinding
+                    }
+                    .fixedSize()
+                }
+            }
+            PrefGroup("Dictation hotkeys",
+                      footer: "Each profile has its own key. Edit them in Profiles.") {
+                ForEach(profileStore.set.profiles) { profile in
+                    PrefDisclosureRow(icon: "keyboard",
+                                      profile.name.isEmpty ? "Untitled" : profile.name,
+                                      value: profile.hotkey.displayString,
+                                      action: openProfiles)
+                }
             }
         }
-        .formStyle(.grouped)
         .navigationTitle("Hotkeys")
     }
 }
@@ -232,40 +279,37 @@ private struct SpeechSection: View {
     @State private var idleMinutes = Settings().idleUnloadSeconds / 60
     @State private var streamingInterval = Settings().streamingIntervalMs
     @State private var windowSeconds = Settings().streamingWindowSeconds
+
     var body: some View {
-        Form {
-            Section {
-                LabeledContent("Sample rate", value: "16 kHz")
+        PrefPage(title: "Speech",
+                 description: "How Dictato loads models and how fast the live preview updates.") {
+            PrefGroup("Audio",
+                      footer: "Dictato always records at 16 kHz mono, which is what the speech models expect.") {
+                PrefValueRow(icon: "waveform", "Sample rate", value: "16 kHz")
             }
-            Section {
-                Stepper("Models kept in memory: \(cacheCap)", value: $cacheCap, in: 1...4)
+            PrefGroup("Memory",
+                      footer: "Keeping more models loaded lets you switch instantly, but uses more RAM. Releasing frees about 1.6 GB, and the model reloads in about a second on your next dictation.") {
+                PrefStepperRow(icon: "memorychip",
+                               "Models kept in memory",
+                               value: $cacheCap, in: 1...4) { "\($0)" }
                     .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
-            } footer: {
-                Text("Higher keeps more models resident for instant switching (more RAM).")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
-                Stepper(idleMinutes == 0 ? "Release model when idle: Never"
-                                         : "Release model after \(idleMinutes) min idle",
-                        value: $idleMinutes, in: 0...30)
+                PrefStepperRow(icon: "clock.arrow.circlepath",
+                               "Release the model after",
+                               value: $idleMinutes, in: 0...30) { $0 == 0 ? "Never" : "\($0) min" }
                     .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
-            } footer: {
-                Text("Frees ~1.6 GB when unused; the model reloads (~1 s) on your next dictation.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
-            Section {
-                Stepper("Minimum gap between live updates: \(streamingInterval) ms",
-                        value: $streamingInterval, in: 500...2000, step: 100)
+            PrefGroup("Live preview",
+                      footer: "Live modes re-transcribe only the last few seconds each pass, so the preview keeps up however long you speak. A shorter window is faster. A longer one gives the model more context to correct itself.") {
+                PrefStepperRow(icon: "timer",
+                               "Minimum gap between updates",
+                               value: $streamingInterval, in: 500...2000, step: 100) { "\($0) ms" }
                     .onChange(of: streamingInterval) { settings.streamingIntervalMs = $0 }
-                Stepper("Live preview window: \(windowSeconds) s",
-                        value: $windowSeconds, in: 4...30, step: 1)
+                PrefStepperRow(icon: "arrow.left.and.right",
+                               "Live preview window",
+                               value: $windowSeconds, in: 4...30) { "\($0) s" }
                     .onChange(of: windowSeconds) { settings.streamingWindowSeconds = $0 }
-            } footer: {
-                Text("Live modes re-transcribe only the last few seconds each pass, so the preview keeps up however long you speak. A shorter window is faster; a longer one gives whisper more context to correct itself.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
         .navigationTitle("Speech")
     }
 }
@@ -275,21 +319,33 @@ private struct DebugSection: View {
     @State private var showInference = Settings().showInferenceTime
     @State private var showDuration = Settings().showAudioDuration
     @State private var verbose = Settings().verboseLogging
+
     var body: some View {
-        Form {
-            Section {
-                Toggle("Show inference time", isOn: $showInference)
+        PrefPage(title: "Debug",
+                 description: "Extra detail for tracking down problems. Leave these off day to day.") {
+            PrefGroup("Show extra detail") {
+                PrefToggleRow(icon: "stopwatch",
+                              "Show how long transcription took",
+                              isOn: $showInference)
                     .onChange(of: showInference) { settings.showInferenceTime = $0 }
-                Toggle("Show audio duration", isOn: $showDuration)
+                PrefToggleRow(icon: "waveform",
+                              "Show how long the recording was",
+                              isOn: $showDuration)
                     .onChange(of: showDuration) { settings.showAudioDuration = $0 }
-                Toggle("Verbose logging", isOn: $verbose)
+                PrefToggleRow(icon: "text.alignleft",
+                              "Write verbose logs",
+                              isOn: $verbose)
                     .onChange(of: verbose) { settings.verboseLogging = $0 }
             }
-            Section {
-                Button("Open Logs") { NSWorkspace.shared.open(Log.logDirectory) }
+            PrefGroup("Logs") {
+                PrefButtonRow(icon: "folder",
+                              "Open the log folder",
+                              buttonTitle: "Open") {
+                    NSWorkspace.shared.open(Log.logDirectory)
+                }
+                PrefValueRow(icon: "doc.text", "Log folder", value: Log.logDirectory.path)
             }
         }
-        .formStyle(.grouped)
         .navigationTitle("Debug")
     }
 }

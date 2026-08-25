@@ -73,10 +73,7 @@ struct PrefGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: PrefTheme.groupHeadingGap) {
             if let heading {
-                Text(heading)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 2)
+                PrefHeading(heading)
             }
             card
             if let footer {
@@ -127,6 +124,83 @@ struct PrefDivider: View {
             .fill(PrefTheme.rowDivider)
             .frame(height: 1)
             .padding(.leading, UITuning.cardPadding)
+    }
+}
+
+// MARK: - Heading
+
+/// The small grey heading that sits on the window background above a group.
+///
+/// `PrefGroup` uses it, and so does anything that needs the same heading over content
+/// that is not one card. The trailing slot holds a control that belongs to the whole
+/// group, such as an Add button.
+struct PrefHeading<Trailing: View>: View {
+    private let text: String
+    private let trailing: Trailing
+
+    init(_ text: String, @ViewBuilder trailing: () -> Trailing) {
+        self.text = text
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            trailing.controlSize(.small)
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
+extension PrefHeading where Trailing == EmptyView {
+    init(_ text: String) {
+        self.init(text) { EmptyView() }
+    }
+}
+
+/// A named group whose content is a list of free-standing cards rather than one card of
+/// rows. Models and Profiles already draw their own cards, so putting them inside another
+/// card would box a card inside a card.
+struct PrefCardList<Content: View, Accessory: View>: View {
+    private let heading: String
+    private let footer: String?
+    private let accessory: Accessory
+    private let content: Content
+
+    init(_ heading: String,
+         footer: String? = nil,
+         @ViewBuilder accessory: () -> Accessory,
+         @ViewBuilder content: () -> Content) {
+        self.heading = heading
+        self.footer = footer
+        self.accessory = accessory()
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: PrefTheme.groupHeadingGap) {
+            PrefHeading(heading) { accessory }
+            VStack(alignment: .leading, spacing: UITuning.cardSpacing) {
+                content
+            }
+            if let footer {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension PrefCardList where Accessory == EmptyView {
+    init(_ heading: String, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.init(heading, footer: footer, accessory: { EmptyView() }, content: content)
     }
 }
 

@@ -9,17 +9,29 @@ struct ProfilesSection: View {
     @State private var showingSheet = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: UITuning.cardSpacing) {
-                HStack {
-                    Text("Profiles").font(.title2.weight(.semibold))
-                    Spacer()
-                    Button { startAdd() } label: { Label("Add profile", systemImage: "plus") }
-                        .disabled(installedModels.isEmpty)
+        PrefPage(title: "Profiles",
+                 description: "A profile ties one hotkey to one model and one language. Make one per language you dictate in.") {
+            if !PermissionManager.accessibilityGranted {
+                PrefBanner(.warning,
+                           icon: "exclamationmark.triangle.fill",
+                           title: "Dictato cannot paste yet",
+                           message: "Give Dictato Accessibility access so it can paste into other apps.",
+                           actionTitle: "Open Settings") {
+                    PermissionManager.openAccessibilitySettings()
                 }
+            }
+            PrefCardList("Your profiles") {
+                Button { startAdd() } label: { Label("Add profile", systemImage: "plus") }
+                    .disabled(installedModels.isEmpty)
+            } content: {
                 if installedModels.isEmpty {
-                    Text("Install a model in Dictation Models first.")
-                        .foregroundStyle(.secondary)
+                    PrefEmptyState(icon: "cpu",
+                                   title: "No models yet",
+                                   message: "Install a model in Dictation models first, then come back here.")
+                        .background(PrefTheme.cardFill,
+                                    in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
+                        .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner)
+                            .strokeBorder(PrefTheme.cardStroke, lineWidth: 1))
                 }
                 ForEach(profileStore.set.profiles) { profile in
                     ProfileCard(
@@ -32,8 +44,6 @@ struct ProfilesSection: View {
                         onDelete: { profileStore.remove(profile.id) })
                 }
             }
-            .padding(UITuning.contentPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("Profiles")
         .sheet(isPresented: $showingSheet) {

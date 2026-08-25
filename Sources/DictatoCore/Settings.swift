@@ -21,6 +21,34 @@ public enum InsertionMode: String, Codable, CaseIterable {
     public var streamsDuringRecording: Bool { self != .batch }
 }
 
+/// How the app follows the system theme, or overrides it.
+public enum AppAppearance: String, Codable, CaseIterable, Sendable {
+    case system, light, dark
+
+    public var displayName: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+}
+
+/// How dictated text gets into the other app.
+public enum TextInputMethod: String, Codable, CaseIterable, Sendable {
+    /// Put the text on the clipboard and press Cmd-V. Fast.
+    case paste
+    /// Send the characters as key presses. Slower, but leaves the clipboard alone.
+    case type
+
+    public var displayName: String {
+        switch self {
+        case .paste: return "Paste (Cmd-V)"
+        case .type: return "Type it out"
+        }
+    }
+}
+
 /// UserDefaults-backed settings. Edit via Preferences or `defaults write com.dvir.dictato <key> <value>`.
 public struct Settings {
     private let defaults: UserDefaults
@@ -40,6 +68,19 @@ public struct Settings {
             Key.streamingIntervalMs: 500,
             Key.streamingWindowSeconds: 10,
             Key.recordingDisplay: RecordingDisplay.panel.rawValue,
+            Key.appearance: AppAppearance.system.rawValue,
+            Key.showInDock: true,
+            Key.showInStatusBar: true,
+            Key.escapeToCancelEnabled: true,
+            Key.muteWhileRecording: false,
+            Key.trackpadFeedback: false,
+            Key.textInputMethod: TextInputMethod.paste.rawValue,
+            Key.microphonePriority: "",
+            Key.wordReplacementsJSON: "",
+            Key.historyEnabled: true,
+            Key.historyRetentionDays: 30,
+            Key.fileChunkMinutes: 5,
+            Key.volumeBeforeMute: -1,
         ])
     }
 
@@ -63,6 +104,19 @@ public struct Settings {
         static let streamingIntervalMs = "streamingIntervalMs"
         static let streamingWindowSeconds = "streamingWindowSeconds"
         static let recordingDisplay = "recordingDisplay"
+        static let appearance = "appearance"
+        static let showInDock = "showInDock"
+        static let showInStatusBar = "showInStatusBar"
+        static let escapeToCancelEnabled = "escapeToCancelEnabled"
+        static let muteWhileRecording = "muteWhileRecording"
+        static let trackpadFeedback = "trackpadFeedback"
+        static let textInputMethod = "textInputMethod"
+        static let microphonePriority = "microphonePriority"
+        static let wordReplacementsJSON = "wordReplacementsJSON"
+        static let historyEnabled = "historyEnabled"
+        static let historyRetentionDays = "historyRetentionDays"
+        static let fileChunkMinutes = "fileChunkMinutes"
+        static let volumeBeforeMute = "volumeBeforeMute"
     }
 
     public var autoPaste: Bool {
@@ -159,5 +213,82 @@ public struct Settings {
     public var streamingWindowSeconds: Int {
         get { defaults.integer(forKey: Key.streamingWindowSeconds) }
         nonmutating set { defaults.set(newValue, forKey: Key.streamingWindowSeconds) }
+    }
+
+    // MARK: - Settings the Preferences redesign will use
+    //
+    // These are stored in this release so later work only adds behaviour and never
+    // changes what is written to disk. Nothing reads them yet.
+
+    public var appearance: AppAppearance {
+        get { AppAppearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.appearance) }
+    }
+
+    public var showInDock: Bool {
+        get { defaults.bool(forKey: Key.showInDock) }
+        nonmutating set { defaults.set(newValue, forKey: Key.showInDock) }
+    }
+
+    public var showInStatusBar: Bool {
+        get { defaults.bool(forKey: Key.showInStatusBar) }
+        nonmutating set { defaults.set(newValue, forKey: Key.showInStatusBar) }
+    }
+
+    /// Whether the recorded cancel key is listened for at all.
+    public var escapeToCancelEnabled: Bool {
+        get { defaults.bool(forKey: Key.escapeToCancelEnabled) }
+        nonmutating set { defaults.set(newValue, forKey: Key.escapeToCancelEnabled) }
+    }
+
+    public var muteWhileRecording: Bool {
+        get { defaults.bool(forKey: Key.muteWhileRecording) }
+        nonmutating set { defaults.set(newValue, forKey: Key.muteWhileRecording) }
+    }
+
+    /// The system output volume from before we muted it, so it can be put back even if
+    /// the app is killed mid-recording. Below zero means nothing is saved.
+    public var volumeBeforeMute: Double {
+        get { defaults.double(forKey: Key.volumeBeforeMute) }
+        nonmutating set { defaults.set(newValue, forKey: Key.volumeBeforeMute) }
+    }
+
+    public var trackpadFeedback: Bool {
+        get { defaults.bool(forKey: Key.trackpadFeedback) }
+        nonmutating set { defaults.set(newValue, forKey: Key.trackpadFeedback) }
+    }
+
+    public var textInputMethod: TextInputMethod {
+        get { TextInputMethod(rawValue: defaults.string(forKey: Key.textInputMethod) ?? "") ?? .paste }
+        nonmutating set { defaults.set(newValue.rawValue, forKey: Key.textInputMethod) }
+    }
+
+    /// Microphone unique ids, best first, as a JSON array of strings.
+    public var microphonePriority: String {
+        get { defaults.string(forKey: Key.microphonePriority) ?? "" }
+        nonmutating set { defaults.set(newValue, forKey: Key.microphonePriority) }
+    }
+
+    /// `WordReplacement` rules as JSON. Read it with `WordReplacing.decode(json:)`.
+    public var wordReplacementsJSON: String {
+        get { defaults.string(forKey: Key.wordReplacementsJSON) ?? "" }
+        nonmutating set { defaults.set(newValue, forKey: Key.wordReplacementsJSON) }
+    }
+
+    public var historyEnabled: Bool {
+        get { defaults.bool(forKey: Key.historyEnabled) }
+        nonmutating set { defaults.set(newValue, forKey: Key.historyEnabled) }
+    }
+
+    /// Days to keep saved transcriptions. Zero keeps them forever.
+    public var historyRetentionDays: Int {
+        get { max(0, defaults.integer(forKey: Key.historyRetentionDays)) }
+        nonmutating set { defaults.set(max(0, newValue), forKey: Key.historyRetentionDays) }
+    }
+
+    /// How long each piece of a long file is when it is transcribed in parts.
+    public var fileChunkMinutes: Int {
+        get { min(15, max(1, defaults.integer(forKey: Key.fileChunkMinutes))) }
+        nonmutating set { defaults.set(min(15, max(1, newValue)), forKey: Key.fileChunkMinutes) }
     }
 }

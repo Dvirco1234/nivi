@@ -342,4 +342,156 @@ check(wset.streamingWindowSeconds == 10, "default streamingWindowSeconds")
 wset.streamingWindowSeconds = 15
 check(Settings(defaults: wsuite).streamingWindowSeconds == 15, "streamingWindowSeconds persists")
 
+
+// --- new settings frozen for the Preferences redesign ---
+let prefSuite = UserDefaults(suiteName: "com.dvir.dictato.coretest.prefs")!
+prefSuite.removePersistentDomain(forName: "com.dvir.dictato.coretest.prefs")
+let prefs = Settings(defaults: prefSuite)
+check(prefs.appearance == .system, "default appearance follows the system")
+check(prefs.showInDock, "Dock icon is on by default")
+check(prefs.showInStatusBar, "menu bar icon is on by default")
+check(prefs.escapeToCancelEnabled, "Esc to cancel is on by default")
+check(!prefs.muteWhileRecording, "mute while recording is off by default")
+check(!prefs.trackpadFeedback, "trackpad feedback is off by default")
+check(prefs.textInputMethod == .paste, "text is pasted by default")
+check(prefs.microphonePriority.isEmpty, "no microphone order by default")
+check(prefs.wordReplacementsJSON.isEmpty, "no word replacements by default")
+check(prefs.historyEnabled, "history is on by default")
+check(prefs.historyRetentionDays == 30, "history is kept 30 days by default")
+check(prefs.fileChunkMinutes == 5, "file chunks are 5 minutes by default")
+prefs.appearance = .dark
+prefs.historyRetentionDays = 0
+prefs.fileChunkMinutes = 99
+let prefsAgain = Settings(defaults: prefSuite)
+check(prefsAgain.appearance == .dark, "appearance persists")
+check(prefsAgain.historyRetentionDays == 0, "keep forever persists as 0")
+check(prefsAgain.fileChunkMinutes == 15, "chunk minutes clamp to 15")
+
+// --- DurationFormatting ---
+check(DurationFormatting.short(0) == "0 seconds", "zero length")
+check(DurationFormatting.short(-4) == "0 seconds", "negative length is treated as zero")
+check(DurationFormatting.short(1) == "1 second", "one second is singular")
+check(DurationFormatting.short(10) == "10 seconds", "ten seconds")
+check(DurationFormatting.short(72) == "1 min 12 s", "a minute and a bit")
+check(DurationFormatting.short(300) == "5 min", "a whole number of minutes drops the seconds")
+check(DurationFormatting.short(3840) == "1 h 04 m", "over an hour")
+check(DurationFormatting.short(milliseconds: 1500) == "2 seconds", "milliseconds round to seconds")
+
+// --- HistoryRecord round trip ---
+let sampleRecord = HistoryRecord(id: "abc",
+                                 createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                                 text: "hello there",
+                                 durationMs: 4200,
+                                 source: .dictation,
+                                 modelID: "large-v3-turbo",
+                                 language: "en",
+                                 profileID: "p1",
+                                 sourceName: "Notes")
+let recordLine = HistoryFile.line(for: sampleRecord)!
+check(!recordLine.contains("\n"), "a record is one single line")
+check(recordLine.contains("1700000000"), "the date is stored as epoch seconds")
+let readBack = HistoryFile.records(fromFileText: recordLine + "\n")
+check(readBack == [sampleRecord], "a record survives the file round trip")
+let withRubbish = HistoryFile.records(fromFileText: recordLine + "\n{ broken\n" + recordLine + "\n")
+check(withRubbish.count == 2, "a half-written line is skipped, the rest still reads")
+
+// --- HistoryRetention ---
+func aged(_ daysOld: Double, _ id: String) -> HistoryRecord {
+    HistoryRecord(id: id,
+                  createdAt: Date(timeIntervalSince1970: 1_000_000 - daysOld * 86_400),
+                  text: id, durationMs: 1000, source: .dictation,
+                  modelID: "m", language: "en")
+}
+let rightNow = Date(timeIntervalSince1970: 1_000_000)
+let ageMix = [aged(1, "fresh"), aged(10, "week"), aged(100, "old")]
+check(HistoryRetention.keeping(ageMix, retentionDays: 0, now: rightNow).count == 3,
+      "zero days keeps everything")
+check(HistoryRetention.keeping(ageMix, retentionDays: -5, now: rightNow).count == 3,
+      "a bad negative value never deletes anything")
+check(HistoryRetention.keeping(ageMix, retentionDays: 7, now: rightNow).map(\.id) == ["fresh"],
+      "seven days drops the older two")
+check(HistoryRetention.keeping(ageMix, retentionDays: 30, now: rightNow).map(\.id) == ["fresh", "week"],
+      "thirty days keeps the middle one")
+check(HistoryRetention.optionLabel(days: 0) == "Keep forever", "keep forever label")
+check(HistoryRetention.optionLabel(days: 365) == "1 year", "one year label")
+
+// --- HistoryFiltering ---
+func made(_ id: String, _ text: String, _ source: HistorySource, secondsAgo: Double, name: String? = nil) -> HistoryRecord {
+    HistoryRecord(id: id, createdAt: Date(timeIntervalSince1970: 1_000_000 - secondsAgo),
+                  text: text, durationMs: 1000, source: source,
+                  modelID: "m", language: "en", sourceName: name)
+}
+let historyList = [
+    made("a", "Buy milk today", .dictation, secondsAgo: 30),
+    made("b", "Meeting notes", .file, secondsAgo: 10, name: "standup.m4a"),
+    made("c", "test one two", .modelTest, secondsAgo: 60),
+]
+check(HistoryFiltering.apply(HistoryQuery(), to: historyList).map(\.id) == ["b", "a", "c"],
+      "newest first by default")
+check(HistoryFiltering.apply(HistoryQuery(newestFirst: false), to: historyList).map(\.id) == ["c", "a", "b"],
+      "oldest first when asked")
+check(HistoryFiltering.apply(HistoryQuery(sources: [.file]), to: historyList).map(\.id) == ["b"],
+      "filtering by source")
+check(HistoryFiltering.apply(HistoryQuery(searchText: "MILK"), to: historyList).map(\.id) == ["a"],
+      "search ignores case")
+check(HistoryFiltering.apply(HistoryQuery(searchText: "standup"), to: historyList).map(\.id) == ["b"],
+      "search also looks at the file name")
+check(HistoryFiltering.apply(HistoryQuery(searchText: "   "), to: historyList).count == 3,
+      "an all-spaces search is no search")
+
+// --- WordReplacement ---
+let replacements = [
+    WordReplacement(id: "1", find: "cat", replaceWith: "dog"),
+    WordReplacement(id: "2", find: "hello", replaceWith: "Hi", matchWholeWord: false),
+    WordReplacement(id: "3", find: "never", replaceWith: "always", isEnabled: false),
+]
+check(WordReplacing.apply(replacements, to: "the cat sat") == "the dog sat", "whole word replaced")
+check(WordReplacing.apply(replacements, to: "a category") == "a category", "whole word does not match inside a word")
+check(WordReplacing.apply(replacements, to: "CAT scan") == "dog scan", "matching ignores case")
+check(WordReplacing.apply(replacements, to: "say hellothere") == "say Hithere", "partial match when whole word is off")
+check(WordReplacing.apply(replacements, to: "never mind") == "never mind", "a disabled rule does nothing")
+check(WordReplacing.apply([WordReplacement(id: "4", find: "x", replaceWith: "$1")], to: "x")
+      == "$1", "a dollar sign in the replacement is written as typed")
+let encodedRules = WordReplacing.encode(replacements)
+check(WordReplacing.decode(json: encodedRules) == replacements, "rules survive the json round trip")
+check(WordReplacing.decode(json: "not json").isEmpty, "bad json gives no rules")
+
+// --- TranscribableFormat ---
+check(TranscribableFormat.isSupported(fileExtension: "mp3"), "mp3 is supported")
+check(TranscribableFormat.isSupported(fileExtension: ".M4A"), "a leading dot and capitals still match")
+check(!TranscribableFormat.isSupported(fileExtension: "ogg"), "ogg is not supported")
+check(TranscribableFormat.isKnownUnsupported(fileExtension: "webm"), "webm is a known miss")
+check(!TranscribableFormat.isKnownUnsupported(fileExtension: "wav"), "wav is not a known miss")
+
+// --- AudioChunkPlanner ---
+let chunkRate = 16000
+check(AudioChunkPlanner.cutPoints(sampleCount: chunkRate * 60, sampleRate: chunkRate, chunkSeconds: 300).isEmpty,
+      "a file shorter than one chunk is not cut")
+check(AudioChunkPlanner.cutPoints(sampleCount: chunkRate * 650, sampleRate: chunkRate, chunkSeconds: 300)
+      == [chunkRate * 300], "a short last piece is folded into the piece before it")
+check(AudioChunkPlanner.cutPoints(sampleCount: chunkRate * 800, sampleRate: chunkRate, chunkSeconds: 300)
+      == [chunkRate * 300, chunkRate * 600], "a longer file is cut twice")
+check(AudioChunkPlanner.cutPoints(sampleCount: 0, sampleRate: chunkRate, chunkSeconds: 5).isEmpty,
+      "no samples, no cuts")
+check(AudioChunkPlanner.cutPoints(sampleCount: 1000, sampleRate: chunkRate, chunkSeconds: 0).isEmpty,
+      "a zero chunk length is refused instead of looping forever")
+
+// A loud tone with one silent second sitting 2 seconds before the even cut. The planner
+// should move the cut into that silence.
+var toneSamples = [Float](repeating: 0.5, count: chunkRate * 20)
+let silenceStart = chunkRate * 8
+for index in silenceStart..<(silenceStart + chunkRate) { toneSamples[index] = 0 }
+let quietCuts = AudioChunkPlanner.cutPoints(samples: toneSamples,
+                                            sampleRate: chunkRate,
+                                            chunkSeconds: 10,
+                                            searchSeconds: 3)
+check(quietCuts.count == 1, "one cut for a twenty second clip in ten second chunks")
+check(quietCuts[0] >= silenceStart && quietCuts[0] <= silenceStart + chunkRate,
+      "the cut lands inside the silent second")
+let evenCuts = AudioChunkPlanner.cutPoints(samples: [Float](repeating: 0.5, count: chunkRate * 20),
+                                           sampleRate: chunkRate,
+                                           chunkSeconds: 10,
+                                           searchSeconds: 3)
+check(evenCuts.count == 1, "steady sound still gets its cut")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

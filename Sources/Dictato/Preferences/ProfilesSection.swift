@@ -104,9 +104,9 @@ private struct ProfileCard: View {
         }
         .padding(UITuning.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
+        .background(PrefTheme.cardFill, in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
         .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner).strokeBorder(
-            isPrimary ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isPrimary ? 1.5 : 1))
+            isPrimary ? PrefTheme.accent.opacity(0.6) : PrefTheme.cardStroke, lineWidth: isPrimary ? 1.5 : 1))
     }
 
     private var modeLabel: String { profile.mode.displayName }

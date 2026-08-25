@@ -29,6 +29,13 @@ enum UITuning {
         ("cardSpacing", 12, "gap between cards"),
         ("cardPadding", 14, "padding inside each card"),
         ("cardCorner", 12, "card corner radius"),
+        ("groupSpacing", 22, "gap between one group of settings and the next"),
+        ("groupHeadingGap", 7, "gap between a group heading and the card under it"),
+        ("pageTitleGap", 4, "gap between the page title and its description"),
+        ("pageHeaderBottom", 22, "gap below the description, before the first group"),
+        ("rowVerticalPadding", 10, "padding above and below a settings row"),
+        ("rowIconWidth", 22, "width of the icon column at the left of a row"),
+        ("rowMinHeight", 34, "minimum row height, so single-line rows come out even"),
         ("trafficLightX", 22, "traffic lights: distance from the left edge"),
         ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
         ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),
@@ -58,6 +65,8 @@ enum UITuning {
     static var cardSpacing: CGFloat { value("cardSpacing") }
     static var cardPadding: CGFloat { value("cardPadding") }
     static var cardCorner: CGFloat { value("cardCorner") }
+
+    // Preferences pages, groups and rows. Read through PrefTheme at the call sites.
 
     // Window buttons
     static var trafficLightX: CGFloat { value("trafficLightX") }

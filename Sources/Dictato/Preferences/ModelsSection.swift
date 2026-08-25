@@ -81,9 +81,9 @@ private struct ModelCard: View {
         }
         .padding(UITuning.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
+        .background(PrefTheme.cardFill, in: RoundedRectangle(cornerRadius: UITuning.cardCorner))
         .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner).strokeBorder(
-            isDefault ? Color.blue.opacity(0.6) : .white.opacity(0.08), lineWidth: isDefault ? 1.5 : 1))
+            isDefault ? PrefTheme.accent.opacity(0.6) : PrefTheme.cardStroke, lineWidth: isDefault ? 1.5 : 1))
         .onHover { hovering = $0 }
     }
 

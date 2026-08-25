@@ -205,7 +205,7 @@ final class DictationController {
             notchPanel.preferredScreen = activeScreen
             transition(.startRequested)
             if settings.playSounds { SoundPlayer.playStart() }
-            if profile?.mode != .batch, let profile {
+            if let profile, profile.mode.streamsDuringRecording {
                 startStreaming(for: profile, generation: generation)
             }
             Log.info("Recording started")
@@ -280,6 +280,11 @@ final class DictationController {
             if !settings.copyOnly { typeAppendOnly(update.stableText) }
         case .batch:
             break
+        case .batchFastFinish:
+            // Deliberately silent. This mode streams only to shorten the wait at the end,
+            // so the overlay keeps showing the ordinary recording card and nothing reaches
+            // the user's app until the finished text is inserted in one piece.
+            break
         }
     }
 
@@ -348,7 +353,7 @@ final class DictationController {
                 }
                 transition(.transcriptionSucceeded)
                 switch profile.mode {
-                case .batch, .overlayLive:
+                case .batch, .batchFastFinish, .overlayLive:
                     inserter.insert(text,
                                     autoPaste: settings.autoPaste,
                                     copyOnly: settings.copyOnly,

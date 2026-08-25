@@ -1,15 +1,24 @@
 import Foundation
 
 public enum InsertionMode: String, Codable, CaseIterable {
-    case batch, overlayLive, inAppLive
+    case batch, batchFastFinish, overlayLive, inAppLive
 
     public var displayName: String {
         switch self {
         case .batch: return "Batch (record, then paste)"
+        case .batchFastFinish: return "Batch, fast finish (transcribes while you speak)"
         case .overlayLive: return "Live preview in overlay"
         case .inAppLive: return "Live typing into app"
         }
     }
+
+    /// Whether the transcriber runs during the recording instead of only at the end.
+    ///
+    /// Plain batch waits for the whole recording, so the wait at the end grows with how
+    /// long you spoke. Every other mode transcribes as you go, which leaves only the
+    /// unfinished tail for the final pass. They differ in what they show while doing it,
+    /// not in whether they do it.
+    public var streamsDuringRecording: Bool { self != .batch }
 }
 
 /// UserDefaults-backed settings. Edit via Preferences or `defaults write com.dvir.dictato <key> <value>`.

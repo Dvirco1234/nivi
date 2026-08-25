@@ -185,7 +185,12 @@ struct PrefRow<Trailing: View>: View {
                 }
             }
             Spacer(minLength: 12)
-            trailing
+            // Outside a grouped Form every AppKit control falls back to its full-size
+            // look: a taller pop-up button with bigger chevrons, a taller stepper, a
+            // bigger button. The Form used to shrink them for us. Setting the size once
+            // here does the same job for every row, instead of each call site
+            // remembering to.
+            trailing.controlSize(.small)
         }
         .padding(.horizontal, UITuning.cardPadding)
         .padding(.vertical, PrefTheme.rowVerticalPadding)
@@ -225,6 +230,9 @@ struct PrefToggleRow: View {
         PrefRow(icon: icon, title, caption: caption, captionStyle: captionStyle) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
+                // A Mac switch has exactly one size: .controlSize does nothing to it,
+                // measured at 36 by 16 points whatever you ask for. Named here so nobody
+                // spends an afternoon trying to shrink it again.
                 .toggleStyle(.switch)
         }
         .accessibilityElement(children: .combine)

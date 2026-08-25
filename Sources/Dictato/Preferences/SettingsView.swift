@@ -147,48 +147,63 @@ private struct GeneralSection: View {
     @State private var display = Settings().recordingDisplay
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Auto-paste after transcription", isOn: $autoPaste)
-                    .onChange(of: autoPaste) { settings.autoPaste = $0 }
-                Toggle("Copy only (never paste)", isOn: $copyOnly)
-                    .onChange(of: copyOnly) { settings.copyOnly = $0 }
-                Toggle("Keep dictation out of clipboard history", isOn: $excludeHistory)
-                    .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
-                Toggle("Show overlay", isOn: $showOverlay)
-                    .onChange(of: showOverlay) { settings.showOverlay = $0 }
-                Toggle("Play sounds", isOn: $playSounds)
-                    .onChange(of: playSounds) { settings.playSounds = $0 }
+        PrefPage(title: "General",
+                 description: "Set up how Dictato behaves and where your dictated text goes.") {
+            PrefGroup("Interface") {
+                LaunchAtLoginRow()
             }
-            Section {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Recording display").font(.body)
-                        Text("Choose how the dictation interface looks.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 16)
+
+            PrefGroup("Recording display",
+                      footer: "Panel floats near the bottom of the screen. Notch hugs the top, and merges with the MacBook notch where there is one.") {
+                // No icon here: the thumbnails are the widest control in the window and
+                // need the whole row.
+                PrefRow(icon: nil,
+                        "Recording display",
+                        caption: "Choose how the dictation window looks while you speak.") {
                     RecordingDisplayPicker(selection: $display)
                         .onChange(of: display) { settings.recordingDisplay = $0 }
                 }
-                .padding(.vertical, 4)
-            } footer: {
-                Text("Panel floats near the bottom of the screen. Notch hugs the top, merging with the MacBook notch where there is one.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
-            Section {
-                LaunchAtLoginToggle()
+
+            PrefGroup("Behaviour") {
+                PrefToggleRow(icon: "rectangle.on.rectangle",
+                              "Show the recording window",
+                              isOn: $showOverlay)
+                    .onChange(of: showOverlay) { settings.showOverlay = $0 }
+            }
+
+            PrefGroup("Audio and feedback") {
+                PrefToggleRow(icon: "speaker.wave.2",
+                              "Play a sound when recording starts and stops",
+                              isOn: $playSounds)
+                    .onChange(of: playSounds) { settings.playSounds = $0 }
+            }
+
+            PrefGroup("Text handling",
+                      footer: "Copy only leaves the text on the clipboard for you to paste yourself.") {
+                PrefToggleRow(icon: "arrow.down.doc",
+                              "Paste the text as soon as it is ready",
+                              isOn: $autoPaste)
+                    .onChange(of: autoPaste) { settings.autoPaste = $0 }
+                PrefToggleRow(icon: "doc.on.clipboard",
+                              "Copy to the clipboard only, never paste",
+                              isOn: $copyOnly)
+                    .onChange(of: copyOnly) { settings.copyOnly = $0 }
+                PrefToggleRow(icon: "eye.slash",
+                              "Keep dictated text out of clipboard history",
+                              caption: "Clipboard managers such as Raycast and Maccy skip it.",
+                              isOn: $excludeHistory)
+                    .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
             }
         }
-        .formStyle(.grouped)
         .navigationTitle("General")
     }
 }
 
-private struct LaunchAtLoginToggle: View {
+private struct LaunchAtLoginRow: View {
     @State private var on = LoginItem.isEnabled
     var body: some View {
-        Toggle("Launch at login", isOn: $on)
+        PrefToggleRow(icon: "power", "Start Dictato when I log in", isOn: $on)
             .onChange(of: on) { LoginItem.set($0); on = LoginItem.isEnabled }
     }
 }

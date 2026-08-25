@@ -86,7 +86,7 @@ enum PreferencesWindow {
         let layout = TrafficLightLayout()
         win.delegate = layout
         trafficLights = layout
-        layout.reposition(win)
+        layout.install(in: win)
 
         window = win
         win.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
@@ -94,42 +94,82 @@ enum PreferencesWindow {
 }
 
 /// Moves the standard window buttons into the sidebar's inset rounded panel and
-/// keeps them there across resizes and fullscreen transitions.
+/// keeps them there.
+///
+/// AppKit owns these buttons and puts them back at their default spot every time the
+/// titlebar lays itself out, which happens whenever the window content changes —
+/// switching a tab in the sidebar is enough. Setting `frame` once therefore does not
+/// hold, and setting it again from a frame-change notification does not either: moving
+/// one button makes the titlebar lay out again straight away, which undoes the moves we
+/// just made to the other two. Measured on a tab switch, that fight ended with the close
+/// and miniaturise buttons in place and the zoom button left at the system position.
+///
+/// So the buttons are placed with constraints instead of frames. The titlebar's own
+/// layout pass then computes their position from those constraints rather than
+/// overwriting it, and there is nothing left to fight about.
 private final class TrafficLightLayout: NSObject, NSWindowDelegate {
     // Panel inset (10) matches SettingsView's sidebar `.padding(10)`, plus an
     // interior margin so the lights sit comfortably inside the rounded corner.
     //
-    // Read at layout time rather than baked in, so the position can be nudged with
-    // `defaults write` and seen by reopening the window — finding the pixel that looks
-    // right is guesswork that shouldn't need a rebuild each try.
+    // Read when the constraints are built or refreshed rather than baked in, so the
+    // position can be nudged in the tuning file and seen by reopening the window —
+    // finding the pixel that looks right is guesswork that shouldn't need a rebuild
+    // each try.
     private var x: CGFloat { UITuning.trafficLightX }
     private var topMargin: CGFloat { UITuning.trafficLightTop }
     private var pitch: CGFloat { UITuning.trafficLightPitch }
     private var inFullScreen = false
 
-    func reposition(_ window: NSWindow) {
+    private static let buttonTypes: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
+    /// One entry per button. The constraints are kept so the tuning sliders can move the
+    /// buttons by changing a constant, and so they can be torn down for fullscreen.
+    private var placements: [(button: NSButton, left: NSLayoutConstraint, top: NSLayoutConstraint)] = []
+
+    /// Pins the buttons to the top-left of the titlebar.
+    /// Safe to call again: the previous constraints are removed first. That matters after
+    /// leaving fullscreen, where the system hands the window a fresh titlebar view.
+    func install(in window: NSWindow) {
+        removeConstraints()
         guard !inFullScreen else { return }   // system owns the buttons in fullscreen
-        let types: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
-        let buttons = types.compactMap { window.standardWindowButton($0) }
-        guard buttons.count == 3, let frame = buttons.first?.superview else { return }
-        DispatchQueue.main.async {
-            for (i, button) in buttons.enumerated() {
-                var f = button.frame
-                f.origin.x = self.x + CGFloat(i) * self.pitch
-                f.origin.y = frame.bounds.height - self.topMargin - f.height
-                button.frame = f
-            }
+        let buttons = Self.buttonTypes.compactMap { window.standardWindowButton($0) }
+        guard buttons.count == 3, let titlebar = buttons.first?.superview else { return }
+        for (index, button) in buttons.enumerated() {
+            button.translatesAutoresizingMaskIntoConstraints = false
+            // Left, not leading: the traffic lights stay on the left even when the app is
+            // showing Hebrew and the interface flips to right-to-left.
+            let left = button.leftAnchor.constraint(
+                equalTo: titlebar.leftAnchor, constant: x + CGFloat(index) * pitch)
+            let top = button.topAnchor.constraint(equalTo: titlebar.topAnchor, constant: topMargin)
+            NSLayoutConstraint.activate([left, top])
+            placements.append((button, left, top))
         }
+        titlebar.needsLayout = true
     }
 
-    func windowDidResize(_ notification: Notification) {
-        if let win = notification.object as? NSWindow { reposition(win) }
+    /// Applies the current tuning values. Builds the constraints first if they are missing,
+    /// so this doubles as "put them where they belong now".
+    func reposition(_ window: NSWindow) {
+        guard !inFullScreen else { return }
+        guard !placements.isEmpty else { return install(in: window) }
+        for (index, placement) in placements.enumerated() {
+            placement.left.constant = x + CGFloat(index) * pitch
+            placement.top.constant = topMargin
+        }
+        placements.first?.button.superview?.needsLayout = true
     }
-    func windowDidEndLiveResize(_ notification: Notification) {
-        if let win = notification.object as? NSWindow { reposition(win) }
+
+    /// Hands the buttons back to AppKit, which needs their frames under its own control.
+    private func removeConstraints() {
+        for placement in placements {
+            NSLayoutConstraint.deactivate([placement.left, placement.top])
+            placement.button.translatesAutoresizingMaskIntoConstraints = true
+        }
+        placements.removeAll()
     }
+
     func windowWillEnterFullScreen(_ notification: Notification) {
         inFullScreen = true
+        removeConstraints()   // the system places the buttons itself in fullscreen
         // Squared off directly rather than via applyCornerRadius: the style mask does not
         // report .fullScreen yet at this point.
         if let win = notification.object as? NSWindow {
@@ -140,7 +180,7 @@ private final class TrafficLightLayout: NSObject, NSWindowDelegate {
     func windowDidExitFullScreen(_ notification: Notification) {
         inFullScreen = false
         if let win = notification.object as? NSWindow {
-            reposition(win)
+            install(in: win)
             PreferencesWindow.applyCornerRadius(to: win)
         }
     }

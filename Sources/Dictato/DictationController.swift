@@ -274,7 +274,10 @@ final class DictationController {
             overlayModel.liveText = update.fullText
         case .inAppLive:
             overlayModel.liveText = update.fullText
-            typeAppendOnly(update.stableText)
+            // "Copy only" means never write into the app. Typing as the user speaks would
+            // break that promise in a way nothing later can undo, so a copy-only profile
+            // shows the preview and keeps the text for the clipboard instead.
+            if !settings.copyOnly { typeAppendOnly(update.stableText) }
         case .batch:
             break
         }
@@ -351,10 +354,19 @@ final class DictationController {
                                     copyOnly: settings.copyOnly,
                                     excludeFromHistory: settings.excludeFromClipboardHistory)
                 case .inAppLive:
-                    // Type only what streaming hasn't already typed. The final pass
-                    // re-punctuates and re-capitalizes words already in the document, so
-                    // the seam is found by word, not by character offset.
-                    typeAppendOnly(text)
+                    if settings.copyOnly {
+                        // Nothing was typed during the recording either, so the document is
+                        // untouched and the whole transcript goes to the clipboard.
+                        inserter.insert(text,
+                                        autoPaste: settings.autoPaste,
+                                        copyOnly: true,
+                                        excludeFromHistory: settings.excludeFromClipboardHistory)
+                    } else {
+                        // Type only what streaming hasn't already typed. The final pass
+                        // re-punctuates and re-capitalizes words already in the document, so
+                        // the seam is found by word, not by character offset.
+                        typeAppendOnly(text)
+                    }
                 }
                 transition(.insertionCompleted)
             } catch {

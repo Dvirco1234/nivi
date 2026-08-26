@@ -35,6 +35,11 @@ final class DictationController {
     /// append-only invariant is enforced against this text, so it must be reset for
     /// every recording rather than left to a later path to clear.
     private var typedText = ""
+    /// The user's word rules, read once when a recording starts. Reading them again for
+    /// every live update would parse the same JSON several times a second, and a rule
+    /// edited mid-recording changing the text halfway through would be worse than
+    /// surprising.
+    private var activeReplacements: [WordReplacement] = []
     /// Identifies the current recording. Async work started for one recording must not
     /// act on a later one: `state == .recording` cannot tell two recordings apart.
     private var recordingGeneration = 0
@@ -202,6 +207,9 @@ final class DictationController {
                 showTransientError("Could not start recording")
                 return
             }
+            activeReplacements = WordReplacing.decode(json: settings.wordReplacementsJSON)
+            if settings.muteWhileRecording { SystemVolume.muteForRecording() }
+            if settings.trackpadFeedback { Haptics.tap() }
             let front = NSWorkspace.shared.frontmostApplication
             frontAppName = front?.localizedName
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
@@ -281,7 +289,7 @@ final class DictationController {
         // The live passes produce the same [BLANK_AUDIO] style notes as the final one, so
         // clean them here too. Otherwise a pause mid-sentence types a note into the
         // document, and nothing later can take it back out.
-        let fullText = TranscriptCleaning.clean(update.fullText)
+        let fullText = TranscriptFinishing.finish(update.fullText, rules: activeReplacements)
         switch mode {
         case .overlayLive:
             overlayModel.liveText = fullText
@@ -290,7 +298,9 @@ final class DictationController {
             // "Copy only" means never write into the app. Typing as the user speaks would
             // break that promise in a way nothing later can undo, so a copy-only profile
             // shows the preview and keeps the text for the clipboard instead.
-            if !settings.copyOnly { typeAppendOnly(TranscriptCleaning.clean(update.stableText)) }
+            if !settings.copyOnly {
+                typeAppendOnly(TranscriptFinishing.finish(update.stableText, rules: activeReplacements))
+            }
         case .batch:
             break
         case .batchFastFinish:
@@ -320,7 +330,9 @@ final class DictationController {
         streamer?.stop()
         streamer = nil
         let samples = recorder.stop()
+        SystemVolume.restoreAfterRecording()
         if settings.playSounds { SoundPlayer.playStop() }
+        if settings.trackpadFeedback { Haptics.tap() }
         // Resolve the profile BEFORE transitioning: leaving .recording clears
         // activeProfileID, so the async pass below would fall back to the primary
         // profile and transcribe with the wrong model and language — which is why a
@@ -363,7 +375,7 @@ final class DictationController {
                 // Whisper writes a note such as [BLANK_AUDIO] when it hears no speech.
                 // Those notes are not words anyone said, so they are dropped before the
                 // text goes anywhere. If nothing real is left, this counts as silence.
-                let cleanedText = TranscriptCleaning.clean(text)
+                let cleanedText = TranscriptFinishing.finish(text, rules: activeReplacements)
                 guard !cleanedText.isEmpty else {
                     finishWithError("No speech detected")
                     return
@@ -383,6 +395,7 @@ final class DictationController {
                 switch profile.mode {
                 case .batch, .batchFastFinish, .overlayLive:
                     inserter.insert(cleanedText,
+                                    method: settings.textInputMethod,
                                     autoPaste: settings.autoPaste,
                                     copyOnly: settings.copyOnly,
                                     excludeFromHistory: settings.excludeFromClipboardHistory)
@@ -391,6 +404,7 @@ final class DictationController {
                         // Nothing was typed during the recording either, so the document is
                         // untouched and the whole transcript goes to the clipboard.
                         inserter.insert(cleanedText,
+                                        method: settings.textInputMethod,
                                         autoPaste: settings.autoPaste,
                                         copyOnly: true,
                                         excludeFromHistory: settings.excludeFromClipboardHistory)
@@ -417,6 +431,8 @@ final class DictationController {
         typedText = ""
         overlayModel.liveText = ""
         recorder.cancel()
+        SystemVolume.restoreAfterRecording()
+        if settings.trackpadFeedback { Haptics.tap() }
         transition(.cancelRequested)
         Log.info("Recording cancelled")
         updateOverlay()
@@ -427,7 +443,9 @@ final class DictationController {
     private func transition(_ event: DictationEvent) {
         machine.handle(event)
         menuBar.update(state: machine.state)
-        router.cancelEnabled = machine.state == .recording
+        // The cancel key is only listened for while a recording is running, and only when
+        // the user has left "Press Esc to cancel" on.
+        router.cancelEnabled = machine.state == .recording && settings.escapeToCancelEnabled
         if machine.state != .recording {
             router.endRecording()
             activeProfileID = nil
@@ -508,6 +526,8 @@ final class DictationController {
     }
 
     private func showTransientError(_ message: String) {
+        // This path can be reached with the output muted, so put the volume back here too.
+        SystemVolume.restoreAfterRecording()
         // This resets the state machine out of .recording without going through
         // stopAndTranscribe/cancelRecording, so tear the streamer down here too —
         // otherwise it is orphaned and `streamer == nil` wedges live preview off for

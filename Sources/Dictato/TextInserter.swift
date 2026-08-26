@@ -1,9 +1,12 @@
 import AppKit
 import ApplicationServices
+import DictatoCore
 
 /// What actually happened to a transcription, so the caller can tell the user.
 enum InsertionOutcome {
     case pasted
+    /// Sent as key presses instead of pasted, because the user picked "Type it out".
+    case typed
     /// Left on the clipboard: either the user asked for copy-only, or nothing that
     /// accepts text was focused. Either way the clipboard is the only way to reach it,
     /// so it is always kept in clipboard history.
@@ -21,8 +24,19 @@ final class TextInserter {
     /// "Keep out of clipboard history" is honoured only when the text actually landed
     /// somewhere: if it was merely copied, hiding it from history would leave the user
     /// no way to reach what they just dictated.
+    ///
+    /// `method` decides how the text gets in: the clipboard and Cmd-V, or the characters
+    /// typed one by one. Typing is slower but never touches the clipboard, and it works in
+    /// apps that ignore a synthetic paste. Copy-only still wins over both, because it says
+    /// "never write into my app".
     @discardableResult
-    func insert(_ text: String, autoPaste: Bool, copyOnly: Bool, excludeFromHistory: Bool) -> InsertionOutcome {
+    func insert(_ text: String, method: TextInputMethod = .paste,
+                autoPaste: Bool, copyOnly: Bool, excludeFromHistory: Bool) -> InsertionOutcome {
+        if method == .type, autoPaste, !copyOnly, PermissionManager.accessibilityGranted {
+            typeUnicode(text)
+            Log.info("Typed \(text.count) chars")
+            return .typed
+        }
         let willPaste = autoPaste && !copyOnly && PermissionManager.accessibilityGranted
         // Detection only decides whether to keep the text in history — never whether to
         // paste. Editable-focus detection is unreliable in Electron and web views, and a

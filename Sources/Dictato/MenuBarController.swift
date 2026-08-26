@@ -2,9 +2,16 @@ import AppKit
 import DictatoCore
 
 final class MenuBarController: NSObject {
-    // The language glyphs are wider than tall (~1.8:1), so a square slot would clip
-    // their sides. Variable length lets the item size itself to the image.
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    /// Nil while the user has the menu bar icon turned off. The item is created and thrown
+    /// away rather than hidden, because a hidden status item still holds its slot in the
+    /// menu bar on some macOS versions.
+    ///
+    /// The language glyphs are wider than tall (~1.8:1), so a square slot would clip
+    /// their sides. Variable length lets the item size itself to the image.
+    private var statusItem: NSStatusItem?
+    private let menu = NSMenu()
+    /// The last icon asked for, so it can be put back if the item is created again.
+    private var currentImage: NSImage?
     private let statusMenuItem = NSMenuItem(title: "Loading…", action: nil, keyEquivalent: "")
     private let startStopItem = NSMenuItem(title: "Start Recording", action: #selector(startStopClicked), keyEquivalent: "")
     private let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(launchAtLoginClicked), keyEquivalent: "")
@@ -18,7 +25,6 @@ final class MenuBarController: NSObject {
 
     override init() {
         super.init()
-        let menu = NSMenu()
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
         menu.addItem(.separator())
@@ -38,9 +44,27 @@ final class MenuBarController: NSObject {
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Dictato", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
-        statusItem.menu = menu
         setIcon(systemName: "hourglass")
         refreshLaunchAtLoginState()
+        applyVisibility()
+        NotificationCenter.default.addObserver(
+            forName: InterfaceSettings.changed, object: nil, queue: .main) { [weak self] _ in
+            self?.applyVisibility()
+        }
+    }
+
+    /// Creates or removes the menu bar icon to match "Show in the menu bar".
+    func applyVisibility() {
+        let shouldShow = Settings().showInStatusBar
+        if shouldShow, statusItem == nil {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            item.menu = menu
+            item.button?.image = currentImage
+            statusItem = item
+        } else if !shouldShow, let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
+        }
     }
 
     func update(state: DictationState) {
@@ -85,8 +109,8 @@ final class MenuBarController: NSObject {
     }
 
     private func setIcon(systemName: String) {
-        statusItem.button?.image = NSImage(
-            systemSymbolName: systemName, accessibilityDescription: "Dictato")
+        currentImage = NSImage(systemSymbolName: systemName, accessibilityDescription: "Dictato")
+        statusItem?.button?.image = currentImage
     }
 
     /// Primary (default) model's language drives the menu-bar glyph.
@@ -109,7 +133,8 @@ final class MenuBarController: NSObject {
         let h: CGFloat = 14
         img.size = NSSize(width: h * aspect, height: h)
         img.isTemplate = true   // monochrome; macOS tints for light/dark menu bar
-        statusItem.button?.image = img
+        currentImage = img
+        statusItem?.button?.image = img
     }
 
     @objc private func startStopClicked() { onStartStop?() }

@@ -102,7 +102,16 @@ final class WhisperCppRecognizer: SpeechRecognizer {
                 // Timestamps are the whole point of this entry point: the window can only
                 // freeze on boundaries it can actually locate in the audio.
                 params.no_timestamps = false
-                params.audio_ctx = Int32(audioCtx)
+                // Never hand whisper an audio context it cannot use. A bad value does
+                // not return an error, it calls ggml_abort and kills the app, losing the
+                // dictation the user is in the middle of. Falling back to the model's
+                // full context makes the pass slower, which is a fair price.
+                if isUsableAudioContext(audioCtx) {
+                    params.audio_ctx = Int32(audioCtx)
+                } else {
+                    Log.error("Audio context \(audioCtx) is not usable, falling back to the model's full context")
+                    params.audio_ctx = Int32(wholeAudioContext)
+                }
                 params.print_progress = false
                 params.print_realtime = false
                 params.print_special = false

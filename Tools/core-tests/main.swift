@@ -335,6 +335,32 @@ check(audioContext(forSampleCount: audioRate * 12, sampleRate: audioRate) == 728
 check(audioContext(forSampleCount: 0, sampleRate: audioRate) == 256,
       "an empty slice falls back to the floor")
 
+// Alignment. Whisper's Metal backend aborts the whole process on an audio context that
+// is not a multiple of 4, so every value this can ever return has to be one.
+// See AudioContext.swift for the assertion it used to hit.
+for testSeconds in stride(from: 0.5, through: 40.0, by: 0.1) {
+    let value = audioContext(forSampleCount: Int(Double(audioRate) * testSeconds),
+                             sampleRate: audioRate)
+    check(isUsableAudioContext(value),
+          "audio context for \(testSeconds)s is usable, got \(value)")
+}
+// The values that used to reach whisper unrounded. 628 and 728 were already aligned,
+// which is why the crash only showed up on other slice lengths.
+check(audioContext(forSampleCount: audioRate * 3, sampleRate: audioRate) == 280,
+      "a 3s slice rounds 278 up to 280")
+check(audioContext(forSampleCount: 41300, sampleRate: audioRate) == 260,
+      "the slice that produced 257 now rounds up to 260")
+check(audioContext(forSampleCount: 80000, sampleRate: audioRate) == 380,
+      "a 5s slice rounds 378 up to 380")
+check(!isUsableAudioContext(257), "257 is not a multiple of 4, so it is refused")
+check(!isUsableAudioContext(371), "371 is not a multiple of 4, so it is refused")
+check(!isUsableAudioContext(629), "629 is not a multiple of 4, so it is refused")
+check(isUsableAudioContext(260) && isUsableAudioContext(628) && isUsableAudioContext(1500),
+      "multiples of 4 inside the range are fine")
+check(!isUsableAudioContext(0), "whisper's own 'use everything' value is not passed through here")
+check(!isUsableAudioContext(1504), "past whisper's full context is refused")
+check(!isUsableAudioContext(252), "below the floor is refused")
+
 // --- settings ---
 let wsuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
 let wset = Settings(defaults: wsuite)

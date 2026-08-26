@@ -14,7 +14,10 @@ import Foundation
 /// Everything the user reads, pastes and keeps in History goes through this one function,
 /// so the saved text and the pasted text can never differ.
 public enum TranscriptFinishing {
-    public static func finish(_ text: String, rules: [WordReplacement]) -> String {
-        WordReplacing.apply(rules, to: TranscriptCleaning.clean(text))
+    public static func finish(_ text: String,
+                              rules: [WordReplacement],
+                              removeSoundDescriptions: Bool = true) -> String {
+        WordReplacing.apply(rules, to: TranscriptCleaning.clean(
+            text, removeSoundDescriptions: removeSoundDescriptions))
     }
 }

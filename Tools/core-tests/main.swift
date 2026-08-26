@@ -117,6 +117,7 @@ try? FileManager.default.removeItem(at: base)
 
 // --- recognizerCacheCapacity ---
 check(Settings(defaults: suite).recognizerCacheCapacity == 2, "default cache capacity 2")
+check(Settings(defaults: suite).removeSoundDescriptions, "sound descriptions are dropped by default")
 
 // --- DictationProfile / ProfileSet ---
 let he = DictationProfile(id: "p1", name: "Hebrew", modelID: "ivrit-large-v3-turbo",
@@ -521,28 +522,79 @@ let evenCuts = AudioChunkPlanner.cutPoints(samples: [Float](repeating: 0.5, coun
 check(evenCuts.count == 1, "steady sound still gets its cut")
 
 // --- TranscriptCleaning ---
+// The rule is about shape, not a list of known phrases: anything fully wrapped in
+// brackets, parentheses, asterisks or musical notes is a note about a sound, not speech.
 check(TranscriptCleaning.clean("[BLANK_AUDIO]") == "", "a lone blank audio note leaves nothing")
 check(TranscriptCleaning.isOnlyNoise("[ Silence ]"), "spacing and capitals still count as a note")
 check(TranscriptCleaning.isOnlyNoise("(speaking in foreign language)"), "the foreign language note")
 check(TranscriptCleaning.isOnlyNoise("*clears throat*"), "asterisks around a note")
 check(TranscriptCleaning.isOnlyNoise("♪♪♪"), "musical notes on their own")
 check(TranscriptCleaning.isOnlyNoise("(gentle music)"), "a short description ending in music")
+
+// The case the user actually hit. It was on no list, which is why the list had to go.
+check(TranscriptCleaning.clean("(people chattering)") == "",
+      "the real failing case: (people chattering) is dropped")
+
+// Invented but entirely plausible notes. None of these were ever enumerated anywhere.
+check(TranscriptCleaning.isOnlyNoise("(wind blowing through the trees)"), "an unlisted wind note")
+check(TranscriptCleaning.isOnlyNoise("(door creaks)"), "an unlisted door note")
+check(TranscriptCleaning.isOnlyNoise("(a dog barking somewhere far away)"), "an unlisted dog note")
+check(TranscriptCleaning.isOnlyNoise("(upbeat electronic dance music playing)"), "a long music note")
+check(TranscriptCleaning.isOnlyNoise("[ambient hum]"), "an unlisted note in brackets")
+check(TranscriptCleaning.isOnlyNoise("*sighs heavily*"), "an unlisted note in asterisks")
+check(TranscriptCleaning.isOnlyNoise("(רעש רקע)"), "a note the model wrote in Hebrew")
+
+// Mixed transcripts keep every real word.
 check(TranscriptCleaning.clean("Send the deck. [BLANK_AUDIO]") == "Send the deck.",
       "real words survive a trailing note")
 check(TranscriptCleaning.clean("[MUSIC] Ship it on Friday [BLANK_AUDIO]") == "Ship it on Friday",
       "notes at both ends are removed")
-check(TranscriptCleaning.clean("Put it in brackets like [this]") == "Put it in brackets like [this]",
-      "the user's own brackets are left alone")
-check(TranscriptCleaning.clean("Call it (the new one) tomorrow") == "Call it (the new one) tomorrow",
-      "a real aside in brackets is left alone")
 check(TranscriptCleaning.clean("Ask him [INAUDIBLE] about the price [NOISE] today")
       == "Ask him about the price today", "several notes in one line are all removed")
+check(TranscriptCleaning.clean("(people chattering) Can you send me the report tomorrow?")
+      == "Can you send me the report tomorrow?", "a leading note does not eat the sentence")
+check(TranscriptCleaning.clean("Let us ship on Monday.\n(gentle music)\nAnd tell the team.")
+      == "Let us ship on Monday.\nAnd tell the team.", "a note on its own line takes the line with it")
+
+// A parenthetical inside a real sentence goes too. Deliberate: to get brackets on
+// purpose you say the punctuation out loud, and the model writes those as words. So a
+// bracket in the output came from the model, not from the speaker.
+check(TranscriptCleaning.clean("Call it (the new one) tomorrow") == "Call it tomorrow",
+      "a parenthetical inside a sentence is dropped with the rest")
+check(TranscriptCleaning.clean("Put it in brackets like [this]") == "Put it in brackets like",
+      "brackets mid-sentence are dropped too, and the setting is the way out")
+check(TranscriptCleaning.clean("(see the music section of the quarterly report)") == "",
+      "even a long aside goes, because the model wrote the brackets")
+
+// Musical notes go wherever they are, paired or not.
+check(TranscriptCleaning.clean("♪ La la la ♪") == "",
+      "a lyric between musical notes goes with them: it is music, not dictation")
+check(TranscriptCleaning.clean("♪") == "", "one bare musical note leaves nothing")
+check(TranscriptCleaning.clean("Ship it ♪ today") == "Ship it today",
+      "a stray musical note mid-sentence goes without eating the words")
+check(TranscriptCleaning.clean("♫ Ship it ♬") == "", "the other musical note shapes count too")
+check(TranscriptCleaning.clean("Ship it♪today") == "Ship it today",
+      "a note with no spaces around it does not glue the words together")
+
+// Spacing and leftover punctuation are tidied up.
 check(TranscriptCleaning.clean("Send it [BLANK_AUDIO], please") == "Send it, please",
       "no space is left in front of a comma")
 check(TranscriptCleaning.clean("   already clean   ") == "already clean",
       "nothing to remove, just trimmed")
-check(!TranscriptCleaning.isOnlyNoise("(see the music section of the quarterly report)"),
-      "a long aside is left alone even though it names music")
+check(TranscriptCleaning.clean("Ship it.\n(gentle music).") == "Ship it.",
+      "a line left holding only punctuation is dropped")
+
+// A transcript that was only notes ends up empty, which the app treats as silence.
+check(TranscriptCleaning.clean("[BLANK_AUDIO]\n(people chattering)\n♪♪") == "",
+      "several notes and nothing else leave nothing at all")
+
+// With the setting off, nothing is removed at all.
+check(TranscriptCleaning.clean("(people chattering) hello", removeSoundDescriptions: false)
+      == "(people chattering) hello", "the setting turns the whole rule off")
+
+// Unbalanced brackets are left alone: a greedy match would swallow real words.
+check(TranscriptCleaning.clean("The cost is (about ten") == "The cost is (about ten",
+      "an unclosed bracket is not a note")
 
 // --- ChunkedTranscription ---
 check(ChunkedTranscription.join(["one", "two"]) == "one two", "pieces join with one space")
@@ -575,6 +627,9 @@ check(TranscriptFinishing.finish("send it [BLANK_AUDIO] now", rules: [
 check(TranscriptFinishing.finish("[BLANK_AUDIO]", rules: finishingRules) == "",
       "a transcript that was only a note still ends up empty")
 check(TranscriptFinishing.finish("keep this", rules: []) == "keep this", "no rules, just cleaning")
+check(TranscriptFinishing.finish("(people chattering) dictato ships", rules: finishingRules,
+                                 removeSoundDescriptions: false)
+      == "(people chattering) Dictato ships", "finishing passes the setting straight through")
 
 // --- MicrophonePriority ---
 check(MicrophonePriority.firstAvailable(order: ["airpods", "builtin"],

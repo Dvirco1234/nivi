@@ -254,6 +254,7 @@ private struct GeneralSection: View {
     @State private var textInputMethod = Settings().textInputMethod
     @State private var copyOnly = Settings().copyOnly
     @State private var excludeHistory = Settings().excludeFromClipboardHistory
+    @State private var removeSoundDescriptions = Settings().removeSoundDescriptions
     @State private var display = Settings().recordingDisplay
     @State private var replacementCount = WordReplacing.decode(json: Settings().wordReplacementsJSON).count
     @State private var showingWordReplacements = false
@@ -365,6 +366,11 @@ private struct GeneralSection: View {
                               caption: "Clipboard managers such as Raycast and Maccy skip it.",
                               isOn: $excludeHistory)
                     .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
+                PrefToggleRow(icon: "speaker.slash",
+                              "Remove sound descriptions such as (music)",
+                              caption: "Models write notes like (people chattering) when they hear a sound instead of speech. Dictato drops them so only your words are left.",
+                              isOn: $removeSoundDescriptions)
+                    .onChange(of: removeSoundDescriptions) { settings.removeSoundDescriptions = $0 }
                 PrefDisclosureRow(icon: "text.badge.checkmark",
                                   "Word replacements",
                                   value: replacementCountText) {

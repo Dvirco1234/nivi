@@ -156,7 +156,8 @@ final class FileTranscriptionService: ObservableObject {
 
                 let piece = try await recognizer.transcribe(samples: Array(samples[range]),
                                                             language: language)
-                pieces.append(TranscriptCleaning.clean(piece))
+                pieces.append(TranscriptCleaning.clean(
+                    piece, removeSoundDescriptions: Settings().removeSoundDescriptions))
                 transcript = ChunkedTranscription.join(pieces)
             }
 

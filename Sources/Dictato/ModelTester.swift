@@ -62,7 +62,8 @@ final class ModelTester: ObservableObject {
                 let raw = try await recognizer.transcribe(samples: samples, language: language)
                 // Drop the [BLANK_AUDIO] style notes, so a test on a quiet room shows
                 // "No speech detected" rather than the model's note about it.
-                let text = TranscriptCleaning.clean(raw)
+                let text = TranscriptCleaning.clean(
+                    raw, removeSoundDescriptions: Settings().removeSoundDescriptions)
                 transcript = text
                 if text.isEmpty { errorMessage = "No speech detected" }
             } catch {

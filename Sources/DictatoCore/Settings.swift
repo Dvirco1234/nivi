@@ -64,6 +64,7 @@ public struct Settings {
             Key.excludeFromClipboardHistory: true,
             Key.recognizerCacheCapacity: 2,
             Key.idleUnloadSeconds: 300,
+            Key.removeSoundDescriptions: true,
             Key.profilesJSON: "",
             Key.streamingIntervalMs: 500,
             Key.streamingWindowSeconds: 10,
@@ -99,6 +100,7 @@ public struct Settings {
         static let cancelBinding = "cancelBinding"
         static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
         static let recognizerCacheCapacity = "recognizerCacheCapacity"
+        static let removeSoundDescriptions = "removeSoundDescriptions"
         static let idleUnloadSeconds = "idleUnloadSeconds"
         static let profilesJSON = "profilesJSON"
         static let streamingIntervalMs = "streamingIntervalMs"
@@ -187,6 +189,15 @@ public struct Settings {
     public var recognizerCacheCapacity: Int {
         get { max(1, defaults.integer(forKey: Key.recognizerCacheCapacity)) }
         nonmutating set { defaults.set(max(1, newValue), forKey: Key.recognizerCacheCapacity) }
+    }
+
+    /// Whether to drop the notes a model writes about sounds, such as `(music)`.
+    ///
+    /// On by default. Dictato writes down speech, so a note about a sound is never
+    /// something the user said. See `TranscriptCleaning` for what counts as one.
+    public var removeSoundDescriptions: Bool {
+        get { defaults.bool(forKey: Key.removeSoundDescriptions) }
+        nonmutating set { defaults.set(newValue, forKey: Key.removeSoundDescriptions) }
     }
 
     /// Seconds of inactivity before the loaded model is released from memory (0 = never).

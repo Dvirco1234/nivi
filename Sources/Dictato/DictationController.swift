@@ -289,7 +289,8 @@ final class DictationController {
         // The live passes produce the same [BLANK_AUDIO] style notes as the final one, so
         // clean them here too. Otherwise a pause mid-sentence types a note into the
         // document, and nothing later can take it back out.
-        let fullText = TranscriptFinishing.finish(update.fullText, rules: activeReplacements)
+        let fullText = TranscriptFinishing.finish(update.fullText, rules: activeReplacements,
+                                                  removeSoundDescriptions: settings.removeSoundDescriptions)
         switch mode {
         case .overlayLive:
             overlayModel.liveText = fullText
@@ -299,7 +300,8 @@ final class DictationController {
             // break that promise in a way nothing later can undo, so a copy-only profile
             // shows the preview and keeps the text for the clipboard instead.
             if !settings.copyOnly {
-                typeAppendOnly(TranscriptFinishing.finish(update.stableText, rules: activeReplacements))
+                typeAppendOnly(TranscriptFinishing.finish(update.stableText, rules: activeReplacements,
+                                                     removeSoundDescriptions: settings.removeSoundDescriptions))
             }
         case .batch:
             break
@@ -375,7 +377,8 @@ final class DictationController {
                 // Whisper writes a note such as [BLANK_AUDIO] when it hears no speech.
                 // Those notes are not words anyone said, so they are dropped before the
                 // text goes anywhere. If nothing real is left, this counts as silence.
-                let cleanedText = TranscriptFinishing.finish(text, rules: activeReplacements)
+                let cleanedText = TranscriptFinishing.finish(text, rules: activeReplacements,
+                                                      removeSoundDescriptions: settings.removeSoundDescriptions)
                 guard !cleanedText.isEmpty else {
                     finishWithError("No speech detected")
                     return

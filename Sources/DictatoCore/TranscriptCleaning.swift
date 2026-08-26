@@ -1,110 +1,95 @@
 import Foundation
 
-/// Removes the notes Whisper writes when it does not hear speech.
+/// Removes the notes a Whisper model writes about sounds instead of speech.
 ///
-/// When a Whisper model hears silence, music, or speech it cannot place, it does not
-/// return nothing. It returns a note about it, such as `[BLANK_AUDIO]`,
-/// `(speaking foreign language)` or `*clears throat*`. Those are not words anyone said,
-/// so they must never be pasted into a document or saved.
+/// When a model hears silence, music, a cough or a room full of people, it does not
+/// return nothing. It returns a note about it, wrapped in brackets, parentheses,
+/// asterisks or musical notes: `[BLANK_AUDIO]`, `(people chattering)`, `(gentle music)`,
+/// `*clears throat*`, `♪`. Dictato turns speech into text and nothing else, so a note
+/// like that is never something the user said and must never be pasted or saved.
 ///
-/// whisper.cpp does not produce these strings itself. They come from the model, which is
-/// why its own Python example ends with
-/// `decoded_str.replace('[BLANK_AUDIO]', '').strip()`. The bracket, parenthesis, asterisk
-/// and musical note characters the models use for these notes are the same ones listed in
-/// `non_speech_tokens` in `src/whisper.cpp`.
+/// ## Why every wrapped piece goes, and not only known ones
 ///
-/// The rule is deliberately careful. Someone dictating "put it in brackets like [this]"
-/// keeps their brackets. Only a bracketed piece that reads like one of these notes is
-/// dropped, and if the sentence still has real words in it, those words stay.
+/// The first version of this file matched a list of known phrases. The list can never be
+/// complete. Models invent new notes freely, and `(people chattering)` reached a user's
+/// document because it was not on the list. So the rule is now about the shape, not the
+/// words: **anything fully wrapped in `[]`, `()`, `**` or `♪♪` is a note and is removed.**
+///
+/// The obvious worry is eating text the user really dictated. In practice that almost
+/// never happens, for two reasons:
+///
+/// - Nobody speaks a standalone parenthetical. To get brackets on purpose you say the
+///   punctuation out loud ("open bracket"), and the model writes those as the words you
+///   said, not as the symbol. So a bracket in the output nearly always came from the
+///   model, not from the speaker.
+/// - The cost is not symmetric. A dropped aside is a missing few words the user can say
+///   again. A note that gets through is fake text in someone's Slack message.
+///
+/// A user who disagrees can turn the whole thing off with one setting, which is why
+/// `clean` takes `removeSoundDescriptions`.
+///
+/// ## Why this works on plain text, not on Whisper's segments
+///
+/// A note is usually a segment of its own, which would be a useful extra signal. It is
+/// not used here on purpose. Cleaning also runs over History entries loaded from disk,
+/// where only the text was ever saved, and over the joined text of the streaming and file
+/// paths. Making the rule depend on segments would mean the same sentence is cleaned two
+/// different ways depending on where it came from. One rule over text is easier to trust.
 public enum TranscriptCleaning {
 
-    /// The whole content of a bracketed piece, lowercased, that is only ever a note.
-    private static let exactNotes: Set<String> = [
-        "blank audio", "blank_audio", "blank",
-        "silence", "silent", "no speech", "no audio", "pause",
-        "music", "musique", "music playing", "music continues",
-        "inaudible", "unintelligible", "indistinct", "indistinct chatter", "chatter",
-        "noise", "background noise", "static", "beep", "beeping",
-        "applause", "cheering", "laughter", "laughs", "laughing", "chuckles",
-        "coughs", "coughing", "clears throat", "throat clearing", "sighs", "sniffs",
-        "breathing", "heavy breathing", "footsteps", "wind", "wind blowing",
-        "typing", "keyboard clicking", "phone ringing", "door closes", "engine running",
-        "crowd noise", "crowd cheering", "sound effect", "sound effects",
-        "foreign language", "speaking foreign language", "speaking in foreign language",
-        "non-english speech", "non english speech", "speaking softly", "whispering",
-    ]
+    /// Musical note characters. Models use these for a stretch of music, sometimes bare
+    /// and sometimes around a lyric, and they are never dictated.
+    private static let musicalNotes: Set<Character> = ["♪", "♫", "♬"]
 
-    /// Word endings that make a short piece a note, such as "gentle music" or
-    /// "background noise".
-    private static let noteEndings = [" music", " noise", " sounds", " sound",
-                                      " chatter", " laughter", " applause"]
-
-    /// The pieces a note can be wrapped in. Nested brackets are not matched on purpose:
-    /// the notes never nest, and a greedy match would swallow real text between two of
-    /// them.
+    /// A piece wrapped in brackets, parentheses, asterisks or musical notes.
+    ///
+    /// Words between two musical notes go with them. That is a lyric the model heard
+    /// playing in the room, not something the user dictated.
+    ///
+    /// Nested pairs are not matched on purpose: notes never nest, and a greedy match
+    /// would swallow the real words sitting between two separate notes.
     private static let wrappedPiece = try? NSRegularExpression(
-        pattern: "\\[[^\\[\\]]*\\]|\\([^()]*\\)|\\*[^*]*\\*|♪[^♪]*♪|♪+",
+        pattern: "\\[[^\\[\\]]*\\]|\\([^()]*\\)|\\*[^*\\n]*\\*|[♪♫♬][^♪♫♬\\n]*[♪♫♬]",
         options: [])
 
-    /// The transcript with any of these notes taken out.
+    /// The transcript with the model's sound notes taken out.
     ///
-    /// Returns an empty string when the whole transcript was one of them, which the
-    /// caller should treat exactly like hearing nothing at all.
-    public static func clean(_ text: String) -> String {
-        guard let wrappedPiece else { return text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// Returns an empty string when the whole transcript was notes, which the caller
+    /// should treat exactly like hearing nothing at all.
+    ///
+    /// - Parameter removeSoundDescriptions: the user's setting. When off, only spacing is
+    ///   tidied and every wrapped piece is left alone.
+    public static func clean(_ text: String, removeSoundDescriptions: Bool = true) -> String {
+        guard removeSoundDescriptions, let wrappedPiece else {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         let full = text as NSString
         let matches = wrappedPiece.matches(in: text, options: [],
                                            range: NSRange(location: 0, length: full.length))
         var result = ""
         var readFrom = 0
         for match in matches {
-            let piece = full.substring(with: match.range)
-            guard isNote(piece) else { continue }
             result += full.substring(with: NSRange(location: readFrom,
                                                    length: match.range.location - readFrom))
             result += " "
             readFrom = match.range.location + match.range.length
         }
         result += full.substring(from: readFrom)
+        // Bare musical notes are left over wherever they were not part of a pair, and a
+        // single ♪ on its own line is the common case. They become a space rather than
+        // nothing, so one sitting between two words does not glue them together.
+        result = String(result.map { musicalNotes.contains($0) ? " " : $0 })
         return tidy(result)
     }
 
     /// True when nothing real is left after the notes are taken out.
-    public static func isOnlyNoise(_ text: String) -> Bool {
-        clean(text).isEmpty
-    }
-
-    /// Whether one bracketed piece, including its brackets, is one of these notes.
-    private static func isNote(_ piece: String) -> Bool {
-        let inner = String(piece.dropFirst().dropLast())
-        let trimmed = inner.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines
-            .union(CharacterSet(charactersIn: ".,!?…-–—_")))
-
-        // Bare musical notes, which is how a model marks a stretch of music.
-        if piece.allSatisfy({ "♪♫♬".contains($0) }) { return true }
-        if trimmed.isEmpty { return !piece.isEmpty && piece.count <= 2 }
-
-        // BLANK_AUDIO and its friends: shouted, with underscores, never a real sentence.
-        let looksLikeAToken = trimmed.allSatisfy {
-            $0.isUppercase || $0 == "_" || $0 == " " || $0.isNumber
-        }
-        let lower = trimmed.lowercased()
-        if looksLikeAToken && (exactNotes.contains(lower) || lower.contains("_")) { return true }
-
-        if exactNotes.contains(lower) { return true }
-
-        // Short descriptions such as "gentle music" or "speaking in a foreign language".
-        // The word limit keeps a real aside like "(see the music section of the report)"
-        // out of it: leaving one note through is better than eating someone's words.
-        let words = lower.split(separator: " ")
-        guard words.count <= 5 else { return false }
-        if lower.hasPrefix("speaking ") { return true }
-        if noteEndings.contains(where: { lower.hasSuffix($0) }) { return true }
-        return false
+    public static func isOnlyNoise(_ text: String, removeSoundDescriptions: Bool = true) -> Bool {
+        clean(text, removeSoundDescriptions: removeSoundDescriptions).isEmpty
     }
 
     /// Closes the gap a removed note leaves behind: no double spaces, no space in front of
-    /// a comma or a full stop, and nothing hanging off either end.
+    /// a comma or a full stop, no punctuation left stranded at the start of a line, and
+    /// nothing hanging off either end.
     private static func tidy(_ text: String) -> String {
         var out = ""
         var lastWasSpace = false
@@ -120,9 +105,16 @@ public enum TranscriptCleaning {
             lastWasSpace = false
             out.append(character)
         }
-        // Newlines from the model survive, but a line that is now empty should not.
+        // Newlines from the model survive, but a line that is now empty, or that is only
+        // the punctuation that used to follow a note, should not.
+        let leftovers = CharacterSet(charactersIn: ",.!?;:-–—…\"' ")
         let lines = out.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .map { line -> String in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                // Only drop a line that is nothing but punctuation. A real sentence keeps
+                // its full stop.
+                return trimmed.unicodeScalars.allSatisfy(leftovers.contains) ? "" : trimmed
+            }
             .filter { !$0.isEmpty }
         return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }

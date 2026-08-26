@@ -57,7 +57,8 @@ final class HistoryStore: ObservableObject {
     /// removed on the next read rather than sitting in the list forever.
     private func cleanedOfModelNotes(_ records: [HistoryRecord]) -> [HistoryRecord] {
         records.compactMap { record in
-            let cleaned = TranscriptCleaning.clean(record.text)
+            let cleaned = TranscriptCleaning.clean(
+                record.text, removeSoundDescriptions: settings.removeSoundDescriptions)
             if cleaned.isEmpty { return nil }
             guard cleaned != record.text else { return record }
             var fixed = record
@@ -81,7 +82,8 @@ final class HistoryStore: ObservableObject {
                 sourceName: String? = nil) {
         guard settings.historyEnabled else { return }
         // Nothing the model only guessed at, such as [BLANK_AUDIO], is worth saving.
-        let trimmed = TranscriptCleaning.clean(text)
+        let trimmed = TranscriptCleaning.clean(
+            text, removeSoundDescriptions: settings.removeSoundDescriptions)
         guard !trimmed.isEmpty else { return }
 
         let record = HistoryRecord(text: trimmed,

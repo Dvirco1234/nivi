@@ -22,6 +22,8 @@ final class DictationController {
     private var activeProfileID: String?
 
     private var recordingStarted: Date?
+    /// The app that was in front when the recording started, saved for the history entry.
+    private var frontAppName: String?
     private var recordingTimer: Timer?
     private var idleUnloadTimer: Timer?
     private var streamer: StreamingTranscriber?
@@ -195,6 +197,7 @@ final class DictationController {
                 return
             }
             let front = NSWorkspace.shared.frontmostApplication
+            frontAppName = front?.localizedName
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
             let profile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID)
             overlayModel.languageCode = profile?.language ?? "he"
@@ -352,6 +355,17 @@ final class DictationController {
                     return
                 }
                 transition(.transcriptionSucceeded)
+                // Save it before inserting. The write is queued onto a background queue,
+                // so it costs the paste nothing, and a failed save can never stop the
+                // text reaching the user's app.
+                HistoryStore.shared.record(
+                    text: text,
+                    durationSeconds: Double(samples.count) / AudioRecorder.sampleRate,
+                    source: .dictation,
+                    modelID: model.id,
+                    language: profile.language,
+                    profileID: profile.id,
+                    sourceName: frontAppName)
                 switch profile.mode {
                 case .batch, .batchFastFinish, .overlayLive:
                     inserter.insert(text,

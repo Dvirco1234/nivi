@@ -8,6 +8,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
     case profiles = "Profiles"
     case hotkeys = "Hotkeys"
     case speech = "Speech"
+    case history = "History"
     case layout = "Layout"
     case debug = "Debug"
     var id: String { rawValue }
@@ -18,6 +19,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
         case .profiles: return "person.crop.rectangle.stack"
         case .hotkeys: return "keyboard"
         case .speech: return "waveform"
+        case .history: return "clock.arrow.circlepath"
         case .layout: return "ruler"
         case .debug: return "ladybug"
         }
@@ -128,6 +130,7 @@ struct SettingsView: View {
         case .hotkeys: HotkeysSection(profileStore: profileStore,
                                        openProfiles: { section = .profiles })
         case .speech: SpeechSection()
+        case .history: HistorySection(store: HistoryStore.shared)
         case .layout: LayoutTuningSection()
         case .debug: DebugSection()
         }

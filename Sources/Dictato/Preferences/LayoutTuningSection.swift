@@ -18,6 +18,7 @@ struct LayoutTuningSection: View {
         ("Pages and rows", ["groupSpacing", "groupHeadingGap", "pageTitleGap",
                             "pageHeaderBottom", "rowVerticalPadding",
                             "rowIconWidth", "rowMinHeight"]),
+        ("History and files", ["historyActionHeight"]),
         ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",

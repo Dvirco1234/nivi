@@ -36,6 +36,7 @@ enum UITuning {
         ("rowVerticalPadding", 10, "padding above and below a settings row"),
         ("rowIconWidth", 22, "width of the icon column at the left of a row"),
         ("rowMinHeight", 34, "minimum row height, so single-line rows come out even"),
+        ("historyActionHeight", 22, "height kept free for a history entry's hover buttons"),
         ("trafficLightX", 22, "traffic lights: distance from the left edge"),
         ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
         ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),

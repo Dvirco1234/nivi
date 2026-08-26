@@ -48,6 +48,10 @@ enum PrefTheme {
     /// Minimum row height, so single-line rows all come out the same size.
     static var rowMinHeight: CGFloat { UITuning.value("rowMinHeight") }
 
+    /// Height kept free for the Copy and Delete buttons on a history entry, so showing
+    /// them on hover never changes the size of the card.
+    static var historyActionHeight: CGFloat { UITuning.value("historyActionHeight") }
+
     /// Gap between the icon column and the label.
     static let rowIconGap: CGFloat = 10
 }

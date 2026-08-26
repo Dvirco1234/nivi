@@ -118,24 +118,27 @@ private struct TuningSliderRow: View {
             HStack {
                 Text(entry.key).font(.callout)
                 Spacer()
-                Text("\(Int(UITuning.value(entry.key)))")
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                // The same box as the stepper rows use. Dragging finds the number that
+                // looks right; typing is how you put an exact one back afterwards.
+                PrefNumberField(value: Binding(get: { Int(UITuning.value(entry.key)) },
+                                               set: { apply(CGFloat($0)) }),
+                                range: Int(range.lowerBound)...Int(range.upperBound))
             }
-            Slider(value: Binding(
-                get: { Double(UITuning.value(entry.key)) },
-                set: { newValue in
-                    UITuning.set(entry.key, to: CGFloat(newValue.rounded()))
-                    // The window buttons are AppKit views, so they need to be told.
-                    // SwiftUI redraws itself.
-                    PreferencesWindow.refreshTrafficLights()
-                }),
-                in: range)
+            Slider(value: Binding(get: { Double(UITuning.value(entry.key)) },
+                                  set: { apply(CGFloat($0.rounded())) }),
+                   in: range)
                 .controlSize(.small)
             Text(entry.note).font(.caption).foregroundStyle(.secondary)
         }
         .padding(.horizontal, UITuning.cardPadding)
         .padding(.vertical, PrefTheme.rowVerticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func apply(_ newValue: CGFloat) {
+        UITuning.set(entry.key, to: newValue)
+        // The window buttons are AppKit views, so they need to be told. SwiftUI redraws
+        // itself.
+        PreferencesWindow.refreshTrafficLights()
     }
 }

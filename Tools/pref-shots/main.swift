@@ -55,6 +55,7 @@ struct VisualEffect: NSViewRepresentable {
     switch name {
     case "general": GeneralSection()
     case "speech": SpeechSection()
+    case "layout": LayoutTuningSection()
     default: Text("unknown tab \(name)")
     }
 }

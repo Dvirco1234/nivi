@@ -475,22 +475,23 @@ struct SpeechSection: View {
                       footer: "Keeping more models loaded lets you switch instantly, but uses more RAM. Releasing frees about 1.6 GB, and the model reloads in about a second on your next dictation.") {
                 PrefStepperRow(icon: "memorychip",
                                "Models kept in memory",
-                               value: $cacheCap, in: 1...4) { "\($0)" }
+                               value: $cacheCap, in: 1...4)
                     .onChange(of: cacheCap) { settings.recognizerCacheCapacity = $0 }
                 PrefStepperRow(icon: "clock.arrow.circlepath",
                                "Release the model after",
-                               value: $idleMinutes, in: 0...30) { $0 == 0 ? "Never" : "\($0) min" }
+                               caption: idleMinutes == 0 ? "Zero means keep it in memory until you quit." : nil,
+                               value: $idleMinutes, in: 0...30, unit: "min")
                     .onChange(of: idleMinutes) { settings.idleUnloadSeconds = $0 * 60 }
             }
             PrefGroup("Live preview",
                       footer: "Live modes re-transcribe only the last few seconds each pass, so the preview keeps up however long you speak. A shorter window is faster. A longer one gives the model more context to correct itself.") {
                 PrefStepperRow(icon: "timer",
                                "Minimum gap between updates",
-                               value: $streamingInterval, in: 500...2000, step: 100) { "\($0) ms" }
+                               value: $streamingInterval, in: 500...2000, step: 100, unit: "ms")
                     .onChange(of: streamingInterval) { settings.streamingIntervalMs = $0 }
                 PrefStepperRow(icon: "arrow.left.and.right",
                                "Live preview window",
-                               value: $windowSeconds, in: 4...30) { "\($0) s" }
+                               value: $windowSeconds, in: 4...30, unit: "s")
                     .onChange(of: windowSeconds) { settings.streamingWindowSeconds = $0 }
             }
         }

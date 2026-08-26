@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import DictatoCore
 
 /// The building blocks every Preferences tab is made of.
 ///
@@ -393,6 +394,55 @@ struct PrefPickerRow<Value: Hashable>: View {
     }
 }
 
+/// A small box holding the number on its own, so a value can be typed instead of clicked
+/// up one step at a time.
+///
+/// It writes the number when you press Return and when you click away, never on every
+/// keystroke: typing "30" would otherwise write a 3 first, and the range would pull that
+/// somewhere else while you were still typing. Anything that is not a whole number,
+/// including an empty box, puts the previous value straight back.
+struct PrefNumberField: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    @State private var typed: String = ""
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        TextField("", text: $typed)
+            .textFieldStyle(.roundedBorder)
+            .controlSize(.small)
+            .multilineTextAlignment(.trailing)
+            .font(.callout.monospacedDigit())
+            .frame(width: Self.width(for: range))
+            .focused($editing)
+            .onSubmit { commit() }
+            .onChange(of: editing) { nowEditing in if !nowEditing { commit() } }
+            .onAppear { typed = String(value) }
+            // The arrows beside the box change the same value, so the box has to follow
+            // them.
+            .onChange(of: value) { typed = String($0) }
+            .accessibilityLabel("Value")
+    }
+
+    private func commit() {
+        value = TypedNumber.read(typed, in: range) ?? value
+        // Always redraw from the value that was actually stored, so a refused entry
+        // disappears and a clamped one shows the number that was kept.
+        typed = String(value)
+    }
+
+    /// Wide enough for the longest number the range allows, so the row does not shift as
+    /// digits are typed.
+    static func width(for range: ClosedRange<Int>) -> CGFloat {
+        let digits = max(String(range.lowerBound).count, String(range.upperBound).count)
+        return CGFloat(max(digits, 2)) * 9 + 22
+    }
+}
+
+/// "Label on the left, a number you can type or step on the right."
+///
+/// The unit sits outside the box on purpose. The box holds only the number, so the user
+/// is never editing a sentence like "500 ms".
 struct PrefStepperRow: View {
     let icon: String?
     let title: String
@@ -400,26 +450,30 @@ struct PrefStepperRow: View {
     @Binding var value: Int
     let range: ClosedRange<Int>
     var step: Int = 1
-    let format: (Int) -> String
+    /// The word after the number, such as "min" or "ms". Empty for a bare count.
+    var unit: String = ""
 
     init(icon: String?, _ title: String, caption: String? = nil,
          value: Binding<Int>, in range: ClosedRange<Int>, step: Int = 1,
-         format: @escaping (Int) -> String) {
+         unit: String = "") {
         self.icon = icon
         self.title = title
         self.caption = caption
         self._value = value
         self.range = range
         self.step = step
-        self.format = format
+        self.unit = unit
     }
 
     var body: some View {
         PrefRow(icon: icon, title, caption: caption) {
-            HStack(spacing: 8) {
-                Text(format(value))
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                PrefNumberField(value: $value, range: range)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 Stepper("", value: $value, in: range, step: step)
                     .labelsHidden()
             }

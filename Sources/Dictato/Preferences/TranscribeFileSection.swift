@@ -111,7 +111,7 @@ struct TranscribeFileSection: View {
                           options: ["auto", "en", "he"]) { ProfileStore.languageName($0) }
             PrefStepperRow(icon: "scissors",
                            "Split long files into parts of",
-                           value: $chunkMinutes, in: 1...15) { "\($0) min" }
+                           value: $chunkMinutes, in: 1...15, unit: "min")
                 .onChange(of: chunkMinutes) { settings.fileChunkMinutes = $0 }
         }
     }

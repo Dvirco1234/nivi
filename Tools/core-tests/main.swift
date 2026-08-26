@@ -688,4 +688,16 @@ check(DurationFormatting.clock(3600) == "1:00:00", "an hour is where hours appea
 check(DurationFormatting.clock(3849) == "1:04:09", "an hour and change")
 check(DurationFormatting.clock(36000) == "10:00:00", "ten hours")
 
+// --- TypedNumber, the number boxes in Preferences ---
+check(TypedNumber.read("7", in: 1...30) == 7, "a plain number is taken as it is")
+check(TypedNumber.read("  12 ", in: 1...30) == 12, "spaces around the number are ignored")
+check(TypedNumber.read("999", in: 1...30) == 30, "too high is pulled down to the top of the range")
+check(TypedNumber.read("0", in: 1...30) == 1, "too low is pulled up to the bottom of the range")
+check(TypedNumber.read("-5", in: 0...30) == 0, "a negative number is pulled up too")
+check(TypedNumber.read("abc", in: 1...30) == nil, "letters are refused")
+check(TypedNumber.read("", in: 1...30) == nil, "an empty box is refused")
+check(TypedNumber.read("   ", in: 1...30) == nil, "spaces alone are refused")
+check(TypedNumber.read("3.7", in: 1...30) == nil, "a decimal point is refused")
+check(TypedNumber.read("12ms", in: 1...30) == nil, "a number with a unit stuck to it is refused")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

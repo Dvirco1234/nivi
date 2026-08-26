@@ -115,9 +115,31 @@ check(ModelCatalogStore.canDelete("whisper-small-en", from: boot,
       installedIDs: ["ivrit-large-v3-turbo","whisper-small-en"]) == true, "can delete extra installed")
 try? FileManager.default.removeItem(at: base)
 
-// --- recognizerCacheCapacity ---
-check(Settings(defaults: suite).recognizerCacheCapacity == 2, "default cache capacity 2")
+// --- memory defaults ---
+// One model, released after two minutes. Holding a second 1.6 GB model to make switching
+// instant is not worth 1.6 GB on a machine that is already short of memory.
+check(Settings(defaults: suite).recognizerCacheCapacity == 1, "one model kept in memory by default")
+check(Settings(defaults: suite).idleUnloadSeconds == 120, "the model is released after two minutes idle")
 check(Settings(defaults: suite).removeSoundDescriptions, "sound descriptions are dropped by default")
+// The old defaults, written to disk by an older build, are cleared once so the new ones
+// apply. A value the user actually picked is left alone.
+let memorySuite = UserDefaults(suiteName: "com.dvir.dictato.memorytest")!
+memorySuite.removePersistentDomain(forName: "com.dvir.dictato.memorytest")
+memorySuite.set(2, forKey: "recognizerCacheCapacity")
+memorySuite.set(300, forKey: "idleUnloadSeconds")
+check(Settings(defaults: memorySuite).recognizerCacheCapacity == 1, "the old capacity of 2 is cleared")
+check(Settings(defaults: memorySuite).idleUnloadSeconds == 120, "the old five minutes is cleared")
+let keptSuite = UserDefaults(suiteName: "com.dvir.dictato.kepttest")!
+keptSuite.removePersistentDomain(forName: "com.dvir.dictato.kepttest")
+keptSuite.set(4, forKey: "recognizerCacheCapacity")
+keptSuite.set(600, forKey: "idleUnloadSeconds")
+check(Settings(defaults: keptSuite).recognizerCacheCapacity == 4, "a capacity the user picked is kept")
+check(Settings(defaults: keptSuite).idleUnloadSeconds == 600, "an idle time the user picked is kept")
+// Running again must not undo a later choice.
+keptSuite.set(3, forKey: "recognizerCacheCapacity")
+check(Settings(defaults: keptSuite).recognizerCacheCapacity == 3, "the move runs only once")
+memorySuite.removePersistentDomain(forName: "com.dvir.dictato.memorytest")
+keptSuite.removePersistentDomain(forName: "com.dvir.dictato.kepttest")
 
 // --- DictationProfile / ProfileSet ---
 let he = DictationProfile(id: "p1", name: "Hebrew", modelID: "ivrit-large-v3-turbo",

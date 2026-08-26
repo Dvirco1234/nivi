@@ -49,9 +49,18 @@ final class AudioRecorder {
         }
     }
 
+    /// Ends the recording and hands over everything it captured.
+    ///
+    /// The recorder lets go of the buffer as it hands it over. Keeping a second copy
+    /// until the next recording starts would hold the whole dictation in memory for as
+    /// long as the app is idle, which is about 4 MB a minute of speech for no reason.
     func stop() -> [Float] {
         tearDown()
-        return samplesQueue.sync { samples }
+        return samplesQueue.sync {
+            let recorded = samples
+            samples = []
+            return recorded
+        }
     }
 
     /// A snapshot of everything recorded so far. Recording continues; the streaming

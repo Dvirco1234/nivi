@@ -62,8 +62,8 @@ public struct Settings {
             Key.maxRecordingSeconds: 600,
             Key.verboseLogging: false,
             Key.excludeFromClipboardHistory: true,
-            Key.recognizerCacheCapacity: 2,
-            Key.idleUnloadSeconds: 300,
+            Key.recognizerCacheCapacity: 1,
+            Key.idleUnloadSeconds: 120,
             Key.removeSoundDescriptions: true,
             Key.profilesJSON: "",
             Key.streamingIntervalMs: 500,
@@ -83,6 +83,25 @@ public struct Settings {
             Key.fileChunkMinutes: 5,
             Key.volumeBeforeMute: -1,
         ])
+        migrateToLighterMemoryDefaults()
+    }
+
+    /// Moves anyone still on the old memory settings onto the lighter ones, once.
+    ///
+    /// Dictato used to keep two models in memory and hold them for five minutes. With a
+    /// 1.6 GB model that is why an idle app sat at 600 MB or more. Those numbers were
+    /// never chosen by anyone, they were the old defaults written to disk, so clearing
+    /// them lets the new defaults apply. Anything else is left exactly as it is, and a
+    /// user who sets the old values again keeps them: this runs only the first time.
+    private func migrateToLighterMemoryDefaults() {
+        guard !defaults.bool(forKey: Key.didLightenMemoryDefaults) else { return }
+        defaults.set(true, forKey: Key.didLightenMemoryDefaults)
+        if defaults.object(forKey: Key.recognizerCacheCapacity) as? Int == 2 {
+            defaults.removeObject(forKey: Key.recognizerCacheCapacity)
+        }
+        if defaults.object(forKey: Key.idleUnloadSeconds) as? Int == 300 {
+            defaults.removeObject(forKey: Key.idleUnloadSeconds)
+        }
     }
 
     private enum Key {
@@ -101,6 +120,7 @@ public struct Settings {
         static let excludeFromClipboardHistory = "excludeFromClipboardHistory"
         static let recognizerCacheCapacity = "recognizerCacheCapacity"
         static let removeSoundDescriptions = "removeSoundDescriptions"
+        static let didLightenMemoryDefaults = "didLightenMemoryDefaults"
         static let idleUnloadSeconds = "idleUnloadSeconds"
         static let profilesJSON = "profilesJSON"
         static let streamingIntervalMs = "streamingIntervalMs"

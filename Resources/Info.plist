@@ -10,16 +10,31 @@
     <string>Dictato</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <!-- CFBundleShortVersionString, CFBundleVersion, CFBundleIdentifier, CFBundleName,
+         CFBundleExecutable, CFBundleIconFile, SUFeedURL and SUPublicEDKey are all
+         rewritten by the Makefile when the bundle is assembled. The values below are
+         only placeholders so this file stays a valid plist. Change them in the
+         Makefile and version.mk, not here. -->
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.0.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>0</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>CFBundleIconFile</key>
     <string>Dictato</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Dictato records your voice to transcribe Hebrew speech to text. Audio never leaves this Mac.</string>
+    <key>SUFeedURL</key>
+    <string></string>
+    <key>SUPublicEDKey</key>
+    <string></string>
+    <!-- Check once a day, and do it without asking on first launch. The user can
+         turn this off in Preferences > General > Updates. -->
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 Dvir Cohen</string>
 </dict>

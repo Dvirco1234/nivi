@@ -43,11 +43,17 @@ is expected — unlock it once:
 Grant **Microphone** (recording) and **Accessibility** (global hotkey + paste)
 when prompted, then relaunch once so the hotkey monitor picks up the grant.
 
-## Build a shareable DMG
+## Make a release
 
 ```sh
-make dmg     # → build/Dictato.dmg
+make release VERSION=0.2.0
 ```
+
+One command: builds the app, packs `dist/Dictato-0.2.0.dmg`, signs the update
+feed, tags, and publishes to the public releases repo. `make dist` does the same
+without git or publishing. See [docs/release-pipeline.md](docs/release-pipeline.md)
+for the version scheme, where the Sparkle signing key lives, and how to rename
+the app. [INSTALL.md](INSTALL.md) is what a new user reads.
 
 ## Settings
 

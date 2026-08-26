@@ -191,6 +191,13 @@ struct OverlayView: View {
             }
             .mask(shape.strokeBorder(lineWidth: UITuning.panelGlowWidth * 2))
             .blur(radius: UITuning.panelGlowWidth)
+            // The blur throws light well past the edge it was masked to. Nothing held it
+            // to the card's rounded corners, only to the window's square ones, so
+            // wherever the bright part of the glow happened to be it filled the corner
+            // and the card looked like it had a bigger radius on that side. Cutting the
+            // glow to the card's own shape pins the outline and leaves only the
+            // brightness travelling.
+            .clipShape(shape)
             .opacity(UITuning.panelGlowOpacity * (0.7 + 0.3 * level))
             .allowsHitTesting(false)
             .onAppear {

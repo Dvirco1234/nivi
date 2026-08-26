@@ -64,8 +64,8 @@ enum UITuning {
         ("panelTextHeight", 78, "recording panel height once live text is showing"),
         ("panelCorner", 22, "recording panel corner radius"),
         ("panelBorderOpacity", 6, "recording panel border strength, in percent"),
-        ("panelGlowWidth", 4, "thickness of the glow that travels around the panel"),
-        ("panelGlowOpacity", 80, "brightness of the travelling glow, in percent"),
+        ("panelGlowWidth", 2, "thickness of the glow that travels around the panel"),
+        ("panelGlowOpacity", 45, "brightness of the travelling glow, in percent"),
         ("panelGlowSeconds", 7, "seconds for the glow to go once around the panel"),
 
         // Notch bar: the strip that merges with the camera notch.

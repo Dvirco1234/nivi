@@ -32,10 +32,12 @@ enum SystemVolume {
         if let volume = volume(of: device) {
             guard volume > 0 else { return }   // already silent, nothing to put back
             settings.volumeBeforeMute = Double(volume)
-            _ = setVolume(0, on: device)
+            guard setVolume(0, on: device) else { return }
         } else if let muted = isMuted(device), !muted {
             settings.volumeBeforeMute = usedMuteSwitch
-            _ = setMuted(true, on: device)
+            guard setMuted(true, on: device) else { return }
+        } else {
+            return
         }
         Log.info("Muted the output while recording")
     }

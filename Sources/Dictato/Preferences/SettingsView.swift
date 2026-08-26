@@ -242,17 +242,65 @@ private struct WindowMaterial: NSViewRepresentable {
 
 private struct GeneralSection: View {
     private var settings = Settings()
+    @State private var appearance = Settings().appearance
+    @State private var showInDock = Settings().showInDock
+    @State private var showInStatusBar = Settings().showInStatusBar
     @State private var autoPaste = Settings().autoPaste
     @State private var showOverlay = Settings().showOverlay
+    @State private var escapeToCancel = Settings().escapeToCancelEnabled
     @State private var playSounds = Settings().playSounds
+    @State private var muteWhileRecording = Settings().muteWhileRecording
+    @State private var trackpadFeedback = Settings().trackpadFeedback
+    @State private var textInputMethod = Settings().textInputMethod
     @State private var copyOnly = Settings().copyOnly
     @State private var excludeHistory = Settings().excludeFromClipboardHistory
     @State private var display = Settings().recordingDisplay
+    @State private var replacementCount = WordReplacing.decode(json: Settings().wordReplacementsJSON).count
+    @State private var showingWordReplacements = false
 
     var body: some View {
+        if showingWordReplacements {
+            WordReplacementsPage {
+                showingWordReplacements = false
+                replacementCount = WordReplacing.decode(json: settings.wordReplacementsJSON).count
+            }
+        } else {
+            page
+        }
+    }
+
+    private var page: some View {
         PrefPage(title: "General",
                  description: "Set up how Dictato behaves and where your dictated text goes.") {
-            PrefGroup("Interface") {
+            PrefGroup("Interface",
+                      footer: "Dictato needs at least one of the Dock icon and the menu bar icon, so you can always reach it.") {
+                PrefPickerRow(icon: "circle.lefthalf.filled",
+                              "Appearance",
+                              selection: $appearance,
+                              options: AppAppearance.allCases,
+                              label: { $0.displayName })
+                    .onChange(of: appearance) {
+                        settings.appearance = $0
+                        InterfaceSettings.announceChange()
+                    }
+                PrefToggleRow(icon: "dock.rectangle",
+                              "Show in Dock",
+                              caption: lastWayIn(isDock: true) ? "This is the only way left to open Dictato, so it stays on." : nil,
+                              isOn: $showInDock)
+                    .disabled(lastWayIn(isDock: true))
+                    .onChange(of: showInDock) {
+                        settings.showInDock = $0
+                        InterfaceSettings.announceChange()
+                    }
+                PrefToggleRow(icon: "menubar.arrow.up.rectangle",
+                              "Show in the menu bar",
+                              caption: lastWayIn(isDock: false) ? "This is the only way left to open Dictato, so it stays on." : nil,
+                              isOn: $showInStatusBar)
+                    .disabled(lastWayIn(isDock: false))
+                    .onChange(of: showInStatusBar) {
+                        settings.showInStatusBar = $0
+                        InterfaceSettings.announceChange()
+                    }
                 LaunchAtLoginRow()
             }
 
@@ -273,19 +321,39 @@ private struct GeneralSection: View {
                               "Show the recording window",
                               isOn: $showOverlay)
                     .onChange(of: showOverlay) { settings.showOverlay = $0 }
+                PrefToggleRow(icon: "escape",
+                              "Press Esc to cancel a recording",
+                              caption: "Change the key in Hotkeys.",
+                              isOn: $escapeToCancel)
+                    .onChange(of: escapeToCancel) { settings.escapeToCancelEnabled = $0 }
             }
 
-            PrefGroup("Audio and feedback") {
+            PrefGroup("Audio and feedback",
+                      footer: "Muting stops system sounds and music from ending up in the recording. Dictato saves your volume first and puts it back when the recording ends, even if it is quit in the middle. Trackpad feedback only works on trackpads that support Force Touch.") {
                 PrefToggleRow(icon: "speaker.wave.2",
                               "Play a sound when recording starts and stops",
                               isOn: $playSounds)
                     .onChange(of: playSounds) { settings.playSounds = $0 }
+                PrefToggleRow(icon: "speaker.slash",
+                              "Mute other audio while recording",
+                              isOn: $muteWhileRecording)
+                    .onChange(of: muteWhileRecording) { settings.muteWhileRecording = $0 }
+                PrefToggleRow(icon: "hand.tap",
+                              "Vibrate the trackpad when recording starts",
+                              isOn: $trackpadFeedback)
+                    .onChange(of: trackpadFeedback) { settings.trackpadFeedback = $0 }
             }
 
             PrefGroup("Text handling",
-                      footer: "Copy only leaves the text on the clipboard for you to paste yourself.") {
-                PrefToggleRow(icon: "arrow.down.doc",
-                              "Paste the text as soon as it is ready",
+                      footer: "Pasting is faster. Typing it out is slower but does not touch your clipboard, and works in apps that block paste. Copy only leaves the text on the clipboard for you to paste yourself.") {
+                PrefPickerRow(icon: "arrow.down.doc",
+                              "How text is inserted",
+                              selection: $textInputMethod,
+                              options: TextInputMethod.allCases,
+                              label: { $0.displayName })
+                    .onChange(of: textInputMethod) { settings.textInputMethod = $0 }
+                PrefToggleRow(icon: "paperplane",
+                              "Put the text in as soon as it is ready",
                               isOn: $autoPaste)
                     .onChange(of: autoPaste) { settings.autoPaste = $0 }
                 PrefToggleRow(icon: "doc.on.clipboard",
@@ -297,9 +365,27 @@ private struct GeneralSection: View {
                               caption: "Clipboard managers such as Raycast and Maccy skip it.",
                               isOn: $excludeHistory)
                     .onChange(of: excludeHistory) { settings.excludeFromClipboardHistory = $0 }
+                PrefDisclosureRow(icon: "text.badge.checkmark",
+                                  "Word replacements",
+                                  value: replacementCountText) {
+                    showingWordReplacements = true
+                }
             }
+
+            MicrophonePriorityGroup()
         }
         .navigationTitle("General")
+    }
+
+    private var replacementCountText: String {
+        replacementCount == 1 ? "1 rule" : "\(replacementCount) rules"
+    }
+
+    /// Whether this toggle is the last way into the app. The one that is still on cannot
+    /// be turned off, because with both off there is no Dock icon and no menu bar icon
+    /// left to open Preferences from.
+    private func lastWayIn(isDock: Bool) -> Bool {
+        isDock ? (showInDock && !showInStatusBar) : (showInStatusBar && !showInDock)
     }
 }
 

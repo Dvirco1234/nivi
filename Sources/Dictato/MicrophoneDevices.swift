@@ -18,6 +18,15 @@ struct MicrophoneDevice: Identifiable, Equatable {
 /// one more thing to get out of step.
 enum MicrophoneDevices {
 
+    /// Names of devices seen since the app started, kept so a microphone that is
+    /// unplugged while Preferences is open keeps its name in the list instead of turning
+    /// back into a bare id. Only device ids are saved to disk, so this is all the app can
+    /// know about a device it has not met this session.
+    private(set) static var knownNames: [String: String] = [:]
+
+    /// The name to show for a device id, which may not be plugged in.
+    static func name(for id: String) -> String { knownNames[id] ?? id }
+
     /// Every device that is plugged in right now and has at least one input channel.
     static func available() -> [MicrophoneDevice] {
         var address = AudioObjectPropertyAddress(
@@ -39,6 +48,7 @@ enum MicrophoneDevices {
             guard inputChannels(of: id) > 0,
                   let uid = stringProperty(kAudioDevicePropertyDeviceUID, of: id) else { return nil }
             let name = stringProperty(kAudioObjectPropertyName, of: id) ?? uid
+            knownNames[uid] = name
             return MicrophoneDevice(id: uid, name: name, audioDeviceID: id)
         }
     }

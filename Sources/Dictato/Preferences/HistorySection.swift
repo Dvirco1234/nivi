@@ -268,6 +268,7 @@ private struct HistoryEntryCard: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlayScrollers()
             }
             .frame(maxHeight: PrefTheme.historyExpandedMaxHeight)
         } else {

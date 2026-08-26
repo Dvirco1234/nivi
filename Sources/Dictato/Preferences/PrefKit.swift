@@ -14,6 +14,52 @@ import AppKit
 /// existed. This generalises what they were doing rather than adding a second card style
 /// beside them.
 
+// MARK: - Scrollers
+
+/// Forces the thin scroller that floats over the content, whatever the Mac is set to.
+///
+/// macOS has a system setting called "Show scroll bars". Set to Always, or set to
+/// Automatic with a mouse plugged in, every scroll view gets the old wide scroller. That
+/// one takes real width away from the content, so a page that grows tall enough to scroll
+/// suddenly shifts every row to the left. Preferences must not move like that, so the app
+/// asks for the overlay scroller on its own scroll views. The system setting is left
+/// alone; this only changes Dictato.
+struct OverlayScrollers: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { ScrollerStyleSetter() }
+    func updateNSView(_ view: NSView, context: Context) {
+        (view as? ScrollerStyleSetter)?.applyOverlayStyle()
+    }
+}
+
+/// A zero-sized view whose only job is to reach the `NSScrollView` around it. SwiftUI
+/// gives no other way to get at it.
+private final class ScrollerStyleSetter: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        applyOverlayStyle()
+    }
+
+    func applyOverlayStyle() {
+        // One turn of the run loop later, because during layout the scroll view is not
+        // always hooked up yet.
+        DispatchQueue.main.async { [weak self] in
+            guard let scrollView = self?.enclosingScrollView else { return }
+            scrollView.scrollerStyle = .overlay
+            scrollView.verticalScroller?.scrollerStyle = .overlay
+            scrollView.horizontalScroller?.scrollerStyle = .overlay
+            // The indicator still fades in while scrolling, it just does not sit there.
+            scrollView.autohidesScrollers = true
+        }
+    }
+}
+
+extension View {
+    /// Put this inside a `ScrollView` to get the thin overlay scroller.
+    func overlayScrollers() -> some View {
+        background(OverlayScrollers().frame(width: 0, height: 0))
+    }
+}
+
 // MARK: - Page
 
 /// One whole tab: a big title, one grey sentence, then the scrolling content.
@@ -52,6 +98,7 @@ struct PrefPage<Content: View>: View {
             }
             .padding(UITuning.contentPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .overlayScrollers()
         }
     }
 }

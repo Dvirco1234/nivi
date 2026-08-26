@@ -52,6 +52,16 @@ enum PrefTheme {
     /// them on hover never changes the size of the card.
     static var historyActionHeight: CGFloat { UITuning.value("historyActionHeight") }
 
+    /// How many lines of a saved entry are shown before it is cut off.
+    static var historyCollapsedLines: Int { max(1, Int(UITuning.value("historyCollapsedLines"))) }
+
+    /// The tallest a saved entry can get once it is expanded. Past this the text scrolls
+    /// inside the card, so a long file transcript cannot fill the whole tab.
+    static var historyExpandedMaxHeight: CGFloat { UITuning.value("historyExpandedMaxHeight") }
+
+    /// Entries longer than this many characters get a Show more button.
+    static var historyExpandChars: Int { Int(UITuning.value("historyExpandChars")) }
+
     /// Gap between the icon column and the label.
     static let rowIconGap: CGFloat = 10
 }

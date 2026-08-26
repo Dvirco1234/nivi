@@ -18,7 +18,8 @@ struct LayoutTuningSection: View {
         ("Pages and rows", ["groupSpacing", "groupHeadingGap", "pageTitleGap",
                             "pageHeaderBottom", "rowVerticalPadding",
                             "rowIconWidth", "rowMinHeight"]),
-        ("History and files", ["historyActionHeight"]),
+        ("History and files", ["historyActionHeight", "historyCollapsedLines",
+                               "historyExpandedMaxHeight", "historyExpandChars"]),
         ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
@@ -82,6 +83,9 @@ struct LayoutTuningSection: View {
     private func range(for key: String) -> ClosedRange<Double> {
         switch key {
         case "sidebarWidth": return 160...320
+        case "historyCollapsedLines": return 1...10
+        case "historyExpandedMaxHeight": return 80...600
+        case "historyExpandChars": return 60...600
         case "trafficLightPitch": return 14...32
         case "panelWidth": return 220...420
         case "panelHeight": return 40...90

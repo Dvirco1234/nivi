@@ -249,6 +249,38 @@ private struct HistoryEntryCard: View {
 
     private var showActions: Bool { hovering && !selecting }
 
+    /// Whether the entry is long enough to be worth expanding.
+    ///
+    /// Decided from the character count rather than by measuring the rendered text with a
+    /// GeometryReader and a preference key. Measuring is exact but costs a layout pass per
+    /// card and a lot of code, and the only thing riding on the answer is whether a small
+    /// button appears. Roughly right is right enough here.
+    private var isLong: Bool { record.text.count > PrefTheme.historyExpandChars }
+
+    /// Collapsed, the entry is clamped to a few lines so every card in the list is about
+    /// the same height. Expanded, it grows only up to a limit and then scrolls inside the
+    /// card, so a file transcript of several thousand words cannot fill the whole tab.
+    @ViewBuilder private var transcriptText: some View {
+        if isExpanded {
+            ScrollView {
+                Text(record.text)
+                    .font(.callout)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: PrefTheme.historyExpandedMaxHeight)
+        } else {
+            Text(record.text)
+                .font(.callout)
+                .textSelection(.enabled)
+                .lineLimit(PrefTheme.historyCollapsedLines)
+                .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private static let relativeTime: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
@@ -268,12 +300,14 @@ private struct HistoryEntryCard: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(record.text)
-                    .font(.callout)
-                    .textSelection(.enabled)
-                    .lineLimit(isExpanded ? nil : 4)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                transcriptText
+
+                if isLong {
+                    Button(isExpanded ? "Show less" : "Show more", action: onToggleExpanded)
+                        .buttonStyle(.plain)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PrefTheme.accent)
+                }
 
                 HStack(spacing: 6) {
                     MetaChip(text: sourceLabel)
@@ -307,7 +341,9 @@ private struct HistoryEntryCard: View {
         .overlay(RoundedRectangle(cornerRadius: UITuning.cardCorner)
             .strokeBorder(isSelected ? PrefTheme.accent : PrefTheme.cardStroke, lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture { selecting ? onToggleSelected() : onToggleExpanded() }
+        .onTapGesture {
+            if selecting { onToggleSelected() } else if isLong { onToggleExpanded() }
+        }
         .onHover { hovering = $0; if !$0 { justCopied = false } }
     }
 

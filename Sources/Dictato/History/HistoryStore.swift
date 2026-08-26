@@ -37,13 +37,32 @@ final class HistoryStore: ObservableObject {
     func reload() {
         let text = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
         let all = HistoryFile.records(fromFileText: text)
-        let kept = HistoryRetention.keeping(all,
+        let cleaned = cleanedOfModelNotes(all)
+        let kept = HistoryRetention.keeping(cleaned,
                                             retentionDays: settings.historyRetentionDays,
                                             now: Date())
         records = kept
-        if kept.count != all.count {
-            Log.info("History: dropped \(all.count - kept.count) entries past the retention limit")
+        // Rewrite when anything at all changed: an entry dropped for age, an entry that
+        // held only a model note, or an entry whose text had a note trimmed off it.
+        if kept != all {
+            Log.info("History: cleaned up on read, \(all.count) entries in, \(kept.count) out")
             rewrite(kept)
+        }
+    }
+
+    /// Cleans out entries saved before Dictato started dropping the model's own notes.
+    ///
+    /// Older files can hold entries whose whole text is `[BLANK_AUDIO]` or
+    /// `(speaking foreign language)`. Those are not something the user said, so they are
+    /// removed on the next read rather than sitting in the list forever.
+    private func cleanedOfModelNotes(_ records: [HistoryRecord]) -> [HistoryRecord] {
+        records.compactMap { record in
+            let cleaned = TranscriptCleaning.clean(record.text)
+            if cleaned.isEmpty { return nil }
+            guard cleaned != record.text else { return record }
+            var fixed = record
+            fixed.text = cleaned
+            return fixed
         }
     }
 
@@ -61,7 +80,8 @@ final class HistoryStore: ObservableObject {
                 profileID: String? = nil,
                 sourceName: String? = nil) {
         guard settings.historyEnabled else { return }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Nothing the model only guessed at, such as [BLANK_AUDIO], is worth saving.
+        let trimmed = TranscriptCleaning.clean(text)
         guard !trimmed.isEmpty else { return }
 
         let record = HistoryRecord(text: trimmed,

@@ -59,8 +59,11 @@ final class ModelTester: ObservableObject {
             do {
                 let recognizer = try await cache.recognizer(
                     id: model.id, modelPath: modelStore.installedURL(for: model))
-                let text = try await recognizer.transcribe(samples: samples, language: language)
-                transcript = text.isEmpty ? "" : text
+                let raw = try await recognizer.transcribe(samples: samples, language: language)
+                // Drop the [BLANK_AUDIO] style notes, so a test on a quiet room shows
+                // "No speech detected" rather than the model's note about it.
+                let text = TranscriptCleaning.clean(raw)
+                transcript = text
                 if text.isEmpty { errorMessage = "No speech detected" }
             } catch {
                 Log.error("Model test failed: \(error.localizedDescription)")

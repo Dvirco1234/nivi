@@ -272,15 +272,19 @@ final class DictationController {
 
     private func handleStreamingUpdate(_ update: StreamingUpdate, mode: InsertionMode, generation: Int) {
         guard generation == recordingGeneration, case .recording = machine.state else { return }
+        // The live passes produce the same [BLANK_AUDIO] style notes as the final one, so
+        // clean them here too. Otherwise a pause mid-sentence types a note into the
+        // document, and nothing later can take it back out.
+        let fullText = TranscriptCleaning.clean(update.fullText)
         switch mode {
         case .overlayLive:
-            overlayModel.liveText = update.fullText
+            overlayModel.liveText = fullText
         case .inAppLive:
-            overlayModel.liveText = update.fullText
+            overlayModel.liveText = fullText
             // "Copy only" means never write into the app. Typing as the user speaks would
             // break that promise in a way nothing later can undo, so a copy-only profile
             // shows the preview and keeps the text for the clipboard instead.
-            if !settings.copyOnly { typeAppendOnly(update.stableText) }
+            if !settings.copyOnly { typeAppendOnly(TranscriptCleaning.clean(update.stableText)) }
         case .batch:
             break
         case .batchFastFinish:
@@ -350,7 +354,11 @@ final class DictationController {
                     text = try await recognizer.transcribe(samples: samples, language: profile.language)
                 }
                 Log.info("Inference completed in \(String(format: "%.2f", -inferenceStart.timeIntervalSinceNow))s")
-                guard !text.isEmpty else {
+                // Whisper writes a note such as [BLANK_AUDIO] when it hears no speech.
+                // Those notes are not words anyone said, so they are dropped before the
+                // text goes anywhere. If nothing real is left, this counts as silence.
+                let cleanedText = TranscriptCleaning.clean(text)
+                guard !cleanedText.isEmpty else {
                     finishWithError("No speech detected")
                     return
                 }
@@ -359,7 +367,7 @@ final class DictationController {
                 // so it costs the paste nothing, and a failed save can never stop the
                 // text reaching the user's app.
                 HistoryStore.shared.record(
-                    text: text,
+                    text: cleanedText,
                     durationSeconds: Double(samples.count) / AudioRecorder.sampleRate,
                     source: .dictation,
                     modelID: model.id,
@@ -368,7 +376,7 @@ final class DictationController {
                     sourceName: frontAppName)
                 switch profile.mode {
                 case .batch, .batchFastFinish, .overlayLive:
-                    inserter.insert(text,
+                    inserter.insert(cleanedText,
                                     autoPaste: settings.autoPaste,
                                     copyOnly: settings.copyOnly,
                                     excludeFromHistory: settings.excludeFromClipboardHistory)
@@ -376,7 +384,7 @@ final class DictationController {
                     if settings.copyOnly {
                         // Nothing was typed during the recording either, so the document is
                         // untouched and the whole transcript goes to the clipboard.
-                        inserter.insert(text,
+                        inserter.insert(cleanedText,
                                         autoPaste: settings.autoPaste,
                                         copyOnly: true,
                                         excludeFromHistory: settings.excludeFromClipboardHistory)
@@ -384,7 +392,7 @@ final class DictationController {
                         // Type only what streaming hasn't already typed. The final pass
                         // re-punctuates and re-capitalizes words already in the document, so
                         // the seam is found by word, not by character offset.
-                        typeAppendOnly(text)
+                        typeAppendOnly(cleanedText)
                     }
                 }
                 transition(.insertionCompleted)

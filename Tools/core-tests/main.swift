@@ -494,4 +494,28 @@ let evenCuts = AudioChunkPlanner.cutPoints(samples: [Float](repeating: 0.5, coun
                                            searchSeconds: 3)
 check(evenCuts.count == 1, "steady sound still gets its cut")
 
+// --- TranscriptCleaning ---
+check(TranscriptCleaning.clean("[BLANK_AUDIO]") == "", "a lone blank audio note leaves nothing")
+check(TranscriptCleaning.isOnlyNoise("[ Silence ]"), "spacing and capitals still count as a note")
+check(TranscriptCleaning.isOnlyNoise("(speaking in foreign language)"), "the foreign language note")
+check(TranscriptCleaning.isOnlyNoise("*clears throat*"), "asterisks around a note")
+check(TranscriptCleaning.isOnlyNoise("♪♪♪"), "musical notes on their own")
+check(TranscriptCleaning.isOnlyNoise("(gentle music)"), "a short description ending in music")
+check(TranscriptCleaning.clean("Send the deck. [BLANK_AUDIO]") == "Send the deck.",
+      "real words survive a trailing note")
+check(TranscriptCleaning.clean("[MUSIC] Ship it on Friday [BLANK_AUDIO]") == "Ship it on Friday",
+      "notes at both ends are removed")
+check(TranscriptCleaning.clean("Put it in brackets like [this]") == "Put it in brackets like [this]",
+      "the user's own brackets are left alone")
+check(TranscriptCleaning.clean("Call it (the new one) tomorrow") == "Call it (the new one) tomorrow",
+      "a real aside in brackets is left alone")
+check(TranscriptCleaning.clean("Ask him [INAUDIBLE] about the price [NOISE] today")
+      == "Ask him about the price today", "several notes in one line are all removed")
+check(TranscriptCleaning.clean("Send it [BLANK_AUDIO], please") == "Send it, please",
+      "no space is left in front of a comma")
+check(TranscriptCleaning.clean("   already clean   ") == "already clean",
+      "nothing to remove, just trimmed")
+check(!TranscriptCleaning.isOnlyNoise("(see the music section of the quarterly report)"),
+      "a long aside is left alone even though it names music")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

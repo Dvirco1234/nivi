@@ -66,11 +66,13 @@ struct VisualEffect: NSViewRepresentable {
     }
 }
 
-/// Draws the sidebar's tab list on the sidebar's own background, at the sidebar's width.
+/// Draws the sidebar's brand and tab list on the sidebar's own background, at the
+/// sidebar's width.
 struct SidebarPreview: View {
     @State private var selection: PrefSection = .general
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            PrefBrandHeader()
             SidebarTabList(selection: $selection)
             Spacer(minLength: 0)
         }

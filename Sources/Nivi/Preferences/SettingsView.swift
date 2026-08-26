@@ -62,7 +62,7 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            brandHeader
+            PrefBrandHeader()
             tabs
             Spacer(minLength: 0)
             versionFooter
@@ -143,19 +143,6 @@ struct SettingsView: View {
         return "v\(short) (\(build))"
     }
 
-    private var brandHeader: some View {
-        HStack(spacing: 8) {
-            if let img = LanguageGlyph.image(named: "NiviLogo") {
-                Image(nsImage: img).resizable().frame(width: 24, height: 24)
-            }
-            Text("Nivi").font(.title3.weight(.semibold))
-        }
-        .padding(.horizontal, UITuning.brandLeading)
-        .padding(.top, UITuning.brandTop)     // clear the traffic-light buttons + breathing room above the brand
-        .padding(.bottom, UITuning.brandBottom)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     @ViewBuilder private var detail: some View {
         // A tab that is not on the list cannot be reached by clicking, but belt and
         // braces: showing the first visible tab beats showing an empty pane.
@@ -179,6 +166,25 @@ struct SettingsView: View {
 /// The list of tabs down the sidebar. Its own view so the screenshot tool can draw the
 /// real thing, which is how the released build is checked for the absence of the
 /// developer-only tabs.
+/// The app's name and mark at the top of the sidebar.
+///
+/// Its own view so the pref-shots tool can photograph the real thing rather than a
+/// copy of it — Tools/pref-shots/main.swift cannot reach a private var.
+struct PrefBrandHeader: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            if let img = LanguageGlyph.image(named: "NiviLogo") {
+                Image(nsImage: img).resizable().frame(width: 24, height: 24)
+            }
+            Text("Nivi").font(.title3.weight(.semibold))
+        }
+        .padding(.horizontal, UITuning.brandLeading)
+        .padding(.top, UITuning.brandTop)     // clear the traffic-light buttons + breathing room above the brand
+        .padding(.bottom, UITuning.brandBottom)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct SidebarTabList: View {
     @Binding var selection: PrefSection
 

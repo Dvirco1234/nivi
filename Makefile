@@ -256,8 +256,10 @@ release: check-clean
 	@$(MAKE) --no-print-directory dist VERSION=$(VERSION) BUILD_NUMBER=$(NEXT_BUILD)
 	git add version.mk
 	git commit -m "release: v$(VERSION) (build $(NEXT_BUILD))"
-	git tag -a "v$(VERSION)" -m "$(APP_NAME) $(VERSION)"
+	@# Publishing before tagging. If uploading fails, no tag exists yet, so the same
+	@# command can simply be run again once the problem is fixed.
 	@$(MAKE) --no-print-directory publish VERSION=$(VERSION)
+	git tag -a "v$(VERSION)" -m "$(APP_NAME) $(VERSION)"
 	git push origin HEAD "v$(VERSION)"
 	@echo ""
 	@echo "Released $(APP_NAME) $(VERSION). Download page: $(PAGES_URL)"

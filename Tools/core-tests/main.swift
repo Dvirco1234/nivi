@@ -534,4 +534,39 @@ check(ChunkedTranscription.progressLine(chunksDone: 0, chunkCount: 3, elapsedSec
 check(ChunkedTranscription.progressLine(chunksDone: 1, chunkCount: 3, elapsedSeconds: 20)
       == "Part 2 of 3, about 40 seconds left", "the estimate comes from the pieces done")
 
+// --- TranscriptFinishing: cleaning runs before the user's word rules ---
+let finishingRules = [
+    WordReplacement(id: "f1", find: "dictato", replaceWith: "Dictato"),
+    WordReplacement(id: "f2", find: "blank", replaceWith: "empty"),
+]
+check(TranscriptFinishing.finish("dictato ships on Friday", rules: finishingRules)
+      == "Dictato ships on Friday", "a word rule is applied to the finished text")
+check(TranscriptFinishing.finish("[BLANK_AUDIO] dictato ships", rules: finishingRules)
+      == "Dictato ships", "the model's note is gone before any rule can touch it")
+check(TranscriptFinishing.finish("send it [BLANK_AUDIO] now", rules: [
+          WordReplacement(id: "f3", find: "it now", replaceWith: "it today", matchWholeWord: false)])
+      == "send it today", "a rule matches across the gap a removed note left")
+check(TranscriptFinishing.finish("[BLANK_AUDIO]", rules: finishingRules) == "",
+      "a transcript that was only a note still ends up empty")
+check(TranscriptFinishing.finish("keep this", rules: []) == "keep this", "no rules, just cleaning")
+
+// --- MicrophonePriority ---
+check(MicrophonePriority.firstAvailable(order: ["airpods", "builtin"],
+                                        available: ["builtin"]) == "builtin",
+      "the first choice is skipped when it is not plugged in")
+check(MicrophonePriority.firstAvailable(order: ["airpods", "builtin"],
+                                        available: ["builtin", "airpods"]) == "airpods",
+      "the first choice wins when it is there")
+check(MicrophonePriority.firstAvailable(order: [], available: ["builtin"]) == nil,
+      "an empty list means use the system default")
+check(MicrophonePriority.firstAvailable(order: ["gone"], available: ["builtin"]) == nil,
+      "nothing on the list is connected, so use the system default")
+check(MicrophonePriority.listing(order: ["airpods"], available: ["builtin", "airpods"])
+      == ["airpods", "builtin"], "a new device shows up under the saved order")
+check(MicrophonePriority.listing(order: ["airpods", "airpods"], available: [])
+      == ["airpods"], "a duplicate saved id is only listed once")
+check(MicrophonePriority.decode(json: MicrophonePriority.encode(["a", "b"])) == ["a", "b"],
+      "the saved order survives a round trip")
+check(MicrophonePriority.decode(json: "") == [], "nothing saved yet reads as an empty list")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

@@ -169,18 +169,60 @@ release title.
 
 To rename:
 
-1. Change `APP_NAME` and `BUNDLE_ID` in the `Makefile`.
+1. Change `APP_NAME` and `BUNDLE_ID` in the `Makefile`, and `RELEASES_REPO` if
+   the releases repo should be renamed too. Create that repo before releasing.
 2. Run `make cert` to mint a `<NewName> Self-Signed` identity.
-3. Rename the resource files that carry the old name:
-   `Resources/Nivi.icns`, `Resources/NiviLogo.png`,
-   `Resources/NiviLogoEn.png` — and the `LanguageGlyph.image(named:)` calls
-   that load them.
-4. Change the user-visible strings in the UI (the sidebar brand text, the
-   "Quit Nivi" menu item, the microphone permission sentence in
-   `Resources/Info.plist`).
-5. Update `RELEASES_REPO` if you want a differently named releases repo, and
-   create it.
-6. Rewrite `INSTALL.md` and `README.md`.
+3. Rename the Swift targets and their folders — `Sources/<Name>`,
+   `Sources/<Name>Core`, `Tests/<Name>CoreTests` — and the target names in
+   `Package.swift`. `Tools/run-core-tests.sh`, `Tools/make-pref-shots.sh` and
+   `Tools/make-recording-thumbnails.sh` compile those folders by path, so they
+   have to follow.
+4. Rename the resource files that carry the old name: `Resources/<Name>.icns`,
+   `<Name>Logo.png`, `<Name>LogoEn.png`, `<Name>.entitlements` — and the
+   `LanguageGlyph.image(named:)` calls, `Tools/make-iconset.sh`,
+   `Tools/make-dmg.sh` and `Tools/notarize.sh` that name them.
+5. Change the user-visible strings: the sidebar brand text, the "Quit <Name>"
+   menu item, the window title, the overlay mark, the error messages that name
+   the app, and the microphone permission sentence in `Resources/Info.plist`.
+6. Change the paths and identifiers keyed to the name: the log folder and log
+   file in `Sources/<Name>/Log.swift`, the Application Support folder in
+   `ModelPaths.appSupportBase()`, the `os.Logger` subsystem, the dispatch queue
+   labels, the `NSError` domains and the `Notification.Name` constants.
+7. Write the one-time migration for existing installs — see below — and cover it
+   in `Tools/core-tests/main.swift`.
+8. Rewrite `INSTALL.md` and `README.md`, and fix the examples in
+   `.claude/skills/macos-app-dev/`.
+
+Then `make cert`, `make dev`, and check the result really is the new app:
+
+```sh
+codesign -dvvv /Applications/<Name>.app 2>&1 | grep -E "Authority|Identifier"
+bash Tools/run-core-tests.sh
+```
+
+### Bringing an existing install across
+
+The bundle id decides where macOS keeps the settings, and the app name decides
+where the app keeps its files. Rename either and the app opens looking brand
+new, with no profiles, no hotkeys, and a 1.6 GB model to download that is
+already on the disk.
+
+`Sources/<Name>Core/LegacyNameMigration.swift` handles both, once, at the top of
+`main.swift` before anything reads either place:
+
+- the old defaults domain is copied key by key into the new one, skipping keys
+  already set under the new name, with a marker so it never runs twice.
+- `~/Library/Application Support/<OldName>` is **renamed** to the new name. A
+  rename inside one disk is a single step, so the folder is either at the old
+  name or the new one and never half at each. Copying gigabytes of model files
+  and deleting afterwards could be interrupted and leave a truncated model.
+
+Logs are not migrated. They are diagnostic, they rotate anyway, and the old
+folder can simply be deleted.
+
+Permissions cannot be migrated at all. macOS ties Accessibility, Input
+Monitoring and Microphone to the signing identity, and a renamed app has a new
+one, so the user grants all three again and deletes the old app.
 
 **Do this before the first public release if you are going to do it at all.**
 Changing `BUNDLE_ID` after people have installed the app strands them: macOS and

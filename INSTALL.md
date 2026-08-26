@@ -67,7 +67,28 @@ Accessibility and Input Monitoring look like the same thing but are two separate
 switches. If your hotkey works but Esc does nothing, Input Monitoring is the one
 that is off.
 
-## 4. Updates
+## 4. If you used Dictato before
+
+Nivi is the same app under a new name. The first time you open it, it brings
+your old settings across by itself: your profiles, your hotkeys, your chosen
+models, your word replacements and your history. The speech models you already
+downloaded are reused, so nothing is downloaded again.
+
+Two things do not come across:
+
+- **The three permissions in step 3.** macOS ties them to the app's signature,
+  and to macOS this is a different app, so you grant them again. In System
+  Settings you will see both **Dictato** and **Nivi** in the lists. Switch Nivi
+  on. The Dictato rows can be removed with the minus button.
+- **Opening at login.** If Dictato started at login, turn that on for Nivi in
+  **Preferences > General**, and remove Dictato from
+  **System Settings > General > Login Items**.
+
+Once Nivi works the way you expect, drag **Dictato** from your Applications
+folder to the Trash. Keeping both around only means two icons, two sets of
+permissions, and dictating with whichever one you happened to open.
+
+## 5. Updates
 
 Nivi checks once a day whether a newer version exists, and tells you when
 there is one. It never installs anything without asking. You can turn the

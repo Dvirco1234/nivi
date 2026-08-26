@@ -49,6 +49,13 @@ enum UITuning {
         ("panelGlowWidth", 4, "thickness of the glow that travels around the panel"),
         ("panelGlowOpacity", 80, "brightness of the travelling glow, in percent"),
         ("panelGlowSeconds", 7, "seconds for the glow to go once around the panel"),
+
+        // Notch bar: the strip that merges with the camera notch.
+        ("notchWaveWidth", 60, "width of the wave, to the right of the notch"),
+        ("notchIconSize", 16, "size of each icon, to the left of the notch"),
+        ("notchIconGap", 6, "gap between the two icons"),
+        ("notchIconInset", 10, "space around the icons, at both ends of their strip"),
+        ("notchTextHeight", 24, "extra height the notch bar takes when it shows live text"),
     ]
 
     /// Observable so a change redraws the Preferences tree immediately: dragging a
@@ -93,6 +100,13 @@ enum UITuning {
     static var panelGlowWidth: CGFloat { value("panelGlowWidth") }
     static var panelGlowOpacity: Double { Double(value("panelGlowOpacity")) / 100 }
     static var panelGlowSeconds: Double { Double(value("panelGlowSeconds")) }
+
+    // Notch bar
+    static var notchWaveWidth: CGFloat { value("notchWaveWidth") }
+    static var notchIconSize: CGFloat { value("notchIconSize") }
+    static var notchIconGap: CGFloat { value("notchIconGap") }
+    static var notchIconInset: CGFloat { value("notchIconInset") }
+    static var notchTextHeight: CGFloat { value("notchTextHeight") }
 
     static func value(_ key: String) -> CGFloat {
         if let override = overrides[key] { return override }

@@ -22,6 +22,7 @@ struct LayoutTuningSection: View {
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
                              "panelGlowSeconds"]),
+        ("Notch bar", ["notchWaveWidth", "notchIconSize", "notchIconGap", "notchIconInset", "notchTextHeight"]),
     ]
 
     var body: some View {
@@ -87,6 +88,8 @@ struct LayoutTuningSection: View {
         case "panelCorner": return 4...40
         case "panelBorderOpacity", "panelGlowOpacity": return 1...100
         case "panelGlowSeconds": return 2...20
+        case "notchWaveWidth": return 20...140
+        case "notchIconSize": return 8...28
         default: return 0...60
         }
     }

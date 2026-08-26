@@ -11,14 +11,17 @@ final class NotchOverlayPanel: NSPanel {
     var preferredScreen: NSScreen?
 
     private let model: OverlayModel
-    private var heightObserver: AnyCancellable?
+    private var layoutObservers: Set<AnyCancellable> = []
+    /// The screen measurements the hosted view was built with, so the view is only
+    /// rebuilt when they actually change rather than on every reposition.
+    private var hostedShape: (notchWidth: CGFloat, stripHeight: CGFloat) = (-1, -1)
 
     init(model: OverlayModel) {
         self.model = model
         super.init(
             contentRect: NSRect(x: 0, y: 0,
                                 width: NotchOverlayView.barWidth(notchWidth: 0),
-                                height: NotchOverlayView.barHeight),
+                                height: NSStatusBar.system.thickness),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -33,10 +36,16 @@ final class NotchOverlayPanel: NSPanel {
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        heightObserver = model.$liveText
-            .map { NotchOverlayView.barHeight(liveText: $0) }
+        model.$liveText
+            .map(\.isEmpty)
             .removeDuplicates()
             .sink { [weak self] _ in self?.reposition() }
+            .store(in: &layoutObservers)
+        // The Layout sliders change the bar's width, so it has to be re-laid out while
+        // it is on screen or the window keeps the old size and clips the bar.
+        UITuning.Store.shared.$overrides
+            .sink { [weak self] _ in self?.reposition() }
+            .store(in: &layoutObservers)
     }
 
     override var canBecomeKey: Bool { false }
@@ -53,27 +62,50 @@ final class NotchOverlayPanel: NSPanel {
 
     private func reposition() {
         guard let screen = preferredScreen ?? NSScreen.main else { return }
-        let notchWidth = Self.notchWidth(of: screen)
-        contentView = NSHostingView(rootView: NotchOverlayView(model: model, notchWidth: notchWidth))
+        let notch = Self.notchArea(of: screen)
+        let notchWidth = notch?.width ?? 0
+        let stripHeight = Self.topStripHeight(of: screen)
+        if (notchWidth, stripHeight) != hostedShape {
+            contentView = NSHostingView(rootView: NotchOverlayView(
+                model: model, notchWidth: notchWidth, stripHeight: stripHeight))
+            hostedShape = (notchWidth, stripHeight)
+        }
 
         let width = NotchOverlayView.barWidth(notchWidth: notchWidth)
-        let height = NotchOverlayView.barHeight(liveText: model.liveText)
-        let frame = screen.frame
-        setFrame(NSRect(x: frame.midX - width / 2,
-                        y: frame.maxY - height,
+        let height = NotchOverlayView.barHeight(stripHeight: stripHeight, liveText: model.liveText)
+        // Line the bar's empty middle up with the real notch. Centring on the screen
+        // would only work while both sides are the same width, and they are not: the
+        // icons need less room than the wave, so the wave would slide under the notch.
+        let left = notch.map { $0.left - NotchOverlayView.leftWidth }
+            ?? (screen.frame.midX - width / 2)
+        setFrame(NSRect(x: left,
+                        y: screen.frame.maxY - height,
                         width: width,
                         height: height),
                  display: true)
     }
 
-    /// Width of the physical notch, or 0 on displays without one. `safeAreaInsets.top`
-    /// is non-zero only on notched built-in displays, and the auxiliary areas give the
-    /// horizontal extent the notch actually occupies.
-    private static func notchWidth(of screen: NSScreen) -> CGFloat {
-        guard screen.safeAreaInsets.top > 0 else { return 0 }
-        let left = screen.auxiliaryTopLeftArea?.width ?? 0
-        let right = screen.auxiliaryTopRightArea?.width ?? 0
-        guard left > 0, right > 0 else { return 0 }
-        return max(0, screen.frame.width - left - right)
+    /// Where the physical notch sits, in screen coordinates, or nil on a display without
+    /// one. `safeAreaInsets.top` is non-zero only on notched built-in displays, and the
+    /// two auxiliary areas are the strips of menu bar either side of the notch, so the
+    /// gap between them is the notch.
+    private static func notchArea(of screen: NSScreen) -> (left: CGFloat, width: CGFloat)? {
+        guard screen.safeAreaInsets.top > 0,
+              let leftArea = screen.auxiliaryTopLeftArea,
+              let rightArea = screen.auxiliaryTopRightArea,
+              rightArea.minX > leftArea.maxX else { return nil }
+        return (leftArea.maxX, rightArea.minX - leftArea.maxX)
+    }
+
+    /// How far down from the top edge the notch and the menu bar reach.
+    ///
+    /// On a notched display the notch ends exactly `safeAreaInsets.top` below the top of
+    /// the screen, so matching that puts the bar's bottom edge on the bottom of the
+    /// notch with nothing hanging over. Displays without a notch have no such number, so
+    /// they get the menu bar's height instead, which is the strip they do have.
+    private static func topStripHeight(of screen: NSScreen) -> CGFloat {
+        if screen.safeAreaInsets.top > 0 { return screen.safeAreaInsets.top }
+        let menuBar = NSApp.mainMenu?.menuBarHeight ?? 0
+        return menuBar > 0 ? menuBar : NSStatusBar.system.thickness
     }
 }

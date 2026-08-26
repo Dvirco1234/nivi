@@ -3,13 +3,17 @@ import AppKit
 
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
+    /// Watching the tuning store means dragging a slider in Preferences redraws the
+    /// card while it is on screen, which is the only way to judge these numbers.
+    @ObservedObject private var tuning = UITuning.Store.shared
     @State private var hovering = false
+    @State private var glowPhase: Double = 0
 
     /// Shared with OverlayPanel, which must resize its content rect to match — a card
     /// taller than the panel is simply clipped.
-    static let cardWidth: CGFloat = 330
-    static let collapsedHeight: CGFloat = 62
-    static let liveTextHeight: CGFloat = 86
+    static var cardWidth: CGFloat { UITuning.panelWidth }
+    static var collapsedHeight: CGFloat { UITuning.panelHeight }
+    static var liveTextHeight: CGFloat { UITuning.panelTextHeight }
 
     static func cardHeight(liveText: String) -> CGFloat {
         liveText.isEmpty ? collapsedHeight : liveTextHeight
@@ -28,7 +32,7 @@ struct OverlayView: View {
         case .hidden:
             EmptyView()
         case .recording:
-            card { recordingBody }
+            card(glowing: true) { recordingBody }
                 .overlay(alignment: .topTrailing) { if hovering { cancelButton } }
                 .onHover { hovering = $0 }
         case .processing:
@@ -43,7 +47,7 @@ struct OverlayView: View {
     }
 
     private var recordingBody: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             HStack {
                 targetApp
                 Spacer(minLength: 8)
@@ -65,20 +69,20 @@ struct OverlayView: View {
             model.onCancel?()
         } label: {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 18))
+                .font(.system(size: 17))
                 .foregroundStyle(.white, .black.opacity(0.55))
         }
         .buttonStyle(.plain)
-        .padding(6)
+        .padding(5)
         .help("Cancel recording")
     }
 
     private var targetApp: some View {
         HStack(spacing: 6) {
             if let icon = model.targetAppIcon {
-                Image(nsImage: icon).resizable().frame(width: 17, height: 17)
+                Image(nsImage: icon).resizable().frame(width: 16, height: 16)
             } else {
-                Image(systemName: "app.dashed").frame(width: 17, height: 17)
+                Image(systemName: "app.dashed").frame(width: 16, height: 16)
             }
             Text(model.targetAppName ?? "")
                 .font(.system(size: 12, weight: .medium))
@@ -102,9 +106,9 @@ struct OverlayView: View {
     private var logo: some View {
         Group {
             if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
-                Image(nsImage: img).resizable().frame(width: 16, height: 16)
+                Image(nsImage: img).resizable().frame(width: 15, height: 15)
             } else {
-                Image(systemName: "waveform").frame(width: 16, height: 16)
+                Image(systemName: "waveform").frame(width: 15, height: 15)
             }
         }
     }
@@ -115,7 +119,7 @@ struct OverlayView: View {
         let slots = OverlayModel.waveformSlots
         let levels = model.levels
         let pad = max(0, slots - levels.count)
-        let trackHeight: CGFloat = 20
+        let trackHeight: CGFloat = 16
         return GeometryReader { geo in
             let colW = geo.size.width / CGFloat(slots)
             HStack(spacing: 0) {
@@ -141,15 +145,60 @@ struct OverlayView: View {
         HStack(spacing: 8) { c() }.font(.callout)
     }
 
-    private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        content()
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+    private func card<C: View>(glowing: Bool = false, @ViewBuilder _ content: () -> C) -> some View {
+        let shape = RoundedRectangle(cornerRadius: UITuning.panelCorner, style: .continuous)
+        return content()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .frame(width: cardWidth, height: cardHeight)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-            )
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.strokeBorder(.white.opacity(UITuning.panelBorderOpacity), lineWidth: 0.5))
+            .overlay { if glowing { movingGlow(shape: shape) } }
+    }
+
+    /// Colours for the travelling glow. The first and last stop are both clear so the
+    /// gradient meets itself without a seam as it turns.
+    private static let glowColors: [Color] = [
+        .clear,
+        Color(red: 0.35, green: 0.78, blue: 1.00),
+        Color(red: 0.55, green: 0.50, blue: 1.00),
+        .clear,
+        .clear,
+        Color(red: 0.35, green: 0.78, blue: 1.00).opacity(0.45),
+        .clear,
+        .clear,
+    ]
+
+    /// A band of soft colour that keeps travelling around the card's edge while
+    /// recording, so the card looks alive even during a silent pause.
+    ///
+    /// The movement is one rotation of a gradient, which the graphics card handles on
+    /// its own: the view body is not re-run per frame and nothing is redrawn from
+    /// scratch. Speaking only nudges the brightness, so a quiet voice still gets the
+    /// same motion. The whole thing exists only in the recording case, so it stops the
+    /// moment recording does.
+    private func movingGlow(shape: RoundedRectangle) -> some View {
+        let level = Double(min(max(model.levels.last ?? 0, 0), 1))
+        // The gradient square has to cover the card even when turned side-on, so it is
+        // as wide as the card's diagonal and is allowed to spill past the edges.
+        let diagonal = sqrt(cardWidth * cardWidth + cardHeight * cardHeight)
+        return Color.clear
+            .overlay {
+                Rectangle()
+                    .fill(AngularGradient(colors: Self.glowColors, center: .center))
+                    .frame(width: diagonal, height: diagonal)
+                    .rotationEffect(.degrees(glowPhase))
+            }
+            .mask(shape.strokeBorder(lineWidth: UITuning.panelGlowWidth * 2))
+            .blur(radius: UITuning.panelGlowWidth)
+            .opacity(UITuning.panelGlowOpacity * (0.7 + 0.3 * level))
+            .allowsHitTesting(false)
+            .onAppear {
+                glowPhase = 0
+                withAnimation(.linear(duration: UITuning.panelGlowSeconds)
+                    .repeatForever(autoreverses: false)) {
+                    glowPhase = 360
+                }
+            }
     }
 }

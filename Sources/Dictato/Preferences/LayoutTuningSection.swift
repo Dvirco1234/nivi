@@ -19,6 +19,9 @@ struct LayoutTuningSection: View {
                             "pageHeaderBottom", "rowVerticalPadding",
                             "rowIconWidth", "rowMinHeight"]),
         ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
+        ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
+                             "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
+                             "panelGlowSeconds"]),
     ]
 
     var body: some View {
@@ -78,6 +81,12 @@ struct LayoutTuningSection: View {
         switch key {
         case "sidebarWidth": return 160...320
         case "trafficLightPitch": return 14...32
+        case "panelWidth": return 220...420
+        case "panelHeight": return 40...90
+        case "panelTextHeight": return 60...130
+        case "panelCorner": return 4...40
+        case "panelBorderOpacity", "panelGlowOpacity": return 1...100
+        case "panelGlowSeconds": return 2...20
         default: return 0...60
         }
     }

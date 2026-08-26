@@ -39,6 +39,16 @@ enum UITuning {
         ("trafficLightX", 22, "traffic lights: distance from the left edge"),
         ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
         ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),
+
+        // Recording panel: the floating card near the bottom of the screen.
+        ("panelWidth", 296, "recording panel width"),
+        ("panelHeight", 56, "recording panel height while it only shows the wave"),
+        ("panelTextHeight", 78, "recording panel height once live text is showing"),
+        ("panelCorner", 22, "recording panel corner radius"),
+        ("panelBorderOpacity", 6, "recording panel border strength, in percent"),
+        ("panelGlowWidth", 4, "thickness of the glow that travels around the panel"),
+        ("panelGlowOpacity", 80, "brightness of the travelling glow, in percent"),
+        ("panelGlowSeconds", 7, "seconds for the glow to go once around the panel"),
     ]
 
     /// Observable so a change redraws the Preferences tree immediately: dragging a
@@ -72,6 +82,17 @@ enum UITuning {
     static var trafficLightX: CGFloat { value("trafficLightX") }
     static var trafficLightTop: CGFloat { value("trafficLightTop") }
     static var trafficLightPitch: CGFloat { value("trafficLightPitch") }
+
+    // Recording panel
+    static var panelWidth: CGFloat { value("panelWidth") }
+    static var panelHeight: CGFloat { value("panelHeight") }
+    static var panelTextHeight: CGFloat { value("panelTextHeight") }
+    static var panelCorner: CGFloat { value("panelCorner") }
+    /// Stored as a percentage because the tuning file only accepts whole numbers.
+    static var panelBorderOpacity: Double { Double(value("panelBorderOpacity")) / 100 }
+    static var panelGlowWidth: CGFloat { value("panelGlowWidth") }
+    static var panelGlowOpacity: Double { Double(value("panelGlowOpacity")) / 100 }
+    static var panelGlowSeconds: Double { Double(value("panelGlowSeconds")) }
 
     static func value(_ key: String) -> CGFloat {
         if let override = overrides[key] { return override }

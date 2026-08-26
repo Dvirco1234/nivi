@@ -7,9 +7,11 @@ final class OverlayPanel: NSPanel {
     /// Screen to show on — set to the screen of the app being dictated in.
     var preferredScreen: NSScreen?
 
-    private var heightObserver: AnyCancellable?
+    private let model: OverlayModel
+    private var sizeObservers: Set<AnyCancellable> = []
 
     init(model: OverlayModel) {
+        self.model = model
         super.init(
             contentRect: NSRect(x: 0, y: 0,
                                 width: OverlayView.cardWidth,
@@ -28,18 +30,26 @@ final class OverlayPanel: NSPanel {
         hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         contentView = NSHostingView(rootView: OverlayView(model: model))
-        // The card grows when there is live text to show. The panel does not resize
-        // itself, so without this the taller card is clipped.
-        heightObserver = model.$liveText
+        // The card grows when there is live text to show, and the Layout sliders can
+        // change its size while it is on screen. The panel does not resize itself, so
+        // without this a bigger card is simply clipped.
+        model.$liveText
             .map { OverlayView.cardHeight(liveText: $0) }
             .removeDuplicates()
-            .sink { [weak self] height in self?.setCardHeight(height) }
+            .sink { [weak self] _ in self?.resizeToCard() }
+            .store(in: &sizeObservers)
+        UITuning.Store.shared.$overrides
+            .sink { [weak self] _ in self?.resizeToCard() }
+            .store(in: &sizeObservers)
     }
 
-    /// Resizes around the bottom edge so the card grows upward instead of jumping.
-    private func setCardHeight(_ height: CGFloat) {
-        guard frame.height != height else { return }
-        setFrame(NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: height),
+    /// Resizes around the bottom edge so the card grows upward instead of jumping, and
+    /// keeps the same centre so a width change does not slide the card sideways.
+    private func resizeToCard() {
+        let width = OverlayView.cardWidth
+        let height = OverlayView.cardHeight(liveText: model.liveText)
+        guard frame.width != width || frame.height != height else { return }
+        setFrame(NSRect(x: frame.midX - width / 2, y: frame.minY, width: width, height: height),
                  display: true)
     }
 

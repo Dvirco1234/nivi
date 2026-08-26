@@ -122,6 +122,37 @@ Note that switching the signing identity resets the app's macOS permissions
 once, because macOS ties Accessibility and Microphone grants to the identity.
 Expect to grant them again after the first notarized build.
 
+## The developer-only tabs
+
+The **Layout** and **Debug** tabs in Preferences are tools for whoever builds the
+app: live layout sliders, inference timings, verbose logging, the log folder
+path. Someone who downloads Dictato never sees them.
+
+They appear in a debug build, which is what `make dev` makes, and are absent from
+the release build that goes into the DMG. `DeveloperMode` in
+`Sources/Dictato/DeveloperMode.swift` is the switch, and it uses `#if DEBUG`,
+which SwiftPM defines for `swift build -c debug` and not for `-c release`.
+
+To get them back in a released build you are running yourself:
+
+```
+defaults write com.dvir.dictato showDeveloperTabs -bool true
+```
+
+Then quit and reopen Dictato. Turn it off again with `defaults delete
+com.dvir.dictato showDeveloperTabs`. Nothing in the UI mentions this.
+
+Two related things the released build also does:
+
+- **It ignores `ui-tuning.conf` completely** and uses the numbers compiled into
+  `UITuning.shipped`. The file is written once and never updated afterwards, so
+  on a stranger's Mac it would quietly pin the layout to whatever the numbers
+  were the day they first ran the app — and a later layout fix would reach
+  nobody. With the escape hatch on, the file works as before.
+- **It forces verbose logging off at launch.** Verbose logging writes a line for
+  every global keystroke, and with the Debug tab hidden there is no visible
+  switch to turn it back off.
+
 ## Renaming the app later
 
 The name and the bundle id come from two lines at the top of the `Makefile`:

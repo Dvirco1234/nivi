@@ -1,4 +1,5 @@
 import AppKit
+import DictatoCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: DictationController?
@@ -16,8 +17,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = DictationController()
         controller.wireMenu()
         controller.start()
+        // Debug-tab settings must not be left on in a build someone downloaded. Verbose
+        // logging writes a line per global keystroke, and there is no visible switch to
+        // turn it back off once the Debug tab is gone.
+        if !DeveloperMode.isOn { Settings().verboseLogging = false }
         // Seed the layout tuning file at launch so it is there to edit without having
-        // to open Preferences first to bring it into existence.
+        // to open Preferences first to bring it into existence. A released build skips
+        // the file entirely and uses the shipped numbers.
         UITuning.reload()
         self.controller = controller
         UpdateController.shared.start()

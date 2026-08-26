@@ -20,12 +20,15 @@ let pageWidth: CGFloat = 820 - UITuning.sidebarWidth
 let pageHeight: CGFloat = 900
 
 let arguments = Array(CommandLine.arguments.dropFirst())
-guard arguments.count >= 2 else {
-    print("usage: pref-shots <output-directory> <tab-name> [tab-name ...]")
+guard arguments.count >= 3 else {
+    print("usage: pref-shots <output-directory> <file-name-suffix> <tab-name> [tab-name ...]")
     exit(1)
 }
 let outputDirectory = URL(fileURLWithPath: arguments[0])
-let tabNames = Array(arguments.dropFirst())
+/// Keeps a debug shot from overwriting the release shot of the same tab, so the two
+/// can be put side by side.
+let fileSuffix = arguments[1]
+let tabNames = Array(arguments.dropFirst(2))
 
 /// The same blurred backing the real window has. A flat colour would make every card in
 /// the picture read darker than it does in the app.
@@ -56,7 +59,26 @@ struct VisualEffect: NSViewRepresentable {
     case "general": GeneralSection()
     case "speech": SpeechSection()
     case "layout": LayoutTuningSection()
+    // The real sidebar tab list. Which tabs it contains is the whole point: Layout and
+    // Debug are absent unless this was built with DEBUG defined.
+    case "sidebar": SidebarPreview()
     default: Text("unknown tab \(name)")
+    }
+}
+
+/// Draws the sidebar's tab list on the sidebar's own background, at the sidebar's width.
+struct SidebarPreview: View {
+    @State private var selection: PrefSection = .general
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SidebarTabList(selection: $selection)
+            Spacer(minLength: 0)
+        }
+        .frame(width: UITuning.sidebarWidth, alignment: .leading)
+        .padding(.vertical, 12)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
+        .padding(20)
     }
 }
 
@@ -108,7 +130,7 @@ for name in tabNames {
     window.setFrame(frame, display: true)
     window.orderFrontRegardless()
     settle(seconds: 1.2)
-    capture(frame, on: screen, to: outputDirectory.appendingPathComponent("\(name).png"))
+    capture(frame, on: screen, to: outputDirectory.appendingPathComponent("\(name)\(fileSuffix).png"))
     window.orderOut(nil)
 }
 

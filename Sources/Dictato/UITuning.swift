@@ -160,7 +160,7 @@ enum UITuning {
     private static func save() {
         var lines = [
             "# Dictato layout tuning.",
-            "# Edit here or drag the sliders in Preferences > Debug.",
+            "# Edit here or drag the sliders in Preferences > Layout.",
             "# Delete this file to go back to the shipped values.",
             "",
         ]
@@ -176,7 +176,16 @@ enum UITuning {
 
     /// Re-reads the file. Called when Preferences opens, so editing the file and
     /// reopening the window is the whole loop — no rebuild, no restart.
+    ///
+    /// The released build skips this and uses `shipped` only. A tuning file is written
+    /// once and never updated, so on a released build it would quietly pin the layout
+    /// to whatever the numbers were on the day it was created: a later layout fix would
+    /// reach nobody who had already run the app. Shipped values are the only values.
     static func reload() {
+        guard DeveloperMode.isOn else {
+            Store.shared.overrides = [:]
+            return
+        }
         writeTemplateIfMissing()
         guard let text = try? String(contentsOf: fileURL, encoding: .utf8) else { return }
         var parsed: [String: CGFloat] = [:]

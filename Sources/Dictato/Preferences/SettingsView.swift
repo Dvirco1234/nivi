@@ -13,6 +13,14 @@ enum PrefSection: String, CaseIterable, Identifiable {
     case layout = "Layout"
     case debug = "Debug"
     var id: String { rawValue }
+
+    /// The tabs an ordinary user sees. Layout and Debug are tools for whoever builds
+    /// the app, so they are absent from the released build entirely rather than
+    /// disabled — see DeveloperMode.
+    static var visibleCases: [PrefSection] {
+        DeveloperMode.isOn ? allCases : allCases.filter { $0 != .layout && $0 != .debug }
+    }
+
     var icon: String {
         switch self {
         case .general: return "gearshape"
@@ -75,24 +83,18 @@ struct SettingsView: View {
     /// behaviour to lose. Arrow-key moves, the one thing the `List` did give us, are
     /// handled below.
     private var tabs: some View {
-        VStack(spacing: UITuning.sidebarRowGap) {
-            ForEach(PrefSection.allCases) { tab in
-                SidebarTab(section: tab, isSelected: tab == section) { section = tab }
-            }
-        }
-        .padding(.horizontal, UITuning.sidebarRowInset)
-        .padding(.top, UITuning.sidebarRowGap)
-        .focusable()
-        // The focus ring would draw a box around all nine tabs at once, which says
-        // nothing useful. The blue tab already shows where you are.
-        .focusEffectDisabled()
-        .onMoveCommand(perform: moveSelection)
+        SidebarTabList(selection: $section)
+            .focusable()
+            // The focus ring would draw a box around all the tabs at once, which says
+            // nothing useful. The blue tab already shows where you are.
+            .focusEffectDisabled()
+            .onMoveCommand(perform: moveSelection)
     }
 
     /// Up and down arrows walk the tabs, stopping at the ends rather than wrapping,
     /// which is how a macOS sidebar behaves.
     private func moveSelection(_ direction: MoveCommandDirection) {
-        let all = PrefSection.allCases
+        let all = PrefSection.visibleCases
         guard let index = all.firstIndex(of: section) else { return }
         switch direction {
         case .up: section = all[max(0, index - 1)]
@@ -155,7 +157,9 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var detail: some View {
-        switch section {
+        // A tab that is not on the list cannot be reached by clicking, but belt and
+        // braces: showing the first visible tab beats showing an empty pane.
+        switch PrefSection.visibleCases.contains(section) ? section : .general {
         case .general: GeneralSection()
         case .models: ModelsSection(store: store, profileStore: profileStore, tester: tester)
         case .profiles: ProfilesSection(profileStore: profileStore, modelStore: store)
@@ -172,12 +176,29 @@ struct SettingsView: View {
     }
 }
 
+/// The list of tabs down the sidebar. Its own view so the screenshot tool can draw the
+/// real thing, which is how the released build is checked for the absence of the
+/// developer-only tabs.
+struct SidebarTabList: View {
+    @Binding var selection: PrefSection
+
+    var body: some View {
+        VStack(spacing: UITuning.sidebarRowGap) {
+            ForEach(PrefSection.visibleCases) { tab in
+                SidebarTab(section: tab, isSelected: tab == selection) { selection = tab }
+            }
+        }
+        .padding(.horizontal, UITuning.sidebarRowInset)
+        .padding(.top, UITuning.sidebarRowGap)
+    }
+}
+
 /// One tab in the sidebar: icon on the left, name beside it.
 ///
 /// Selected means two things at once. The icon and the name turn the accent colour, and
 /// a light rounded plate of glass appears behind them. Unselected tabs are grey and carry
 /// no background at all, so there is only ever one thing on this list to find.
-private struct SidebarTab: View {
+struct SidebarTab: View {
     let section: PrefSection
     let isSelected: Bool
     let select: () -> Void

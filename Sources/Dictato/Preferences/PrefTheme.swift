@@ -62,6 +62,12 @@ enum PrefTheme {
     /// Entries longer than this many characters get a Show more button.
     static var historyExpandChars: Int { Int(UITuning.value("historyExpandChars")) }
 
+    /// Height of the dashed drop zone on the Transcribe a file tab.
+    static var dropZoneHeight: CGFloat { UITuning.value("dropZoneHeight") }
+
+    /// Height of the box holding a finished file transcript.
+    static var fileResultHeight: CGFloat { UITuning.value("fileResultHeight") }
+
     /// Gap between the icon column and the label.
     static let rowIconGap: CGFloat = 10
 }

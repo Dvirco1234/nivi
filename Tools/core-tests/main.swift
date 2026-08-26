@@ -518,4 +518,20 @@ check(TranscriptCleaning.clean("   already clean   ") == "already clean",
 check(!TranscriptCleaning.isOnlyNoise("(see the music section of the quarterly report)"),
       "a long aside is left alone even though it names music")
 
+// --- ChunkedTranscription ---
+check(ChunkedTranscription.join(["one", "two"]) == "one two", "pieces join with one space")
+check(ChunkedTranscription.join(["one", "  ", "two"]) == "one two", "an empty piece is skipped")
+check(ChunkedTranscription.join([" padded ", "next"]) == "padded next", "pieces are trimmed first")
+check(ChunkedTranscription.join([]) == "", "no pieces, no text")
+check(ChunkedTranscription.secondsLeft(chunksDone: 0, chunkCount: 4, elapsedSeconds: 3) == nil,
+      "no guess before the first piece is done")
+check(ChunkedTranscription.secondsLeft(chunksDone: 2, chunkCount: 4, elapsedSeconds: 10) == 10,
+      "half done in ten seconds means about ten seconds left")
+check(ChunkedTranscription.secondsLeft(chunksDone: 4, chunkCount: 4, elapsedSeconds: 10) == nil,
+      "nothing left when every piece is done")
+check(ChunkedTranscription.progressLine(chunksDone: 0, chunkCount: 3, elapsedSeconds: 0)
+      == "Part 1 of 3", "the first line has no estimate yet")
+check(ChunkedTranscription.progressLine(chunksDone: 1, chunkCount: 3, elapsedSeconds: 20)
+      == "Part 2 of 3, about 40 seconds left", "the estimate comes from the pieces done")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

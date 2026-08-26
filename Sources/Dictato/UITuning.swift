@@ -39,6 +39,8 @@ enum UITuning {
         ("historyActionHeight", 22, "height kept free for a history entry's hover buttons"),
         ("historyCollapsedLines", 3, "lines of a history entry shown before it is cut off"),
         ("historyExpandedMaxHeight", 220, "tallest a history entry can get once expanded"),
+        ("dropZoneHeight", 170, "height of the drop zone on the Transcribe a file tab"),
+        ("fileResultHeight", 220, "height of the transcript box on the Transcribe a file tab"),
         ("historyExpandChars", 240, "characters above which an entry gets a Show more button"),
         ("trafficLightX", 22, "traffic lights: distance from the left edge"),
         ("trafficLightTop", 21, "traffic lights: distance from the top edge"),

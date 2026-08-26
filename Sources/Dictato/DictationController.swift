@@ -16,6 +16,10 @@ final class DictationController {
     private lazy var recognizerCache = RecognizerCache(capacity: settings.recognizerCacheCapacity)
     /// Shares the recognizer cache so previewing a model costs no extra memory.
     private lazy var modelTester = ModelTester(cache: recognizerCache, modelStore: modelStore)
+    /// Transcribing a dropped file shares the same loaded models, and stands aside while
+    /// a dictation is running.
+    private lazy var fileTranscription = FileTranscriptionService(cache: recognizerCache,
+                                                                  modelStore: modelStore)
 
     let profileStore: ProfileStore
     private let router: HotkeyRouter
@@ -106,7 +110,9 @@ final class DictationController {
         }
         menuBar.setDictateHint(profileStore.set.primary?.hotkey.displayString ?? "")
         modelTester.isDictationBusy = { [weak self] in self?.machine.state == .recording }
-        PreferencesWindow.configure(store: modelStore, profileStore: profileStore, tester: modelTester)
+        fileTranscription.isDictationBusy = { [weak self] in self?.machine.state == .recording }
+        PreferencesWindow.configure(store: modelStore, profileStore: profileStore,
+                                    tester: modelTester, fileTranscription: fileTranscription)
     }
 
     func toggleFromMenu() {

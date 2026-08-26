@@ -8,6 +8,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
     case profiles = "Profiles"
     case hotkeys = "Hotkeys"
     case speech = "Speech"
+    case transcribeFile = "Transcribe File"
     case history = "History"
     case layout = "Layout"
     case debug = "Debug"
@@ -19,6 +20,7 @@ enum PrefSection: String, CaseIterable, Identifiable {
         case .profiles: return "person.crop.rectangle.stack"
         case .hotkeys: return "keyboard"
         case .speech: return "waveform"
+        case .transcribeFile: return "doc.badge.arrow.up"
         case .history: return "clock.arrow.circlepath"
         case .layout: return "ruler"
         case .debug: return "ladybug"
@@ -30,6 +32,7 @@ struct SettingsView: View {
     @ObservedObject var store: ModelStore
     @ObservedObject var profileStore: ProfileStore
     @ObservedObject var tester: ModelTester
+    @ObservedObject var fileTranscription: FileTranscriptionService
     @ObservedObject private var tuning = UITuning.Store.shared
     @ObservedObject private var chrome = PreferencesWindowChrome.shared
     @State private var section: PrefSection = .general
@@ -130,6 +133,9 @@ struct SettingsView: View {
         case .hotkeys: HotkeysSection(profileStore: profileStore,
                                        openProfiles: { section = .profiles })
         case .speech: SpeechSection()
+        case .transcribeFile: TranscribeFileSection(service: fileTranscription,
+                                                    modelStore: store,
+                                                    profileStore: profileStore)
         case .history: HistorySection(store: HistoryStore.shared)
         case .layout: LayoutTuningSection()
         case .debug: DebugSection()

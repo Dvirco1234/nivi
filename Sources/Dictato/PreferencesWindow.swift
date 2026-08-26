@@ -15,11 +15,14 @@ enum PreferencesWindow {
     private static var profileStore: ProfileStore?
     private static var trafficLights: TrafficLightLayout?
     private static var tester: ModelTester?
+    private static var fileTranscription: FileTranscriptionService?
 
-    static func configure(store: ModelStore, profileStore: ProfileStore, tester: ModelTester) {
+    static func configure(store: ModelStore, profileStore: ProfileStore,
+                          tester: ModelTester, fileTranscription: FileTranscriptionService) {
         self.store = store
         self.profileStore = profileStore
         self.tester = tester
+        self.fileTranscription = fileTranscription
     }
 
     /// Re-runs the AppKit button layout after a tuning change; SwiftUI redraws itself.
@@ -49,9 +52,10 @@ enum PreferencesWindow {
             // Rebuild the SwiftUI tree on every open so tweaked UITuning values take
             // effect by closing and reopening, without restarting the app. The view is
             // cheap to build and this only runs when the user opens Preferences.
-            if let store, let profileStore, let tester {
+            if let store, let profileStore, let tester, let fileTranscription {
                 window.contentView = NSHostingView(
-                    rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
+                    rootView: SettingsView(store: store, profileStore: profileStore,
+                                           tester: tester, fileTranscription: fileTranscription))
             }
             applyCornerRadius(to: window)
             window.makeKeyAndOrderFront(nil)
@@ -59,7 +63,7 @@ enum PreferencesWindow {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        guard let store, let profileStore, let tester else { return }
+        guard let store, let profileStore, let tester, let fileTranscription else { return }
         let win = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 880, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -79,7 +83,9 @@ enum PreferencesWindow {
         win.isOpaque = false
         win.backgroundColor = .clear
         win.center()
-        win.contentView = NSHostingView(rootView: SettingsView(store: store, profileStore: profileStore, tester: tester))
+        win.contentView = NSHostingView(
+            rootView: SettingsView(store: store, profileStore: profileStore,
+                                   tester: tester, fileTranscription: fileTranscription))
         applyCornerRadius(to: win)
 
         // Nudge the traffic lights down/right so they sit inside the inset sidebar panel.

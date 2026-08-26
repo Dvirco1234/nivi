@@ -19,7 +19,8 @@ struct LayoutTuningSection: View {
                             "pageHeaderBottom", "rowVerticalPadding",
                             "rowIconWidth", "rowMinHeight"]),
         ("History and files", ["historyActionHeight", "historyCollapsedLines",
-                               "historyExpandedMaxHeight", "historyExpandChars"]),
+                               "historyExpandedMaxHeight", "historyExpandChars",
+                               "dropZoneHeight", "fileResultHeight"]),
         ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
@@ -86,6 +87,8 @@ struct LayoutTuningSection: View {
         case "historyCollapsedLines": return 1...10
         case "historyExpandedMaxHeight": return 80...600
         case "historyExpandChars": return 60...600
+        case "dropZoneHeight": return 100...320
+        case "fileResultHeight": return 100...500
         case "trafficLightPitch": return 14...32
         case "panelWidth": return 220...420
         case "panelHeight": return 40...90

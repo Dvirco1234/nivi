@@ -41,6 +41,9 @@ final class MenuBarController: NSObject {
         let logs = NSMenuItem(title: "Open Logs", action: #selector(openLogsClicked), keyEquivalent: "")
         logs.target = self
         menu.addItem(logs)
+        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdatesClicked), keyEquivalent: "")
+        updates.target = self
+        menu.addItem(updates)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Dictato", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -145,6 +148,11 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func openPreferencesClicked() { PreferencesWindow.show() }
+
+    @objc private func checkForUpdatesClicked() {
+        NSApp.activate(ignoringOtherApps: true)
+        UpdateController.shared.checkForUpdates()
+    }
 
     @objc private func launchAtLoginClicked() {
         LoginItem.set(!LoginItem.isEnabled)

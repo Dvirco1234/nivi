@@ -260,6 +260,7 @@ struct GeneralSection: View {
     @State private var showDictationTimer = Settings().showDictationTimer
     @State private var replacementCount = WordReplacing.decode(json: Settings().wordReplacementsJSON).count
     @State private var showingWordReplacements = false
+    @State private var automaticUpdates = UpdateController.shared.automaticallyChecks
 
     var body: some View {
         if showingWordReplacements {
@@ -305,6 +306,21 @@ struct GeneralSection: View {
                         InterfaceSettings.announceChange()
                     }
                 LaunchAtLoginRow()
+            }
+
+            PrefGroup("Updates",
+                      footer: "Dictato asks a public web address which version is the newest. Nothing about you is sent. You are always asked before anything is installed.") {
+                PrefToggleRow(icon: "arrow.triangle.2.circlepath",
+                              "Check for updates automatically",
+                              caption: "Once a day, in the background.",
+                              isOn: $automaticUpdates)
+                    .onChange(of: automaticUpdates) { UpdateController.shared.automaticallyChecks = $0 }
+                PrefButtonRow(icon: "arrow.down.circle",
+                              "Check for updates now",
+                              caption: "Last checked: \(UpdateController.shared.lastCheckDescription)",
+                              buttonTitle: "Check Now") {
+                    UpdateController.shared.checkForUpdates()
+                }
             }
 
             PrefGroup("Recording display",

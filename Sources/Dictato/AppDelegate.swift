@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // to open Preferences first to bring it into existence.
         UITuning.reload()
         self.controller = controller
+        UpdateController.shared.start()
         Log.info("Dictato launched")
     }
 

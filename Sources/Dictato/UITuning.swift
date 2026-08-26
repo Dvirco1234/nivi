@@ -70,7 +70,7 @@ enum UITuning {
 
         // Notch bar: the strip that merges with the camera notch.
         ("notchWaveWidth", 60, "width of the wave, to the right of the notch"),
-        ("notchIconSize", 16, "height of the language icon, to the left of the notch"),
+        ("notchIconSize", 14, "height of the language icon, to the left of the notch"),
         ("notchIconInset", 10, "space around the language icon, at both ends of its strip"),
         ("notchTextHeight", 24, "extra height the notch bar takes when it shows live text"),
     ]

@@ -1,4 +1,6 @@
 import AVFoundation
+import AudioToolbox
+import CoreAudio
 
 /// Records microphone input and accumulates 16 kHz mono Float32 samples in memory.
 final class AudioRecorder {
@@ -23,6 +25,10 @@ final class AudioRecorder {
         let engine = AVAudioEngine()
         self.engine = engine
         let input = engine.inputNode
+        // Pick the microphone before asking the node anything about its format: the format
+        // belongs to whichever device the node is bound to, and the binding cannot be
+        // changed once the engine is running.
+        bindPreferredMicrophone(on: input)
         let inputFormat = input.inputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             self.engine = nil
@@ -58,6 +64,33 @@ final class AudioRecorder {
     func cancel() {
         tearDown()
         samplesQueue.sync { samples.removeAll() }
+    }
+
+    /// Points the engine at the first microphone on the user's priority list that is
+    /// plugged in.
+    ///
+    /// Nothing happens when the list is empty or none of its devices are connected, and
+    /// the engine keeps the system's default input, exactly as before this setting
+    /// existed. A failure here is logged and ignored for the same reason: recording with
+    /// the wrong microphone is much better than not recording at all.
+    private func bindPreferredMicrophone(on input: AVAudioInputNode) {
+        guard let device = MicrophoneDevices.preferred() else { return }
+        guard let unit = input.audioUnit else {
+            Log.error("No audio unit on the input node, keeping the system microphone")
+            return
+        }
+        var deviceID = device.audioDeviceID
+        let status = AudioUnitSetProperty(unit,
+                                          kAudioOutputUnitProperty_CurrentDevice,
+                                          kAudioUnitScope_Global,
+                                          0,
+                                          &deviceID,
+                                          UInt32(MemoryLayout<AudioDeviceID>.size))
+        if status == noErr {
+            Log.info("Recording from \(device.name)")
+        } else {
+            Log.error("Could not select \(device.name) (status \(status)), keeping the system microphone")
+        }
     }
 
     private func tearDown() {

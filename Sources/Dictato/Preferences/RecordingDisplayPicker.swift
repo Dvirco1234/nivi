@@ -1,22 +1,30 @@
 import SwiftUI
+import AppKit
 import DictatoCore
 
 /// Picks the recording display by showing what each one looks like.
 ///
-/// The two options differ only visually, so a pair of labelled thumbnails communicates
-/// the choice far better than the words "Panel" and "Notch" do.
+/// The two options differ only visually, so a pair of labelled pictures communicates the
+/// choice far better than the words "Panel" and "Notch" do.
+///
+/// The pictures are real screenshots of the two overlays, taken against a made-up
+/// colourful background. They used to be hand-drawn SwiftUI shapes, which drifted away
+/// from the real thing every time the overlays were restyled. Regenerate them with
+/// `bash Tools/make-recording-thumbnails.sh` after any change to how the overlays look.
 struct RecordingDisplayPicker: View {
     @Binding var selection: RecordingDisplay
+    @ObservedObject private var tuning = UITuning.Store.shared
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: UITuning.recordingThumbnailGap) {
             ForEach(RecordingDisplay.allCases, id: \.self) { option in
                 VStack(spacing: 6) {
                     thumbnail(for: option)
-                        .frame(width: 132, height: 82)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .frame(width: UITuning.recordingThumbnailWidth,
+                               height: UITuning.recordingThumbnailHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: UITuning.recordingThumbnailCorner))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: UITuning.recordingThumbnailCorner)
                                 .strokeBorder(option == selection ? Color.accentColor : .white.opacity(0.12),
                                               lineWidth: option == selection ? 2.5 : 1)
                         )
@@ -34,50 +42,36 @@ struct RecordingDisplayPicker: View {
     }
 
     @ViewBuilder private func thumbnail(for option: RecordingDisplay) -> some View {
-        ZStack {
-            LinearGradient(colors: [Color(red: 0.36, green: 0.44, blue: 0.72),
-                                    Color(red: 0.78, green: 0.62, blue: 0.66)],
+        if let picture = Self.picture(for: option) {
+            Image(nsImage: picture)
+                .resizable()
+                .interpolation(.high)
+                // The picture is cut to the same shape as the frame, so filling can only
+                // ever trim a rounding error rather than a visible slice.
+                .aspectRatio(contentMode: .fill)
+        } else {
+            // Only reachable if the PNG is missing from the app bundle. Better a plain
+            // coloured tile than an empty hole where the choice should be.
+            LinearGradient(colors: [Color(red: 0.30, green: 0.34, blue: 0.72),
+                                    Color(red: 0.80, green: 0.48, blue: 0.58)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
-            switch option {
-            case .panel:
-                miniBars(count: 22, tint: .black.opacity(0.55))
-                    .padding(.horizontal, 10)
-                    .frame(height: 22)
-                    .background(.white.opacity(0.92), in: Capsule())
-                    .padding(.horizontal, 12)
-            case .notch:
-                VStack {
-                    HStack(spacing: 6) {
-                        miniBars(count: 7, tint: .white.opacity(0.85))
-                        // The notch itself, left clear in the real bar too.
-                        Capsule().fill(.black).frame(width: 16, height: 6)
-                        miniBars(count: 7, tint: .white.opacity(0.85))
-                    }
-                    .padding(.horizontal, 8)
-                    .frame(height: 16)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.black)
-                    Spacer()
-                }
-            }
         }
     }
 
-    private func miniBars(count: Int, tint: Color) -> some View {
-        HStack(spacing: 1.5) {
-            ForEach(0..<count, id: \.self) { i in
-                Capsule()
-                    .fill(tint)
-                    .frame(width: 1.5, height: barHeight(i, count: count))
-            }
-        }
-    }
+    /// Loaded once and kept, because Preferences redraws this row on every keystroke in
+    /// the window and reading two PNGs off disk each time is pure waste.
+    private static var cache: [RecordingDisplay: NSImage] = [:]
 
-    /// A fixed pseudo-waveform: taller in the middle so the thumbnail reads as speech
-    /// rather than a flat row, without animating anything in Preferences.
-    private func barHeight(_ index: Int, count: Int) -> CGFloat {
-        let mid = Double(count - 1) / 2
-        let distance = abs(Double(index) - mid) / max(mid, 1)
-        return 3 + CGFloat((1 - distance) * (1 - distance) * 8)
+    private static func picture(for option: RecordingDisplay) -> NSImage? {
+        if let hit = cache[option] { return hit }
+        let name: String
+        switch option {
+        case .panel: name = "RecordingDisplayPanel"
+        case .notch: name = "RecordingDisplayNotch"
+        }
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        cache[option] = image
+        return image
     }
 }

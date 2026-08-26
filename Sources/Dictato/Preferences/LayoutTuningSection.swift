@@ -22,6 +22,8 @@ struct LayoutTuningSection: View {
                                "historyExpandedMaxHeight", "historyExpandChars",
                                "dropZoneHeight", "fileResultHeight"]),
         ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
+        ("Recording display pictures", ["recordingThumbnailWidth", "recordingThumbnailHeight",
+                                        "recordingThumbnailCorner", "recordingThumbnailGap"]),
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
                              "panelGlowSeconds"]),

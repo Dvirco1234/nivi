@@ -61,6 +61,8 @@ define assemble_app
 	cp Resources/DictatoLogoEn.png $(APP)/Contents/Resources/DictatoLogoEn.png
 	cp Resources/MenuBarAleph.png $(APP)/Contents/Resources/MenuBarAleph.png
 	cp Resources/MenuBarLatinA.png $(APP)/Contents/Resources/MenuBarLatinA.png
+	cp Resources/RecordingDisplayPanel.png $(APP)/Contents/Resources/RecordingDisplayPanel.png
+	cp Resources/RecordingDisplayNotch.png $(APP)/Contents/Resources/RecordingDisplayNotch.png
 	codesign --force --sign "$(SIGN_ID)" $(APP)
 	@echo "Built $(APP) from $(1) (signed: $(SIGN_ID))"
 endef

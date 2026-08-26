@@ -46,6 +46,14 @@ enum UITuning {
         ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
         ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),
 
+        // The two Recording display pictures on the General tab. Change the width or
+        // the height and the shipped pictures are the wrong shape, so re-run
+        // Tools/make-recording-thumbnails.sh after touching either.
+        ("recordingThumbnailWidth", 132, "recording display picture width"),
+        ("recordingThumbnailHeight", 82, "recording display picture height"),
+        ("recordingThumbnailCorner", 10, "recording display picture corner radius"),
+        ("recordingThumbnailGap", 14, "gap between the two recording display pictures"),
+
         // Recording panel: the floating card near the bottom of the screen.
         ("panelWidth", 296, "recording panel width"),
         ("panelHeight", 56, "recording panel height while it only shows the wave"),
@@ -94,6 +102,12 @@ enum UITuning {
     static var trafficLightX: CGFloat { value("trafficLightX") }
     static var trafficLightTop: CGFloat { value("trafficLightTop") }
     static var trafficLightPitch: CGFloat { value("trafficLightPitch") }
+
+    // Recording display pictures
+    static var recordingThumbnailWidth: CGFloat { value("recordingThumbnailWidth") }
+    static var recordingThumbnailHeight: CGFloat { value("recordingThumbnailHeight") }
+    static var recordingThumbnailCorner: CGFloat { value("recordingThumbnailCorner") }
+    static var recordingThumbnailGap: CGFloat { value("recordingThumbnailGap") }
 
     // Recording panel
     static var panelWidth: CGFloat { value("panelWidth") }

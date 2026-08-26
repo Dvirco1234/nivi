@@ -55,13 +55,8 @@ struct SettingsView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             brandHeader
-            List(selection: $section) {
-                ForEach(PrefSection.allCases) { s in
-                    Label(s.rawValue, systemImage: s.icon).tag(s)
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
+            tabs
+            Spacer(minLength: 0)
             versionFooter
         }
         .frame(width: UITuning.sidebarWidth)
@@ -70,6 +65,40 @@ struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: UITuning.sidebarCorner))
         .overlay(RoundedRectangle(cornerRadius: UITuning.sidebarCorner).strokeBorder(.white.opacity(0.07), lineWidth: 1))
         .padding(UITuning.sidebarInset)
+    }
+
+    /// The nine tabs, drawn by hand instead of by a `List`.
+    ///
+    /// A sidebar `List` paints its own selection, a solid accent-filled row, and that
+    /// highlight can only be fought with, not replaced. The set of tabs is fixed and
+    /// nothing here needs scrolling, reordering or editing, so there is no list
+    /// behaviour to lose. Arrow-key moves, the one thing the `List` did give us, are
+    /// handled below.
+    private var tabs: some View {
+        VStack(spacing: UITuning.sidebarRowGap) {
+            ForEach(PrefSection.allCases) { tab in
+                SidebarTab(section: tab, isSelected: tab == section) { section = tab }
+            }
+        }
+        .padding(.horizontal, UITuning.sidebarRowInset)
+        .padding(.top, UITuning.sidebarRowGap)
+        .focusable()
+        // The focus ring would draw a box around all nine tabs at once, which says
+        // nothing useful. The blue tab already shows where you are.
+        .focusEffectDisabled()
+        .onMoveCommand(perform: moveSelection)
+    }
+
+    /// Up and down arrows walk the tabs, stopping at the ends rather than wrapping,
+    /// which is how a macOS sidebar behaves.
+    private func moveSelection(_ direction: MoveCommandDirection) {
+        let all = PrefSection.allCases
+        guard let index = all.firstIndex(of: section) else { return }
+        switch direction {
+        case .up: section = all[max(0, index - 1)]
+        case .down: section = all[min(all.count - 1, index + 1)]
+        default: break
+        }
     }
 
     /// An opaque base with a blur on top of it. The blur alone would be `.behindWindow`,
@@ -139,6 +168,52 @@ struct SettingsView: View {
         case .history: HistorySection(store: HistoryStore.shared)
         case .layout: LayoutTuningSection()
         case .debug: DebugSection()
+        }
+    }
+}
+
+/// One tab in the sidebar: icon on the left, name beside it.
+///
+/// Selected means two things at once. The icon and the name turn the accent colour, and
+/// a light rounded plate of glass appears behind them. Unselected tabs are grey and carry
+/// no background at all, so there is only ever one thing on this list to find.
+private struct SidebarTab: View {
+    let section: PrefSection
+    let isSelected: Bool
+    let select: () -> Void
+    @State private var hovering = false
+
+    /// Fixed width for the icon so every name in the sidebar starts at the same x,
+    /// however wide the symbol happens to be.
+    private static let iconWidth: CGFloat = 18
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: section.icon)
+                .frame(width: Self.iconWidth)
+            Text(section.rawValue)
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(isSelected ? PrefTheme.accent : PrefTheme.iconTint)
+        .padding(.horizontal, 10)
+        .frame(height: UITuning.sidebarRowHeight)
+        .background(plate)
+        // The whole row is clickable, not just the words on it.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: select)
+        .onHover { hovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    @ViewBuilder private var plate: some View {
+        let shape = RoundedRectangle(cornerRadius: UITuning.sidebarRowCorner, style: .continuous)
+        if isSelected {
+            shape.fill(PrefTheme.tabSelectionFill)
+                .overlay(shape.fill(PrefTheme.tabSelectionTint))
+                .overlay(shape.strokeBorder(PrefTheme.tabSelectionStroke, lineWidth: 1))
+        } else if hovering {
+            shape.fill(PrefTheme.tabHoverTint)
         }
     }
 }

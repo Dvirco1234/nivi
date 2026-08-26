@@ -22,6 +22,10 @@ enum UITuning {
         ("sidebarWidth", 228, "sidebar panel width"),
         ("sidebarInset", 6, "gap between the sidebar panel and the window edges"),
         ("sidebarCorner", 24, "sidebar corner radius; the window is rounded to match"),
+        ("sidebarRowHeight", 28, "height of one tab in the sidebar"),
+        ("sidebarRowGap", 4, "gap between two tabs in the sidebar"),
+        ("sidebarRowInset", 10, "gap between a tab and the sidebar's left and right edges"),
+        ("sidebarRowCorner", 9, "corner radius of the plate behind the selected tab"),
         ("brandTop", 42, "space above the Dictato title; also clears the traffic lights"),
         ("brandBottom", 6, "space below the Dictato title"),
         ("brandLeading", 16, "left inset of the title row"),
@@ -84,6 +88,10 @@ enum UITuning {
     static var sidebarWidth: CGFloat { value("sidebarWidth") }
     static var sidebarInset: CGFloat { value("sidebarInset") }
     static var sidebarCorner: CGFloat { value("sidebarCorner") }
+    static var sidebarRowHeight: CGFloat { value("sidebarRowHeight") }
+    static var sidebarRowGap: CGFloat { value("sidebarRowGap") }
+    static var sidebarRowInset: CGFloat { value("sidebarRowInset") }
+    static var sidebarRowCorner: CGFloat { value("sidebarRowCorner") }
 
     // Brand row at the top of the sidebar
     static var brandTop: CGFloat { value("brandTop") }

@@ -22,6 +22,20 @@ enum PrefTheme {
     /// The hairline between two rows inside one card.
     static let rowDivider = Color(nsColor: .separatorColor).opacity(0.7)
 
+    // MARK: Sidebar tabs
+
+    /// The plate behind the selected tab. A material rather than a flat colour, so it
+    /// picks up the light behind it and reads as glass instead of as a painted block.
+    static let tabSelectionFill: Material = .ultraThinMaterial
+    /// A little light on top of that material. The sidebar is itself a material, so the
+    /// plate alone barely separates from it.
+    static let tabSelectionTint = Color.primary.opacity(0.07)
+    /// The soft edge around the plate, which is what makes it read as a raised piece of
+    /// glass rather than a smudge.
+    static let tabSelectionStroke = Color.primary.opacity(0.14)
+    /// Faint plate under the pointer, so a tab answers before it is clicked.
+    static let tabHoverTint = Color.primary.opacity(0.05)
+
     // MARK: Meaning
 
     static let accent = Color.accentColor

@@ -14,6 +14,8 @@ struct LayoutTuningSection: View {
     private static let groups: [(heading: String, keys: [String])] = [
         ("Sidebar", ["sidebarWidth", "sidebarInset", "sidebarCorner",
                      "brandTop", "brandBottom", "brandLeading"]),
+        ("Sidebar tabs", ["sidebarRowHeight", "sidebarRowGap", "sidebarRowInset",
+                          "sidebarRowCorner"]),
         ("Cards", ["contentPadding", "cardSpacing", "cardPadding", "cardCorner"]),
         ("Pages and rows", ["groupSpacing", "groupHeadingGap", "pageTitleGap",
                             "pageHeaderBottom", "rowVerticalPadding",

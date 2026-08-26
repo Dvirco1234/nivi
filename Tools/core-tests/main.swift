@@ -700,4 +700,65 @@ check(TypedNumber.read("   ", in: 1...30) == nil, "spaces alone are refused")
 check(TypedNumber.read("3.7", in: 1...30) == nil, "a decimal point is refused")
 check(TypedNumber.read("12ms", in: 1...30) == nil, "a number with a unit stuck to it is refused")
 
+// --- LegacyNameMigration: the settings and the files the rename must not lose ---
+let oldDomain = "com.dvir.nivi.coretest.old"
+let newDomain = "com.dvir.nivi.coretest.new"
+let migrationDefaults = UserDefaults(suiteName: newDomain)!
+migrationDefaults.removePersistentDomain(forName: oldDomain)
+migrationDefaults.removePersistentDomain(forName: newDomain)
+migrationDefaults.setPersistentDomain(
+    ["profilesJSON": "the-user-profiles", "appearance": "dark", "showInDock": false],
+    forName: oldDomain)
+// A setting the user already changed under the new name must survive the copy.
+migrationDefaults.set("light", forKey: "appearance")
+
+let copiedCount = LegacyNameMigration.copySettings(
+    from: oldDomain, to: newDomain, using: migrationDefaults)
+check(copiedCount == 2, "the two settings that were not already set are copied over")
+check(migrationDefaults.string(forKey: "profilesJSON") == "the-user-profiles",
+      "the profiles come across")
+check(migrationDefaults.object(forKey: "showInDock") as? Bool == false,
+      "a false setting comes across too, rather than being read as missing")
+check(migrationDefaults.string(forKey: "appearance") == "light",
+      "a setting already made under the new name is not overwritten")
+
+migrationDefaults.set("changed-back", forKey: "profilesJSON")
+check(LegacyNameMigration.copySettings(from: oldDomain, to: newDomain, using: migrationDefaults) == nil,
+      "the copy runs once, so it cannot undo a later change")
+check(migrationDefaults.string(forKey: "profilesJSON") == "changed-back",
+      "the later change is still there after a second run")
+migrationDefaults.removePersistentDomain(forName: oldDomain)
+migrationDefaults.removePersistentDomain(forName: newDomain)
+
+let migrationRoot = FileManager.default.temporaryDirectory
+    .appendingPathComponent("nivi-rename-coretest", isDirectory: true)
+try? FileManager.default.removeItem(at: migrationRoot)
+let oldSupport = migrationRoot.appendingPathComponent("Dictato", isDirectory: true)
+let newSupport = migrationRoot.appendingPathComponent("Nivi", isDirectory: true)
+try! FileManager.default.createDirectory(
+    at: oldSupport.appendingPathComponent("models", isDirectory: true),
+    withIntermediateDirectories: true)
+try! Data("a model".utf8).write(to: oldSupport.appendingPathComponent("models/ivrit.bin"))
+try! Data("history".utf8).write(to: oldSupport.appendingPathComponent("history.jsonl"))
+try! Data("tuning".utf8).write(to: oldSupport.appendingPathComponent("ui-tuning.conf"))
+
+check(LegacyNameMigration.moveSupportDirectory(from: oldSupport, to: newSupport),
+      "the old support folder is moved to the new name")
+check(!FileManager.default.fileExists(atPath: oldSupport.path), "nothing is left behind")
+check((try? String(contentsOf: newSupport.appendingPathComponent("models/ivrit.bin"), encoding: .utf8)) == "a model",
+      "the model file is there under the new name and was not re-downloaded")
+check(FileManager.default.fileExists(atPath: newSupport.appendingPathComponent("history.jsonl").path),
+      "the history came with it")
+check(FileManager.default.fileExists(atPath: newSupport.appendingPathComponent("ui-tuning.conf").path),
+      "the layout tuning came with it")
+
+// Running again with a folder already at the new name must not touch it.
+try! FileManager.default.createDirectory(at: oldSupport, withIntermediateDirectories: true)
+try! Data("stale".utf8).write(to: oldSupport.appendingPathComponent("history.jsonl"))
+check(!LegacyNameMigration.moveSupportDirectory(from: oldSupport, to: newSupport),
+      "a second move is refused while the new folder exists")
+check((try? String(contentsOf: newSupport.appendingPathComponent("history.jsonl"), encoding: .utf8)) == "history",
+      "the current history is not replaced by the old one")
+try? FileManager.default.removeItem(at: migrationRoot)
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

@@ -20,11 +20,15 @@ struct NotchOverlayView: View {
     /// of a separate bar hanging below it.
     let stripHeight: CGFloat
 
-    /// Left of the notch: the two icons and nothing else, so the bar stays narrow.
-    /// The inset counts twice, once before the first icon and once after the last, so
-    /// the pair sits with the same air on either side.
+    /// Left of the notch: the language glyph and nothing else, so the bar stays narrow.
+    /// The inset counts twice, once before the glyph and once after it, so the glyph
+    /// sits with the same air on either side.
     static var leftWidth: CGFloat {
-        UITuning.notchIconSize * 2 + UITuning.notchIconGap + UITuning.notchIconInset * 2
+        glyphWidth + UITuning.notchIconInset * 2
+    }
+
+    static var glyphWidth: CGFloat {
+        UITuning.notchIconSize * LanguageGlyph.menuBarAspectRatio()
     }
 
     /// Right of the notch: a fixed strip for the wave, which nothing else shares.
@@ -68,20 +72,21 @@ struct NotchOverlayView: View {
         .clipShape(BottomRoundedRectangle(radius: 12))
     }
 
-    /// Identity on one side, the meter on the other — the two sides show different
-    /// things rather than mirroring, so nothing appears twice.
+    /// Which language is listening on one side, the meter on the other — the two sides
+    /// show different things rather than mirroring, so nothing appears twice.
     ///
-    /// The icons start `notchIconInset` in from the left edge, and the strip is sized so
-    /// the same gap is left before the notch. The trailing spacer keeps them anchored to
-    /// the left when one of the two icons is missing.
+    /// The glyph is the menu bar artwork drawn as a stencil in white. Anything coloured
+    /// looks wrong here, because the bar is pretending to be part of the black plastic
+    /// around the camera. It starts `notchIconInset` in from the left edge, and the strip
+    /// is sized so the same gap is left before the notch.
     private var leftSide: some View {
-        let size = UITuning.notchIconSize
-        return HStack(spacing: UITuning.notchIconGap) {
-            if let img = LanguageGlyph.image(named: LanguageGlyph.overlayLogoName(for: model.languageCode)) {
-                Image(nsImage: img).resizable().frame(width: size, height: size)
-            }
-            if let icon = model.targetAppIcon {
-                Image(nsImage: icon).resizable().frame(width: size, height: size).opacity(0.8)
+        HStack(spacing: 0) {
+            if let glyph = LanguageGlyph.image(named: LanguageGlyph.menuBarName(for: model.languageCode)) {
+                Image(nsImage: glyph)
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: Self.glyphWidth, height: UITuning.notchIconSize)
+                    .foregroundStyle(.white)
             }
             Spacer(minLength: 0)
         }

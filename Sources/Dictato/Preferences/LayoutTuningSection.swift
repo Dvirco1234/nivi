@@ -22,7 +22,7 @@ struct LayoutTuningSection: View {
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
                              "panelBorderOpacity", "panelGlowWidth", "panelGlowOpacity",
                              "panelGlowSeconds"]),
-        ("Notch bar", ["notchWaveWidth", "notchIconSize", "notchIconGap", "notchIconInset", "notchTextHeight"]),
+        ("Notch bar", ["notchWaveWidth", "notchIconSize", "notchIconInset", "notchTextHeight"]),
     ]
 
     var body: some View {

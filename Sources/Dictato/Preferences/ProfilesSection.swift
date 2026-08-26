@@ -108,9 +108,19 @@ private struct ProfileCard: View {
                 if !isPrimary { Button("Set primary", action: onPrimary) }
                 Button("Edit", action: onEdit)
                 Spacer()
-                Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
-                    .disabled(!canDelete)
+                // A bordered button around one small icon looks far heavier than
+                // anything else on the page, so delete is a bare red icon instead.
+                Button(action: onDelete) {
+                    Image(systemName: "trash").font(.system(size: 12))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(canDelete ? PrefTheme.danger : Color.secondary)
+                .help("Delete this profile")
+                .disabled(!canDelete)
             }
+            // A profile card draws its own row instead of going through PrefRow, so it
+            // has to ask for the small control size the same way PrefRow does.
+            .controlSize(.small)
         }
         .padding(UITuning.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)

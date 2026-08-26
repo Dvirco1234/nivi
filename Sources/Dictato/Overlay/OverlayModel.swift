@@ -15,6 +15,9 @@ final class OverlayModel: ObservableObject {
     @Published var targetAppIcon: NSImage?
     @Published var languageCode: String = "he"   // running model's language → logo choice
     @Published var liveText: String = ""
+    /// Set once when a recording starts, from the user's preference, so turning the
+    /// counter off does not make it disappear in the middle of a recording.
+    @Published var showsElapsedTime: Bool = true
     var onCancel: (() -> Void)?
 
     func setTarget(name: String?, icon: NSImage?) {

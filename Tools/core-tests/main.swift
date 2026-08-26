@@ -672,4 +672,20 @@ check(MicrophonePriority.decode(json: MicrophonePriority.encode(["a", "b"])) == 
       "the saved order survives a round trip")
 check(MicrophonePriority.decode(json: "") == [], "nothing saved yet reads as an empty list")
 
+// --- DurationFormatting.clock, the counter on the recording panel ---
+check(DurationFormatting.clock(0) == "0:00", "a recording starts at zero")
+check(DurationFormatting.clock(-3) == "0:00", "a clock that has not started reads zero")
+check(DurationFormatting.clock(0.9) == "0:00", "part of a second is not counted yet")
+check(DurationFormatting.clock(7) == "0:07", "seconds keep a leading zero")
+check(DurationFormatting.clock(59) == "0:59", "the last second before a minute")
+check(DurationFormatting.clock(60) == "1:00", "one minute")
+check(DurationFormatting.clock(83) == "1:23", "a minute and some seconds")
+check(DurationFormatting.clock(599) == "9:59", "the last second before ten minutes")
+check(DurationFormatting.clock(600) == "10:00", "ten minutes")
+check(DurationFormatting.clock(725) == "12:05", "minutes past ten stay two digits")
+check(DurationFormatting.clock(3599) == "59:59", "the last second before an hour has no hours part")
+check(DurationFormatting.clock(3600) == "1:00:00", "an hour is where hours appear")
+check(DurationFormatting.clock(3849) == "1:04:09", "an hour and change")
+check(DurationFormatting.clock(36000) == "10:00:00", "ten hours")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

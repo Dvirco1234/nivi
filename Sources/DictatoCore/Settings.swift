@@ -69,6 +69,7 @@ public struct Settings {
             Key.streamingIntervalMs: 500,
             Key.streamingWindowSeconds: 10,
             Key.recordingDisplay: RecordingDisplay.panel.rawValue,
+            Key.showDictationTimer: true,
             Key.appearance: AppAppearance.system.rawValue,
             Key.showInDock: true,
             Key.showInStatusBar: true,
@@ -126,6 +127,7 @@ public struct Settings {
         static let streamingIntervalMs = "streamingIntervalMs"
         static let streamingWindowSeconds = "streamingWindowSeconds"
         static let recordingDisplay = "recordingDisplay"
+        static let showDictationTimer = "showDictationTimer"
         static let appearance = "appearance"
         static let showInDock = "showInDock"
         static let showInStatusBar = "showInStatusBar"
@@ -239,6 +241,13 @@ public struct Settings {
     public var recordingDisplay: RecordingDisplay {
         get { RecordingDisplay(rawValue: defaults.string(forKey: Key.recordingDisplay) ?? "") ?? .panel }
         nonmutating set { defaults.set(newValue.rawValue, forKey: Key.recordingDisplay) }
+    }
+
+    /// Whether the recording panel counts up while you dictate. The notch bar never
+    /// shows the counter: it has no room for it.
+    public var showDictationTimer: Bool {
+        get { defaults.bool(forKey: Key.showDictationTimer) }
+        nonmutating set { defaults.set(newValue, forKey: Key.showDictationTimer) }
     }
 
     public var streamingWindowSeconds: Int {

@@ -67,6 +67,7 @@ struct ThumbnailBackground: View {
 func makeDemoModel() -> OverlayModel {
     let model = OverlayModel()
     model.phase = .recording(elapsed: 4.2)
+    model.showsElapsedTime = true
     model.languageCode = "he"
     let notesPath = "/System/Applications/Notes.app"
     if FileManager.default.fileExists(atPath: notesPath) {

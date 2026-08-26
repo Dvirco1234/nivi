@@ -215,6 +215,7 @@ final class DictationController {
             overlayModel.setTarget(name: front?.localizedName, icon: front?.icon)
             let profile = profileStore.set.profile(id: activeProfileID ?? profileStore.set.primaryID)
             overlayModel.languageCode = profile?.language ?? "he"
+            overlayModel.showsElapsedTime = settings.showDictationTimer
             router.beginRecording(profileID: profile?.id ?? profileStore.set.primaryID)
             let mouse = NSEvent.mouseLocation
             let activeScreen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
@@ -238,11 +239,22 @@ final class DictationController {
     private func recordingTick() {
         guard case .recording = machine.state, let started = recordingStarted else { return }
         let elapsed = Date().timeIntervalSince(started)
-        overlayModel.phase = .recording(elapsed: elapsed)
+        // The card counts in whole seconds, so publishing every tenth of a second would
+        // redraw the whole overlay ten times to show the same digits.
+        if secondsShownOnOverlay() != Int(elapsed) {
+            overlayModel.phase = .recording(elapsed: elapsed)
+        }
         if Int(elapsed) >= settings.maxRecordingSeconds {
             Log.info("Max recording duration reached, auto-stopping")
             stopAndTranscribe()
         }
+    }
+
+    /// The whole second the overlay is currently showing, or nil when it is not showing a
+    /// recording at all.
+    private func secondsShownOnOverlay() -> Int? {
+        guard case .recording(let elapsed) = overlayModel.phase else { return nil }
+        return Int(elapsed)
     }
 
     private func startStreaming(for profile: DictationProfile, generation: Int) {

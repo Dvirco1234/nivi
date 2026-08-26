@@ -240,7 +240,8 @@ private struct WindowMaterial: NSViewRepresentable {
     }
 }
 
-private struct GeneralSection: View {
+/// Not private so Tools/pref-shots can photograph this page without opening the app.
+struct GeneralSection: View {
     private var settings = Settings()
     @State private var appearance = Settings().appearance
     @State private var showInDock = Settings().showInDock
@@ -256,6 +257,7 @@ private struct GeneralSection: View {
     @State private var excludeHistory = Settings().excludeFromClipboardHistory
     @State private var removeSoundDescriptions = Settings().removeSoundDescriptions
     @State private var display = Settings().recordingDisplay
+    @State private var showDictationTimer = Settings().showDictationTimer
     @State private var replacementCount = WordReplacing.decode(json: Settings().wordReplacementsJSON).count
     @State private var showingWordReplacements = false
 
@@ -315,6 +317,11 @@ private struct GeneralSection: View {
                     RecordingDisplayPicker(selection: $display)
                         .onChange(of: display) { settings.recordingDisplay = $0 }
                 }
+                PrefToggleRow(icon: "timer",
+                              "Count the time while I dictate",
+                              caption: "The panel shows how long the recording has been running. The notch bar has no room for it.",
+                              isOn: $showDictationTimer)
+                    .onChange(of: showDictationTimer) { settings.showDictationTimer = $0 }
             }
 
             PrefGroup("Behavior") {
@@ -449,7 +456,8 @@ private struct HotkeysSection: View {
     }
 }
 
-private struct SpeechSection: View {
+/// Not private so Tools/pref-shots can photograph this page without opening the app.
+struct SpeechSection: View {
     private var settings = Settings()
     @State private var cacheCap = Settings().recognizerCacheCapacity
     @State private var idleMinutes = Settings().idleUnloadSeconds / 60

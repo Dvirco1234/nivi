@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import DictatoCore
 
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
@@ -31,8 +32,8 @@ struct OverlayView: View {
         switch model.phase {
         case .hidden:
             EmptyView()
-        case .recording:
-            card(glowing: true) { recordingBody }
+        case .recording(let elapsed):
+            card(glowing: true) { recordingBody(elapsed: elapsed) }
                 .overlay(alignment: .topTrailing) { if hovering { cancelButton } }
                 .onHover { hovering = $0 }
         case .processing:
@@ -46,11 +47,12 @@ struct OverlayView: View {
         }
     }
 
-    private var recordingBody: some View {
+    private func recordingBody(elapsed: TimeInterval) -> some View {
         VStack(spacing: 5) {
             HStack {
                 targetApp
                 Spacer(minLength: 8)
+                if model.showsElapsedTime { elapsedTime(elapsed) }
                 brand
             }
             if !model.liveText.isEmpty {
@@ -89,6 +91,19 @@ struct OverlayView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
+    }
+
+    /// How long this recording has been running, sitting between the app name and the
+    /// Dictato mark on the top row. It goes there because that row already has empty
+    /// space in the middle, so the counter costs the card no width and the waveform below
+    /// still runs edge to edge.
+    ///
+    /// The digits are monospaced so the counter does not jiggle sideways as it ticks.
+    private func elapsedTime(_ elapsed: TimeInterval) -> some View {
+        Text(DurationFormatting.clock(elapsed))
+            .font(.system(size: 12, weight: .medium).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .fixedSize()
     }
 
     private var brand: some View {

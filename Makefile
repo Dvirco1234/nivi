@@ -47,10 +47,13 @@ VENDOR := vendor/whisper.cpp
 # is invisible at build time, so a missing cert is a hard error rather than a silent
 # fallback. Run `make cert` once to create it, or ALLOW_ADHOC=1 to opt in knowingly.
 SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | grep -o '$(APP_NAME) Self-Signed' | head -1)
+# `make cert` is what creates the missing identity, so it must not be stopped by it.
+# The error below is a $(error), which fires while the Makefile is being read, before
+# any target runs — without this the advice "run make cert" could not be followed.
 ifeq ($(SIGN_ID),)
 ifeq ($(ALLOW_ADHOC),1)
 SIGN_ID := -
-else
+else ifneq ($(MAKECMDGOALS),cert)
 $(error No "$(APP_NAME) Self-Signed" identity found. Run `make cert` first — ad-hoc signing revokes Accessibility/Input Monitoring on every rebuild. Override with ALLOW_ADHOC=1 if you accept re-granting permissions.)
 endif
 endif

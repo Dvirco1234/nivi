@@ -10,8 +10,8 @@
 # mint a matching signing identity, and renaming a handful of resource files.
 # See docs/release-pipeline.md for the full checklist.
 # ---------------------------------------------------------------------------
-APP_NAME  := Dictato
-BUNDLE_ID := com.dvir.dictato
+APP_NAME  := Nivi
+BUNDLE_ID := com.dvir.nivi
 
 # The version and the build counter. See version.mk.
 include version.mk
@@ -25,7 +25,7 @@ include version.mk
 # as GitHub Release assets). The source stays private.
 # ---------------------------------------------------------------------------
 RELEASES_OWNER := Dvirco1234
-RELEASES_REPO  := dictato-releases
+RELEASES_REPO  := nivi-releases
 RELEASES_SLUG  := $(RELEASES_OWNER)/$(RELEASES_REPO)
 PAGES_URL      := https://$(shell echo $(RELEASES_OWNER) | tr 'A-Z' 'a-z').github.io/$(RELEASES_REPO)
 APPCAST_URL    := $(PAGES_URL)/appcast.xml
@@ -100,7 +100,7 @@ define assemble_app
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources $(APP)/Contents/Frameworks
 	cp $(1) $(APP)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
-	cp Resources/Dictato.icns $(APP)/Contents/Resources/$(APP_NAME).icns
+	cp Resources/Nivi.icns $(APP)/Contents/Resources/$(APP_NAME).icns
 	cp Resources/*.png $(APP)/Contents/Resources/
 	cp -R $(dir $(1))Sparkle.framework $(APP)/Contents/Frameworks/
 	$(call stamp_plist,$(APP)/Contents/Info.plist)
@@ -165,7 +165,7 @@ perms:
 	@echo "  Accessibility     -> auto-paste + modifier-tap hotkeys"
 	@echo "  Input Monitoring  -> Esc-to-cancel (global keyDown)"
 	@echo "  Microphone        -> recording"
-	@echo "Startup state is logged; see: grep 'Permissions —' ~/Library/Logs/$(APP_NAME)/dictato.log | tail -1"
+	@echo "Startup state is logged; see: grep 'Permissions —' ~/Library/Logs/$(APP_NAME)/nivi.log | tail -1"
 
 cert:
 	bash Tools/make-signing-cert.sh

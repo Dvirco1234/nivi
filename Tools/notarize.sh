@@ -37,7 +37,7 @@ esac
 # nothing about local development changes.
 echo "Notarizing: re-signing with the hardened runtime…"
 codesign --force --deep --options runtime --timestamp \
-    --entitlements Resources/Dictato.entitlements \
+    --entitlements Resources/Nivi.entitlements \
     --sign "$SIGN_ID" "$APP_BUNDLE"
 codesign --force --sign "$SIGN_ID" "$DMG"
 

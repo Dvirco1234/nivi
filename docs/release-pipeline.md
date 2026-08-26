@@ -11,7 +11,7 @@ That does all of this, in order:
 1. Refuses to run if the working tree is dirty or the tag already exists.
 2. Writes the new version into `version.mk` and bumps the build counter.
 3. Builds the release binary and assembles the signed `.app`.
-4. Packs `dist/Dictato-<version>.dmg`.
+4. Packs `dist/Nivi-<version>.dmg`.
 5. Notarizes, if Apple credentials are set. Skips with a message if not.
 6. Adds the version to the Sparkle update feed, signed with the EdDSA key.
 7. Commits, tags `v<version>`.
@@ -52,7 +52,7 @@ Sparkle proves an update really came from us with an EdDSA key pair.
   **"Private key for signing Sparkle updates"**. It is not in this repo and must
   never be committed.
 
-**Back it up now.** Every copy of Dictato already installed carries the public
+**Back it up now.** Every copy of Nivi already installed carries the public
 key baked into it. Those copies will only accept an update signed by the
 matching private key. If the key is lost, no existing install can ever be
 updated again — you would have to ask every user to download the new version by
@@ -81,9 +81,9 @@ So releases go to a **separate public repo** that holds no source:
 
 | File | Where | Served from |
 |---|---|---|
-| `appcast.xml` (the update feed) | `Dvirco1234/dictato-releases`, main branch | GitHub Pages |
+| `appcast.xml` (the update feed) | `Dvirco1234/nivi-releases`, main branch | GitHub Pages |
 | `index.html` (the download page) | same | GitHub Pages |
-| `Dictato-<version>.dmg` | same repo, Releases | GitHub Releases |
+| `Nivi-<version>.dmg` | same repo, Releases | GitHub Releases |
 
 The DMG goes to Releases rather than into the repo because a disk image in git
 history is dead weight that can never be removed.
@@ -126,21 +126,21 @@ Expect to grant them again after the first notarized build.
 
 The **Layout** and **Debug** tabs in Preferences are tools for whoever builds the
 app: live layout sliders, inference timings, verbose logging, the log folder
-path. Someone who downloads Dictato never sees them.
+path. Someone who downloads Nivi never sees them.
 
 They appear in a debug build, which is what `make dev` makes, and are absent from
 the release build that goes into the DMG. `DeveloperMode` in
-`Sources/Dictato/DeveloperMode.swift` is the switch, and it uses `#if DEBUG`,
+`Sources/Nivi/DeveloperMode.swift` is the switch, and it uses `#if DEBUG`,
 which SwiftPM defines for `swift build -c debug` and not for `-c release`.
 
 To get them back in a released build you are running yourself:
 
 ```
-defaults write com.dvir.dictato showDeveloperTabs -bool true
+defaults write com.dvir.nivi showDeveloperTabs -bool true
 ```
 
-Then quit and reopen Dictato. Turn it off again with `defaults delete
-com.dvir.dictato showDeveloperTabs`. Nothing in the UI mentions this.
+Then quit and reopen Nivi. Turn it off again with `defaults delete
+com.dvir.nivi showDeveloperTabs`. Nothing in the UI mentions this.
 
 Two related things the released build also does:
 
@@ -158,8 +158,8 @@ Two related things the released build also does:
 The name and the bundle id come from two lines at the top of the `Makefile`:
 
 ```
-APP_NAME  := Dictato
-BUNDLE_ID := com.dvir.dictato
+APP_NAME  := Nivi
+BUNDLE_ID := com.dvir.nivi
 ```
 
 Everything downstream reads from them: the bundle folder name, the executable
@@ -172,11 +172,11 @@ To rename:
 1. Change `APP_NAME` and `BUNDLE_ID` in the `Makefile`.
 2. Run `make cert` to mint a `<NewName> Self-Signed` identity.
 3. Rename the resource files that carry the old name:
-   `Resources/Dictato.icns`, `Resources/DictatoLogo.png`,
-   `Resources/DictatoLogoEn.png` — and the `LanguageGlyph.image(named:)` calls
+   `Resources/Nivi.icns`, `Resources/NiviLogo.png`,
+   `Resources/NiviLogoEn.png` — and the `LanguageGlyph.image(named:)` calls
    that load them.
 4. Change the user-visible strings in the UI (the sidebar brand text, the
-   "Quit Dictato" menu item, the microphone permission sentence in
+   "Quit Nivi" menu item, the microphone permission sentence in
    `Resources/Info.plist`).
 5. Update `RELEASES_REPO` if you want a differently named releases repo, and
    create it.

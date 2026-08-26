@@ -16,8 +16,8 @@ let bnd = HotkeyBinding.defaultDictate
 check(HotkeyBinding.from(json: bnd.encodedJSON()) == bnd, "binding json round-trip")
 
 // --- Settings new keys ---
-let suite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
-suite.removePersistentDomain(forName: "com.dvir.dictato.coretest")
+let suite = UserDefaults(suiteName: "com.dvir.nivi.coretest")!
+suite.removePersistentDomain(forName: "com.dvir.nivi.coretest")
 let s = Settings(defaults: suite)
 check(s.dictateBinding == .defaultDictate, "default dictate binding")
 s.dictateBinding = .modifierTap(.leftCommand, count: 2)
@@ -86,7 +86,7 @@ check((try? JSONDecoder().decode(ModelCatalog.self, from: catData)) == cat, "cat
 
 // --- ModelCatalogStore / ModelPaths / migration ---
 let base = FileManager.default.temporaryDirectory
-    .appendingPathComponent("dictato-2b-coretest", isDirectory: true)
+    .appendingPathComponent("nivi-2b-coretest", isDirectory: true)
 try? FileManager.default.removeItem(at: base)
 let mdir = ModelPaths.modelsDir(base: base)
 try! FileManager.default.createDirectory(at: mdir, withIntermediateDirectories: true)
@@ -123,14 +123,14 @@ check(Settings(defaults: suite).idleUnloadSeconds == 120, "the model is released
 check(Settings(defaults: suite).removeSoundDescriptions, "sound descriptions are dropped by default")
 // The old defaults, written to disk by an older build, are cleared once so the new ones
 // apply. A value the user actually picked is left alone.
-let memorySuite = UserDefaults(suiteName: "com.dvir.dictato.memorytest")!
-memorySuite.removePersistentDomain(forName: "com.dvir.dictato.memorytest")
+let memorySuite = UserDefaults(suiteName: "com.dvir.nivi.memorytest")!
+memorySuite.removePersistentDomain(forName: "com.dvir.nivi.memorytest")
 memorySuite.set(2, forKey: "recognizerCacheCapacity")
 memorySuite.set(300, forKey: "idleUnloadSeconds")
 check(Settings(defaults: memorySuite).recognizerCacheCapacity == 1, "the old capacity of 2 is cleared")
 check(Settings(defaults: memorySuite).idleUnloadSeconds == 120, "the old five minutes is cleared")
-let keptSuite = UserDefaults(suiteName: "com.dvir.dictato.kepttest")!
-keptSuite.removePersistentDomain(forName: "com.dvir.dictato.kepttest")
+let keptSuite = UserDefaults(suiteName: "com.dvir.nivi.kepttest")!
+keptSuite.removePersistentDomain(forName: "com.dvir.nivi.kepttest")
 keptSuite.set(4, forKey: "recognizerCacheCapacity")
 keptSuite.set(600, forKey: "idleUnloadSeconds")
 check(Settings(defaults: keptSuite).recognizerCacheCapacity == 4, "a capacity the user picked is kept")
@@ -138,8 +138,8 @@ check(Settings(defaults: keptSuite).idleUnloadSeconds == 600, "an idle time the 
 // Running again must not undo a later choice.
 keptSuite.set(3, forKey: "recognizerCacheCapacity")
 check(Settings(defaults: keptSuite).recognizerCacheCapacity == 3, "the move runs only once")
-memorySuite.removePersistentDomain(forName: "com.dvir.dictato.memorytest")
-keptSuite.removePersistentDomain(forName: "com.dvir.dictato.kepttest")
+memorySuite.removePersistentDomain(forName: "com.dvir.nivi.memorytest")
+keptSuite.removePersistentDomain(forName: "com.dvir.nivi.kepttest")
 
 // --- DictationProfile / ProfileSet ---
 let he = DictationProfile(id: "p1", name: "Hebrew", modelID: "ivrit-large-v3-turbo",
@@ -233,7 +233,7 @@ let rewritten = t7.update("x b c d")   // history now agrees, but "a" is already
 check(rewritten.hasPrefix("a b c"), "already-committed words are never rewritten")
 
 // --- streaming settings ---
-let ssuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
+let ssuite = UserDefaults(suiteName: "com.dvir.nivi.coretest")!
 let st = Settings(defaults: ssuite)
 check(st.streamingIntervalMs == 500, "default streamingIntervalMs")
 st.streamingIntervalMs = 700
@@ -385,7 +385,7 @@ check(!isUsableAudioContext(1504), "past whisper's full context is refused")
 check(!isUsableAudioContext(252), "below the floor is refused")
 
 // --- settings ---
-let wsuite = UserDefaults(suiteName: "com.dvir.dictato.coretest")!
+let wsuite = UserDefaults(suiteName: "com.dvir.nivi.coretest")!
 let wset = Settings(defaults: wsuite)
 check(wset.streamingWindowSeconds == 10, "default streamingWindowSeconds")
 wset.streamingWindowSeconds = 15
@@ -393,8 +393,8 @@ check(Settings(defaults: wsuite).streamingWindowSeconds == 15, "streamingWindowS
 
 
 // --- new settings frozen for the Preferences redesign ---
-let prefSuite = UserDefaults(suiteName: "com.dvir.dictato.coretest.prefs")!
-prefSuite.removePersistentDomain(forName: "com.dvir.dictato.coretest.prefs")
+let prefSuite = UserDefaults(suiteName: "com.dvir.nivi.coretest.prefs")!
+prefSuite.removePersistentDomain(forName: "com.dvir.nivi.coretest.prefs")
 let prefs = Settings(defaults: prefSuite)
 check(prefs.appearance == .system, "default appearance follows the system")
 check(prefs.showInDock, "Dock icon is on by default")
@@ -636,22 +636,22 @@ check(ChunkedTranscription.progressLine(chunksDone: 1, chunkCount: 3, elapsedSec
 
 // --- TranscriptFinishing: cleaning runs before the user's word rules ---
 let finishingRules = [
-    WordReplacement(id: "f1", find: "dictato", replaceWith: "Dictato"),
+    WordReplacement(id: "f1", find: "nivi", replaceWith: "Nivi"),
     WordReplacement(id: "f2", find: "blank", replaceWith: "empty"),
 ]
-check(TranscriptFinishing.finish("dictato ships on Friday", rules: finishingRules)
-      == "Dictato ships on Friday", "a word rule is applied to the finished text")
-check(TranscriptFinishing.finish("[BLANK_AUDIO] dictato ships", rules: finishingRules)
-      == "Dictato ships", "the model's note is gone before any rule can touch it")
+check(TranscriptFinishing.finish("nivi ships on Friday", rules: finishingRules)
+      == "Nivi ships on Friday", "a word rule is applied to the finished text")
+check(TranscriptFinishing.finish("[BLANK_AUDIO] nivi ships", rules: finishingRules)
+      == "Nivi ships", "the model's note is gone before any rule can touch it")
 check(TranscriptFinishing.finish("send it [BLANK_AUDIO] now", rules: [
           WordReplacement(id: "f3", find: "it now", replaceWith: "it today", matchWholeWord: false)])
       == "send it today", "a rule matches across the gap a removed note left")
 check(TranscriptFinishing.finish("[BLANK_AUDIO]", rules: finishingRules) == "",
       "a transcript that was only a note still ends up empty")
 check(TranscriptFinishing.finish("keep this", rules: []) == "keep this", "no rules, just cleaning")
-check(TranscriptFinishing.finish("(people chattering) dictato ships", rules: finishingRules,
+check(TranscriptFinishing.finish("(people chattering) nivi ships", rules: finishingRules,
                                  removeSoundDescriptions: false)
-      == "(people chattering) Dictato ships", "finishing passes the setting straight through")
+      == "(people chattering) Nivi ships", "finishing passes the setting straight through")
 
 // --- MicrophonePriority ---
 check(MicrophonePriority.firstAvailable(order: ["airpods", "builtin"],

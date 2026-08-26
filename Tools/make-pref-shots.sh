@@ -9,7 +9,7 @@
 # something the app ships, so nothing is copied into Resources.
 #
 # It needs Screen Recording permission for the shell it runs from, and a logged-in
-# desktop session. It never opens Dictato and never clicks anything.
+# desktop session. It never opens Nivi and never clicks anything.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -47,21 +47,21 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$SHOT_DIR"
 # Compiled with swiftc rather than added to Package.swift, the same way the overlay
 # thumbnail tool is: only a developer ever runs it.
 swiftc -O -emit-module -emit-library -static \
-    -module-name DictatoCore \
-    -emit-module-path "$BUILD_DIR/DictatoCore.swiftmodule" \
-    -o "$BUILD_DIR/libDictatoCore.a" \
-    Sources/DictatoCore/*.swift
+    -module-name NiviCore \
+    -emit-module-path "$BUILD_DIR/NiviCore.swiftmodule" \
+    -o "$BUILD_DIR/libNiviCore.a" \
+    Sources/NiviCore/*.swift
 
 # Every app source except main.swift, so the tool draws the real Preferences views. The
 # whisper libraries come along because some of those files talk to the recognizer, even
 # though this tool never asks one to run.
-swiftc "${CONFIG_FLAGS[@]}" -I "$BUILD_DIR" -L "$BUILD_DIR" -lDictatoCore \
+swiftc "${CONFIG_FLAGS[@]}" -I "$BUILD_DIR" -L "$BUILD_DIR" -lNiviCore \
     -I Sources/CWhisper -Lvendor/lib -lwhisper -lggml -lc++ \
     -F "$SPARKLE_DIR" -framework Sparkle \
     -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
     -framework Metal -framework MetalKit -framework Accelerate \
     -framework AVFoundation -framework AppKit \
-    $(find Sources/Dictato -name '*.swift' ! -name 'main.swift') \
+    $(find Sources/Nivi -name '*.swift' ! -name 'main.swift') \
     Tools/pref-shots/main.swift \
     -o "$APP/Contents/MacOS/PrefShots" 2>&1 | grep -v "^ " | grep -v "warning:" || true
 
@@ -75,7 +75,7 @@ fi
 mkdir -p "$APP/Contents/Frameworks"
 cp -R "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/"
 cp Resources/MenuBarAleph.png Resources/MenuBarLatinA.png \
-   Resources/DictatoLogo.png Resources/DictatoLogoEn.png \
+   Resources/NiviLogo.png Resources/NiviLogoEn.png \
    Resources/RecordingDisplayPanel.png Resources/RecordingDisplayNotch.png \
    "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -84,7 +84,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key><string>PrefShots</string>
-    <key>CFBundleIdentifier</key><string>com.dvir.dictato.pref-shots</string>
+    <key>CFBundleIdentifier</key><string>com.dvir.nivi.pref-shots</string>
     <key>CFBundleName</key><string>PrefShots</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSUIElement</key><true/>

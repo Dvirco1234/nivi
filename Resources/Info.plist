@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>Dictato</string>
+    <string>Nivi</string>
     <key>CFBundleIdentifier</key>
-    <string>com.dvir.dictato</string>
+    <string>com.dvir.nivi</string>
     <key>CFBundleName</key>
-    <string>Dictato</string>
+    <string>Nivi</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <!-- CFBundleShortVersionString, CFBundleVersion, CFBundleIdentifier, CFBundleName,
@@ -22,9 +22,9 @@
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>CFBundleIconFile</key>
-    <string>Dictato</string>
+    <string>Nivi</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Dictato records your voice to transcribe Hebrew speech to text. Audio never leaves this Mac.</string>
+    <string>Nivi records your voice to transcribe Hebrew speech to text. Audio never leaves this Mac.</string>
     <key>SUFeedURL</key>
     <string></string>
     <key>SUPublicEDKey</key>

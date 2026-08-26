@@ -21,7 +21,7 @@ cp -R "$APP_BUNDLE" "$STAGING/$APP_NAME.app"
 ln -s /Applications "$STAGING/Applications"
 
 # Gives the mounted disk its own icon instead of the plain grey drive.
-cp "Resources/Dictato.icns" "$STAGING/.VolumeIcon.icns"
+cp "Resources/Nivi.icns" "$STAGING/.VolumeIcon.icns"
 SetFile -a C "$STAGING" 2>/dev/null || echo "  (could not set the custom volume icon flag; the image still works)"
 
 hdiutil create \

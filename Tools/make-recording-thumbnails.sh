@@ -36,18 +36,18 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$SHOT_DIR"
 
 # Compiled straight with swiftc, the same way Tools/run-core-tests.sh does, rather than
 # adding a second product to Package.swift for something only a developer ever runs.
-# DictatoCore is built first as its own module because the overlay sources import it by
+# NiviCore is built first as its own module because the overlay sources import it by
 # name, exactly as they do inside the app.
 swiftc -O -emit-module -emit-library -static \
-    -module-name DictatoCore \
-    -emit-module-path "$BUILD_DIR/DictatoCore.swiftmodule" \
-    -o "$BUILD_DIR/libDictatoCore.a" \
-    Sources/DictatoCore/*.swift
+    -module-name NiviCore \
+    -emit-module-path "$BUILD_DIR/NiviCore.swiftmodule" \
+    -o "$BUILD_DIR/libNiviCore.a" \
+    Sources/NiviCore/*.swift
 
-swiftc -O -I "$BUILD_DIR" -L "$BUILD_DIR" -lDictatoCore \
-    Sources/Dictato/UITuning.swift \
-    Sources/Dictato/LanguageGlyph.swift \
-    Sources/Dictato/Overlay/*.swift \
+swiftc -O -I "$BUILD_DIR" -L "$BUILD_DIR" -lNiviCore \
+    Sources/Nivi/UITuning.swift \
+    Sources/Nivi/LanguageGlyph.swift \
+    Sources/Nivi/Overlay/*.swift \
     Tools/overlay-thumbnails/main.swift \
     -o "$APP/Contents/MacOS/OverlayThumbnails"
 
@@ -55,14 +55,14 @@ swiftc -O -I "$BUILD_DIR" -L "$BUILD_DIR" -lDictatoCore \
 # inside an app bundle that carries those PNGs. A bare binary would draw the fallback
 # symbol instead and the thumbnail would not match the app.
 cp Resources/MenuBarAleph.png Resources/MenuBarLatinA.png \
-   Resources/DictatoLogo.png Resources/DictatoLogoEn.png "$APP/Contents/Resources/"
+   Resources/NiviLogo.png Resources/NiviLogoEn.png "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key><string>OverlayThumbnails</string>
-    <key>CFBundleIdentifier</key><string>com.dvir.dictato.overlay-thumbnails</string>
+    <key>CFBundleIdentifier</key><string>com.dvir.nivi.overlay-thumbnails</string>
     <key>CFBundleName</key><string>OverlayThumbnails</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSUIElement</key><true/>

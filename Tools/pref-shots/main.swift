@@ -8,7 +8,7 @@ import SwiftUI
 // Why this exists: checking that a settings row looks right used to mean opening the
 // running app's Preferences window and clicking through to a tab. On the developer's own
 // Mac that means taking over the screen, and clicking is done with synthetic input, which
-// can trip Dictato's own hotkey and start a real recording. This tool puts the real
+// can trip Nivi's own hotkey and start a real recording. This tool puts the real
 // section views in a window of its own and lets `screencapture` photograph them, so
 // nothing is clicked and the app is never touched.
 //

@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Dictato",
+    name: "Nivi",
     platforms: [.macOS(.v14)],
     dependencies: [
         // Sparkle ships as a pre-built XCFramework, so it needs no Xcode to build.
@@ -11,11 +11,11 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
     ],
     targets: [
-        .target(name: "DictatoCore"),
+        .target(name: "NiviCore"),
         .systemLibrary(name: "CWhisper", path: "Sources/CWhisper"),
         .executableTarget(
-            name: "Dictato",
-            dependencies: ["DictatoCore", "CWhisper", .product(name: "Sparkle", package: "Sparkle")],
+            name: "Nivi",
+            dependencies: ["NiviCore", "CWhisper", .product(name: "Sparkle", package: "Sparkle")],
             linkerSettings: [
                 .unsafeFlags(["-Lvendor/lib"]),
                 // Sparkle.framework is copied into Contents/Frameworks when the app
@@ -31,6 +31,6 @@ let package = Package(
                 .linkedFramework("AppKit"),
             ]
         ),
-        .testTarget(name: "DictatoCoreTests", dependencies: ["DictatoCore"]),
+        .testTarget(name: "NiviCoreTests", dependencies: ["NiviCore"]),
     ]
 )

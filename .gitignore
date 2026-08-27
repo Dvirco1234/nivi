@@ -6,3 +6,18 @@ dist/
 # Build products of whisper.cpp, not source. `make vendor` recreates both.
 vendor/lib/
 Sources/CWhisper/include/
+
+# Working notes: design specs, plans, research, and local agent config. They are
+# deliberation, not something a user or a contributor needs, so they are kept
+# out of this repo and tracked separately.
+.workspace.git/
+.superpowers/
+.claude/
+docs/superpowers/
+docs/naming/
+docs/ui/
+docs/streaming/
+docs/ios/
+docs/parakeet/
+docs/mobile/
+docs/maintainer/

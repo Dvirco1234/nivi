@@ -37,7 +37,11 @@ SPARKLE_PUBLIC_KEY := nlugNRszrCHntDKWTBdlmIfGYuq7TbiE/c2tNG9D40Q=
 
 SPARKLE_BIN := .build/artifacts/sparkle/Sparkle/bin
 
-WHISPER_TAG ?= v1.7.2  # bump freely; anything >= v1.7.0 supports large-v3-turbo
+# whisper.cpp is a git submodule pinned to one exact commit (v1.7.2). The pin is not
+# tidiness: this app reads whisper.cpp internals, such as the Metal alignment rule for
+# audio_ctx in ggml-metal.m, so a newer whisper.cpp can break it in ways a build still
+# succeeds through. To move to a new whisper.cpp, check out the tag inside
+# vendor/whisper.cpp and commit the new submodule pointer.
 VENDOR := vendor/whisper.cpp
 
 # Stable self-signed identity keeps TCC grants (Accessibility, Input Monitoring,
@@ -61,9 +65,12 @@ endif
 .PHONY: vendor build release-build test app dev run clean icon dmg cert install perms \
         dist appcast notarize release publish version check-clean
 
+# Fetches the pinned whisper.cpp and builds the static libraries the app links.
+# Run this once after cloning, and again whenever the submodule pointer moves.
 vendor:
-	@if [ ! -d $(VENDOR) ]; then \
-		git clone --depth 1 --branch $(WHISPER_TAG) https://github.com/ggml-org/whisper.cpp $(VENDOR); \
+	@if [ ! -f $(VENDOR)/CMakeLists.txt ]; then \
+		echo "Fetching whisper.cpp (git submodule)..."; \
+		git submodule update --init --recursive $(VENDOR); \
 	fi
 	cmake -S $(VENDOR) -B $(VENDOR)/build \
 		-DCMAKE_BUILD_TYPE=Release \

@@ -1,6 +1,8 @@
 .build/
 build/
-vendor/
-.DS_Store
-Sources/CWhisper/include/
 dist/
+.DS_Store
+
+# Build products of whisper.cpp, not source. `make vendor` recreates both.
+vendor/lib/
+Sources/CWhisper/include/

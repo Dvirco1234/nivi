@@ -46,6 +46,7 @@ swiftc -O -emit-module -emit-library -static \
 
 swiftc -O -I "$BUILD_DIR" -L "$BUILD_DIR" -lNiviCore \
     Sources/Nivi/UITuning.swift \
+    Sources/Nivi/DeveloperMode.swift \
     Sources/Nivi/LanguageGlyph.swift \
     Sources/Nivi/Overlay/*.swift \
     Tools/overlay-thumbnails/main.swift \

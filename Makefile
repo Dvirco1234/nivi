@@ -19,16 +19,24 @@ include version.mk
 # ---------------------------------------------------------------------------
 # Where updates are published.
 #
-# The source repo is private. Sparkle fetches the appcast and the DMG over plain
-# HTTPS with no login, so a private repo cannot serve them. A separate PUBLIC
-# repo holds only the appcast (served by GitHub Pages) and the DMG files (served
-# as GitHub Release assets). The source stays private.
+# Everything lives in this one public repo. Sparkle asks for the update feed and
+# the DMG over plain HTTPS with no login, and a public repo answers both:
+#
+#   docs/appcast.xml, docs/index.html  -> GitHub Pages (Pages serves the docs folder)
+#   Nivi-<version>.dmg                 -> GitHub Releases
+#
+# GitHub Pages serves the docs folder as the site root, so docs/appcast.xml is
+# reachable at <pages url>/appcast.xml.
 # ---------------------------------------------------------------------------
-RELEASES_OWNER := Dvirco1234
-RELEASES_REPO  := nivi-releases
-RELEASES_SLUG  := $(RELEASES_OWNER)/$(RELEASES_REPO)
-PAGES_URL      := https://$(shell echo $(RELEASES_OWNER) | tr 'A-Z' 'a-z').github.io/$(RELEASES_REPO)
-APPCAST_URL    := $(PAGES_URL)/appcast.xml
+REPO_OWNER  := Dvirco1234
+REPO_NAME   := nivi
+REPO_SLUG   := $(REPO_OWNER)/$(REPO_NAME)
+PAGES_URL   := https://$(shell echo $(REPO_OWNER) | tr 'A-Z' 'a-z').github.io/$(REPO_NAME)
+APPCAST_URL := $(PAGES_URL)/appcast.xml
+
+# The published site. These two files are committed, which is what makes Pages
+# able to serve them.
+PAGES_DIR := docs
 
 # Public half of the EdDSA key pair Sparkle uses to check that an update really
 # came from us. Safe to commit. The private half lives in the login keychain and
@@ -218,7 +226,7 @@ notarize:
 appcast:
 	@APP_NAME="$(APP_NAME)" VERSION="$(VERSION)" DMG="$(DMG)" \
 	 APPCAST_DIR="$(DIST)/appcast" APPCAST_URL="$(APPCAST_URL)" \
-	 DOWNLOAD_PREFIX="https://github.com/$(RELEASES_SLUG)/releases/download/v$(VERSION)/" \
+	 DOWNLOAD_PREFIX="https://github.com/$(REPO_SLUG)/releases/download/v$(VERSION)/" \
 	 SPARKLE_BIN="$(SPARKLE_BIN)" bash Tools/make-appcast.sh
 
 # Everything a release needs, built locally. No git, no network, nothing published.
@@ -228,11 +236,13 @@ dist: dmg notarize appcast
 	@echo "Ready: $(DMG)"
 	@echo "Feed:  $(DIST)/appcast/appcast.xml"
 
-# Uploads the DMG to the public releases repo and pushes the updated feed.
+# Uploads the DMG as a GitHub Release asset and copies the freshly built feed and
+# download page into $(PAGES_DIR). It does not commit; `make release` does that, so
+# a re-run after a failed upload does not leave half a release commit behind.
 publish:
 	@APP_NAME="$(APP_NAME)" VERSION="$(VERSION)" DMG="$(DMG)" \
-	 RELEASES_SLUG="$(RELEASES_SLUG)" APPCAST_DIR="$(DIST)/appcast" \
-	 PAGES_URL="$(PAGES_URL)" bash Tools/publish-release.sh
+	 REPO_SLUG="$(REPO_SLUG)" APPCAST_DIR="$(DIST)/appcast" \
+	 PAGES_DIR="$(PAGES_DIR)" PAGES_URL="$(PAGES_URL)" bash Tools/publish-release.sh
 
 check-clean:
 	@git diff --quiet && git diff --cached --quiet || \
@@ -241,8 +251,8 @@ check-clean:
 # The one command. `make release VERSION=0.2.0`
 #
 # Writes the new version down, builds and signs the app, packs the DMG, notarizes
-# it if credentials are present, updates the update feed, commits, tags, and
-# publishes to the public releases repo.
+# it if credentials are present, uploads the DMG, updates the feed under $(PAGES_DIR),
+# then commits, tags and pushes.
 NEXT_BUILD := $(shell expr $(BUILD_NUMBER) + 1)
 release: check-clean
 	@echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || \
@@ -264,15 +274,16 @@ release: check-clean
 		'VERSION := $(VERSION)' \
 		'BUILD_NUMBER := $(NEXT_BUILD)' > version.mk
 	@$(MAKE) --no-print-directory dist VERSION=$(VERSION) BUILD_NUMBER=$(NEXT_BUILD)
-	git add version.mk
-	git commit -m "release: v$(VERSION) (build $(NEXT_BUILD))"
-	@# Publishing before tagging. If uploading fails, no tag exists yet, so the same
-	@# command can simply be run again once the problem is fixed.
+	@# Uploading before committing. If the upload fails, nothing is committed, nothing
+	@# is tagged, and the same command can simply be run again once the problem is fixed.
 	@$(MAKE) --no-print-directory publish VERSION=$(VERSION)
+	git add version.mk $(PAGES_DIR)/appcast.xml $(PAGES_DIR)/index.html release-notes/$(VERSION).md
+	git commit -m "release: v$(VERSION) (build $(NEXT_BUILD))"
 	git tag -a "v$(VERSION)" -m "$(APP_NAME) $(VERSION)"
 	git push origin HEAD "v$(VERSION)"
 	@echo ""
 	@echo "Released $(APP_NAME) $(VERSION). Download page: $(PAGES_URL)"
+	@echo "The feed goes live once GitHub Pages rebuilds, usually under a minute."
 
 clean:
 	rm -rf .build build

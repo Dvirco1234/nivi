@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Writes the one-page website people are sent to in order to download the app.
 set -euo pipefail
-: "${APP_NAME:?}" "${VERSION:?}" "${RELEASES_SLUG:?}" "${TAG:?}"
+: "${APP_NAME:?}" "${VERSION:?}" "${REPO_SLUG:?}" "${TAG:?}"
 cat <<EOF
 <!doctype html>
 <html lang="en">
@@ -24,15 +24,15 @@ cat <<EOF
 <body>
   <h1>$APP_NAME</h1>
   <p class="version">Version $VERSION &middot; macOS 14 or newer &middot; Apple Silicon</p>
-  <a class="download" href="https://github.com/$RELEASES_SLUG/releases/download/$TAG/$APP_NAME-$VERSION.dmg">Download $APP_NAME $VERSION</a>
+  <a class="download" href="https://github.com/$REPO_SLUG/releases/download/$TAG/$APP_NAME-$VERSION.dmg">Download $APP_NAME $VERSION</a>
   <div class="note">
     <p><strong>First launch shows a warning.</strong> macOS says the app cannot be
     checked, because it is signed by its author rather than by Apple. This is
-    expected. <a href="INSTALL.md">How to open it anyway</a> &mdash; it takes about
+    expected. <a href="https://github.com/$REPO_SLUG/blob/main/INSTALL.md">How to open it anyway</a> &mdash; it takes about
     fifteen seconds, once.</p>
   </div>
   <p>After that, $APP_NAME updates itself. It asks before installing anything.</p>
-  <p><a href="https://github.com/$RELEASES_SLUG/releases">All versions</a></p>
+  <p><a href="https://github.com/$REPO_SLUG/releases">All versions</a> &middot; <a href="https://github.com/$REPO_SLUG">Source on GitHub</a></p>
 </body>
 </html>
 EOF

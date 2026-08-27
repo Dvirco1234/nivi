@@ -14,9 +14,9 @@ That does all of this, in order:
 4. Packs `dist/Nivi-<version>.dmg`.
 5. Notarizes, if Apple credentials are set. Skips with a message if not.
 6. Adds the version to the Sparkle update feed, signed with the EdDSA key.
-7. Commits, tags `v<version>`.
-8. Uploads the DMG to the public releases repo and pushes the feed.
-9. Pushes the source repo and the tag.
+7. Uploads the DMG as a GitHub Release asset, and writes the new
+   `docs/appcast.xml` and `docs/index.html`.
+8. Commits, tags `v<version>`, and pushes both.
 
 To build a release without publishing anything, run `make dist`. Nothing in it
 touches git or the network except the notarizing step.
@@ -73,23 +73,88 @@ Delete the file from the Desktop afterwards. To restore it on a new Mac:
 
 ## Where releases are hosted, and why
 
-The source repo is private, and it is staying private. Sparkle asks for the feed
-and the DMG over plain HTTPS with no login, so a private repo answers 404 and
-updating silently never works.
-
-So releases go to a **separate public repo** that holds no source:
+Everything lives in this one public repo. Sparkle asks for the feed and the DMG
+over plain HTTPS with no login, and a public repo answers both.
 
 | File | Where | Served from |
 |---|---|---|
-| `appcast.xml` (the update feed) | `Dvirco1234/nivi-releases`, main branch | GitHub Pages |
-| `index.html` (the download page) | same | GitHub Pages |
-| `Nivi-<version>.dmg` | same repo, Releases | GitHub Releases |
+| `appcast.xml` (the update feed) | `docs/appcast.xml`, committed on `main` | GitHub Pages |
+| `index.html` (the download page) | `docs/index.html`, committed on `main` | GitHub Pages |
+| `Nivi-<version>.dmg` | this repo, Releases | GitHub Releases |
+
+GitHub Pages is set to serve the `docs` folder, and Pages treats that folder as
+the site root. So the two addresses are:
+
+```
+https://dvirco1234.github.io/nivi/            the download page
+https://dvirco1234.github.io/nivi/appcast.xml the update feed
+```
+
+That second address is what the Makefile writes into every build's `Info.plist`
+as `SUFeedURL`. It comes from `PAGES_URL` and `APPCAST_URL` at the top of the
+`Makefile`, so there is no second copy to drift.
 
 The DMG goes to Releases rather than into the repo because a disk image in git
 history is dead weight that can never be removed.
 
-`Tools/publish-release.sh` checks the repo exists and prints the exact commands
-if it does not.
+`docs/.nojekyll` stops GitHub from running the folder through Jekyll. The folder
+also holds the project's own design notes, and Jekyll would try to build them
+into a website and could fail on one of them.
+
+## Which GitHub account uploads
+
+`gh` on this Mac is logged in as a work account, and this repo belongs to a
+personal one. So `Tools/publish-release.sh` looks for a token in the login
+keychain first, and only falls back to `gh`'s own login:
+
+```
+security find-generic-password -a nivi-release -s nivi-gh-token -w
+```
+
+Store it once, with a personal access token that has the `repo` scope:
+
+```
+security add-generic-password -a nivi-release -s nivi-gh-token -w <token>
+```
+
+Only the API calls need this. Pushing commits and tags goes over SSH through the
+`github.com-private` host alias, which already authenticates as the right
+account.
+
+## One-time setup, in the browser
+
+Do all of this once, before the first release.
+
+1. **Rename the repo.** Go to
+   `https://github.com/Dvirco1234/dictato/settings`, and under **General >
+   Repository name** change `dictato` to `nivi`. Click **Rename**.
+2. **Make it public.** Same settings page, scroll to **Danger Zone >
+   Change repository visibility**, choose **Make public**, and confirm.
+3. **Turn on GitHub Pages.** Go to
+   `https://github.com/Dvirco1234/nivi/settings/pages`. Under **Build and
+   deployment**:
+   - **Source:** `Deploy from a branch`
+   - **Branch:** `main`
+   - **Folder:** `/docs`
+
+   Click **Save**. The first build takes a minute or two.
+4. **Point the local clone at the new name.** GitHub redirects the old address,
+   but leaving it stale is asking for confusion later:
+
+   ```
+   git remote set-url origin git@github.com-private:Dvirco1234/nivi.git
+   ```
+
+5. **Store the release token**, as described above, if it is not stored already.
+
+After the first `make release`, check the feed really is being served:
+
+```
+curl -I https://dvirco1234.github.io/nivi/appcast.xml
+```
+
+A `200` means updates work. A `404` means Pages is off, or is pointed at the
+wrong branch or folder.
 
 ## Release notes
 
@@ -169,8 +234,10 @@ release title.
 
 To rename:
 
-1. Change `APP_NAME` and `BUNDLE_ID` in the `Makefile`, and `RELEASES_REPO` if
-   the releases repo should be renamed too. Create that repo before releasing.
+1. Change `APP_NAME` and `BUNDLE_ID` in the `Makefile`, and `REPO_NAME` if the
+   GitHub repo is being renamed too. Renaming the repo changes the Pages address,
+   so every already-installed copy stops finding the feed. Leave `REPO_NAME` alone
+   unless you are ready for that.
 2. Run `make cert` to mint a `<NewName> Self-Signed` identity.
 3. Rename the Swift targets and their folders — `Sources/<Name>`,
    `Sources/<Name>Core`, `Tests/<Name>CoreTests` — and the target names in

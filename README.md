@@ -154,6 +154,20 @@ One command: builds the app, packs the DMG, signs and updates the Sparkle feed,
 uploads, tags and pushes. `make dist` does the same without git or publishing.
 See [docs/release-pipeline.md](docs/release-pipeline.md).
 
+### Design notes and research
+
+`docs/` also holds the notes written while building the app. They are kept
+because the reasoning is often more useful than the result.
+
+| Folder | What is in it |
+|---|---|
+| [docs/superpowers/](docs/superpowers/) | Design specs and implementation plans, one per milestone |
+| [docs/streaming/](docs/streaming/) | How to finish a transcription fast without losing accuracy |
+| [docs/parakeet/](docs/parakeet/) | Review of the Parakeet model as a whisper.cpp alternative |
+| [docs/ios/](docs/ios/), [docs/mobile/](docs/mobile/) | Whether dictation on iPhone and Apple Watch is feasible, and which models fit |
+| [docs/ui/](docs/ui/) | The Preferences redesign plan |
+| [docs/naming/](docs/naming/) | How the name Nivi was picked |
+
 ## Where things are kept
 
 | What | Where |

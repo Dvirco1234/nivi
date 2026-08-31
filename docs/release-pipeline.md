@@ -97,10 +97,64 @@ as `SUFeedURL`. It comes from `PAGES_URL` and `APPCAST_URL` at the top of the
 The DMG goes to Releases rather than into the repo because a disk image in git
 history is dead weight that can never be removed.
 
-`docs/.nojekyll` stops GitHub from running the folder through Jekyll. Without it
-Jekyll would try to turn every file in the folder into a page, and could fail on
-one of them. The page and the feed are already finished HTML and XML, so there
-is nothing for Jekyll to do.
+`docs/.nojekyll` stops GitHub from running the folder through Jekyll. The folder
+also holds the project's design notes and research, and Jekyll would try to turn
+every one of those files into a page, and could fail on one of them.
+
+## Which GitHub account uploads
+
+`gh` on this Mac is logged in as a work account, and this repo belongs to a
+personal one. So `Tools/publish-release.sh` looks for a token in the login
+keychain first, and only falls back to `gh`'s own login:
+
+```
+security find-generic-password -a nivi-release -s nivi-gh-token -w
+```
+
+Store it once, with a personal access token that has the `repo` scope:
+
+```
+security add-generic-password -a nivi-release -s nivi-gh-token -w <token>
+```
+
+Only the API calls need this. Pushing commits and tags goes over SSH through the
+`github.com-private` host alias, which already authenticates as the right
+account.
+
+## One-time setup, in the browser
+
+Do all of this once, before the first release.
+
+1. **Rename the repo.** Go to
+   `https://github.com/Dvirco1234/dictato/settings`, and under **General >
+   Repository name** change `dictato` to `nivi`. Click **Rename**.
+2. **Make it public.** Same settings page, scroll to **Danger Zone >
+   Change repository visibility**, choose **Make public**, and confirm.
+3. **Turn on GitHub Pages.** Go to
+   `https://github.com/Dvirco1234/nivi/settings/pages`. Under **Build and
+   deployment**:
+   - **Source:** `Deploy from a branch`
+   - **Branch:** `main`
+   - **Folder:** `/docs`
+
+   Click **Save**. The first build takes a minute or two.
+4. **Point the local clone at the new name.** GitHub redirects the old address,
+   but leaving it stale is asking for confusion later:
+
+   ```
+   git remote set-url origin git@github.com-private:Dvirco1234/nivi.git
+   ```
+
+5. **Store the release token**, as described above, if it is not stored already.
+
+After the first `make release`, check the feed really is being served:
+
+```
+curl -I https://dvirco1234.github.io/nivi/appcast.xml
+```
+
+A `200` means updates work. A `404` means Pages is off, or is pointed at the
+wrong branch or folder.
 
 ## Release notes
 

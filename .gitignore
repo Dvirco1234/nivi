@@ -7,17 +7,9 @@ dist/
 vendor/lib/
 Sources/CWhisper/include/
 
-# Working notes: design specs, plans, research, and local agent config. They are
-# deliberation, not something a user or a contributor needs, so they are kept
-# out of this repo and tracked separately.
-.workspace.git/
-.superpowers/
-.claude/
-docs/superpowers/
-docs/naming/
-docs/ui/
-docs/streaming/
-docs/ios/
-docs/parakeet/
-docs/mobile/
-docs/maintainer/
+# Local agent config and agent run artifacts. They are scratch work, not part of
+# the app, so they are kept out of this repo and backed up separately. No
+# trailing slash: on this Mac both are symlinks, and a trailing slash only
+# matches a real directory.
+.claude
+.superpowers

@@ -62,8 +62,9 @@ the small English one about 400 MB.
 
 ## Install
 
-Read [INSTALL.md](INSTALL.md). The short version: download the DMG, drag Nivi to
-Applications, then grant three permissions.
+**[Download the latest version](https://github.com/Dvirco1234/nivi/releases/latest)**,
+then read [INSTALL.md](INSTALL.md). The short version: open the DMG, drag Nivi to
+Applications, get past one macOS warning, then grant three permissions.
 
 Be warned about the first launch. Nivi is signed by its author, not by Apple, so
 macOS blocks it once and says it "cannot be checked" or even that it is

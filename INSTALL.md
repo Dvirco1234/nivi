@@ -4,7 +4,8 @@ Nivi needs macOS 14 or newer, on an Apple Silicon Mac (M1 and later).
 
 ## 1. Download and drag
 
-1. Download `Nivi-<version>.dmg`.
+1. Download `Nivi-<version>.dmg` from the
+   [latest release](https://github.com/Dvirco1234/nivi/releases/latest).
 2. Double-click it. A window opens with the Nivi icon and a shortcut to your
    Applications folder.
 3. Drag Nivi onto Applications.

@@ -1,7 +1,7 @@
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>Dictato</title>
+        <title>Nivi</title>
         <item>
             <title>0.1.0</title>
             <pubDate>Wed, 02 Sep 2026 15:34:05 +0300</pubDate>
@@ -22,19 +22,6 @@ This build is signed by its author rather than by Apple, so the first launch
 needs one extra step. See INSTALL.md.
 ]]></description>
             <enclosure url="https://github.com/Dvirco1234/nivi/releases/download/v0.1.0/Nivi-0.1.0.dmg" length="5619246" type="application/octet-stream" sparkle:edSignature="fSnznc15dF65S5UAiora/YvS34/equU0WvEQnacR64tcugkZvdUgmiVpVXjmsCZRYZLVsuBV1FNqdB6pNtS3Cw=="/>
-        </item>
-        <item>
-            <title>0.1.0</title>
-            <pubDate>Wed, 26 Aug 2026 19:16:56 +0300</pubDate>
-            <sparkle:version>1</sparkle:version>
-            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Dictato 0.1.0
-
-See the commit history for what changed.
-]]></description>
-            <enclosure url="https://github.com/Dvirco1234/dictato-releases/releases/download/v0.1.0/Dictato-0.1.0.dmg" length="5612139" type="application/octet-stream" sparkle:edSignature="xfZMljimoui9bKBYUauTJbN8ug9QArlh4jDuw4XDtNHfeE6wn8oI98q8PdcpY5XK5FhRfzPHBDa5aaBCMpLSCw=="/>
         </item>
     </channel>
 </rss>

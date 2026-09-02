@@ -1,8 +1,12 @@
 # Nivi
 
 Nivi is a dictation app for macOS. You hold a hotkey, you speak, and the text
-lands in whatever app you were already typing in. It was built for Hebrew first,
-using the ivrit-ai Whisper model, and it handles English too.
+lands in whatever app you were already typing in. It runs Whisper models, so it
+works in about a hundred languages, and you choose which model to use.
+
+Hebrew gets a little extra attention, because that is what the author dictates
+in. The ivrit-ai model is in the list and is the default, and it is a lot better
+at Hebrew than the general models. Nothing else about the app is Hebrew specific.
 
 Everything runs on your Mac. Your voice and your text are never sent to a
 server, because there is no server.
@@ -12,14 +16,15 @@ NEE-vee. The app was called Dictato until August 2026.
 
 <img src="docs/images/recording-panel.png" width="640" alt="The recording panel floating over the desktop, showing the app you are dictating into, the elapsed time and a live waveform">
 
-**Needs:** macOS 14 or newer, on an Apple Silicon Mac. About 1.6 GB of disk for
-the speech model, which is downloaded on first launch.
+**Needs:** macOS 14 or newer, on an Apple Silicon Mac. Disk space for whichever
+model you pick, downloaded on first launch. The large models are about 1.6 GB,
+the small English one about 400 MB.
 
 ## What it does
 
 - **A hotkey per language.** A profile ties one hotkey to one model and one
-  language. Make one for Hebrew and one for English, and the hotkey you press
-  picks which one you get. Out of the box, double-tap right Command to start,
+  language. Make one per language you dictate in, and the hotkey you press picks
+  which one you get. Out of the box, double-tap right Command to start,
   single-tap to stop and paste, Esc to cancel.
 - **Live modes.** Watch the words appear while you are still speaking, instead
   of waiting for the end.
@@ -133,8 +138,8 @@ Accessibility and Input Monitoring look like the same thing and are two separate
 switches. If your hotkey works but Esc does nothing, Input Monitoring is the one
 that is off.
 
-**7. On first launch** the app downloads the Hebrew speech model, about 1.6 GB.
-After that it never needs the network again.
+**7. On first launch** the app downloads the model you picked. After that it
+never needs the network again.
 
 ### Tests
 
@@ -205,7 +210,7 @@ that allows commercial use and redistribution.
 |---|---|---|
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | Runs the speech model on Metal. Vendored as a submodule. | [MIT](https://github.com/ggml-org/whisper.cpp/blob/master/LICENSE) |
 | [Sparkle](https://github.com/sparkle-project/Sparkle) | The self-update mechanism | [MIT](https://github.com/sparkle-project/Sparkle/blob/2.x/LICENSE), with BSD 2-Clause and zlib parts inside it |
-| [ivrit-ai/whisper-large-v3-turbo-ggml](https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml) | The Hebrew speech model, and the default | Apache 2.0 |
+| [ivrit-ai/whisper-large-v3-turbo-ggml](https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml) | A Whisper fine-tune for Hebrew. The default model. | Apache 2.0 |
 | [OpenAI Whisper](https://huggingface.co/openai/whisper-large-v3-turbo) | The model everything above is fine-tuned from | MIT |
 | [ggerganov/whisper.cpp models](https://huggingface.co/ggerganov/whisper.cpp) | The multilingual and English-only models in the catalogue | MIT |
 

@@ -6,8 +6,14 @@
 #   docs/appcast.xml + docs/index.html  -> GitHub Pages (the feed and the download page)
 #   the .dmg                            -> GitHub Releases (the actual download)
 #
-# This script only uploads and writes files. `make release` does the committing, so a
-# failed upload leaves no commit and no tag to unpick before trying again.
+# It runs in two steps, because the order matters:
+#
+#   feed    write docs/appcast.xml and docs/index.html. No network. `make release`
+#           commits these, so they have to exist before the commit.
+#   upload  attach the DMG to a GitHub Release. This must happen AFTER the tag is
+#           pushed, or `gh release create` invents a tag at the wrong commit.
+#
+# With no argument it does both, which is only correct if the tag already exists.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,6 +21,7 @@ cd "$(dirname "$0")/.."
   "${PAGES_DIR:?}" "${PAGES_URL:?}"
 
 TAG="v$VERSION"
+STEP="${1:-all}"
 
 # The GitHub API token.
 #
@@ -36,7 +43,7 @@ if [ -z "${GH_TOKEN:-}" ]; then
     fi
 fi
 
-if ! gh repo view "$REPO_SLUG" >/dev/null 2>&1; then
+if [ "$STEP" != "feed" ] && ! gh repo view "$REPO_SLUG" >/dev/null 2>&1; then
     ACTIVE=$(gh api user --jq .login 2>/dev/null || echo "unknown")
     cat <<EOF
 
@@ -50,10 +57,15 @@ fi
 
 # The download page and the feed are plain files in the repo. GitHub Pages serves the
 # docs folder as the site root, so writing them here is the whole of "publishing" them.
+if [ "$STEP" = "feed" ] || [ "$STEP" = "all" ]; then
 mkdir -p "$PAGES_DIR"
 cp "$APPCAST_DIR/appcast.xml" "$PAGES_DIR/appcast.xml"
 APP_NAME="$APP_NAME" VERSION="$VERSION" REPO_SLUG="$REPO_SLUG" TAG="$TAG" \
     bash Tools/make-download-page.sh > "$PAGES_DIR/index.html"
+echo "Wrote $PAGES_DIR/appcast.xml and $PAGES_DIR/index.html"
+fi
+
+if [ "$STEP" = "feed" ]; then exit 0; fi
 
 # The DMG lives in Releases rather than in the repo, because a disk image committed to
 # git history is dead weight that can never be removed.
@@ -64,8 +76,11 @@ if gh release view "$TAG" --repo "$REPO_SLUG" >/dev/null 2>&1; then
     echo "Release $TAG already exists, replacing the DMG."
     gh release upload "$TAG" "$DMG" --repo "$REPO_SLUG" --clobber
 else
+    # --verify-tag: refuse to invent a tag. Without it, gh creates one pointing at
+    # whatever the default branch is right now, which is the commit before the version
+    # bump, and the real tag can then never be pushed.
     gh release create "$TAG" "$DMG" \
-        --repo "$REPO_SLUG" \
+        --repo "$REPO_SLUG" --verify-tag \
         --title "$APP_NAME $VERSION" \
         --notes-file "release-notes/$VERSION.md"
 fi

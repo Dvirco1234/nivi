@@ -239,10 +239,14 @@ dist: dmg notarize appcast
 # Uploads the DMG as a GitHub Release asset and copies the freshly built feed and
 # download page into $(PAGES_DIR). It does not commit; `make release` does that, so
 # a re-run after a failed upload does not leave half a release commit behind.
+# STEP is feed, upload, or all. See Tools/publish-release.sh for why the order matters.
 publish:
 	@APP_NAME="$(APP_NAME)" VERSION="$(VERSION)" DMG="$(DMG)" \
 	 REPO_SLUG="$(REPO_SLUG)" APPCAST_DIR="$(DIST)/appcast" \
-	 PAGES_DIR="$(PAGES_DIR)" PAGES_URL="$(PAGES_URL)" bash Tools/publish-release.sh
+	 PAGES_DIR="$(PAGES_DIR)" PAGES_URL="$(PAGES_URL)" \
+	 bash Tools/publish-release.sh $(STEP)
+
+STEP ?= all
 
 check-clean:
 	@git diff --quiet && git diff --cached --quiet || \
@@ -274,13 +278,21 @@ release: check-clean
 		'VERSION := $(VERSION)' \
 		'BUILD_NUMBER := $(NEXT_BUILD)' > version.mk
 	@$(MAKE) --no-print-directory dist VERSION=$(VERSION) BUILD_NUMBER=$(NEXT_BUILD)
-	@# Uploading before committing. If the upload fails, nothing is committed, nothing
-	@# is tagged, and the same command can simply be run again once the problem is fixed.
-	@$(MAKE) --no-print-directory publish VERSION=$(VERSION)
+	@# Write the feed files first, because the commit below includes them.
+	@$(MAKE) --no-print-directory publish VERSION=$(VERSION) STEP=feed
+	@# Then commit, tag and push BEFORE uploading. `gh release create` with a tag that
+	@# does not exist yet makes GitHub invent one pointing at whatever main happened to
+	@# be, which is the commit before this version bump. The local tag then points
+	@# somewhere else and can never be pushed. That is what happened on 0.1.0.
+	@#
+	@# The cost: a failed upload leaves a pushed commit and tag behind, and re-running
+	@# `make release` would stop on "tag already exists". Finish the job with:
+	@#     make publish VERSION=$(VERSION) STEP=upload
 	git add version.mk $(PAGES_DIR)/appcast.xml $(PAGES_DIR)/index.html release-notes/$(VERSION).md
 	git commit -m "release: v$(VERSION) (build $(NEXT_BUILD))"
 	git tag -a "v$(VERSION)" -m "$(APP_NAME) $(VERSION)"
 	git push origin HEAD "v$(VERSION)"
+	@$(MAKE) --no-print-directory publish VERSION=$(VERSION) STEP=upload
 	@echo ""
 	@echo "Released $(APP_NAME) $(VERSION). Download page: $(PAGES_URL)"
 	@echo "The feed goes live once GitHub Pages rebuilds, usually under a minute."

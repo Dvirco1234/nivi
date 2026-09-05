@@ -43,14 +43,25 @@ final class TextInserter {
         // false negative that silently stopped pasting would be far worse than one that
         // leaves an extra clipboard-history entry.
         let hasTextTarget = willPaste && focusedElementAcceptsText()
-        let keepInHistory = !willPaste || !hasTextTarget || !excludeFromHistory
+        // Hiding from history follows the setting alone. It used to also require
+        // hasTextTarget, which meant the setting silently did nothing in Electron and web
+        // apps: there the focused element is an AXGroup or AXWebArea whose AXValue is not
+        // settable, so detection says "no text target" even while typing works fine. The
+        // result was every dictation into Slack or a browser landing in clipboard history.
+        let keepInHistory = !willPaste || !excludeFromHistory
 
         let pasteboard = NSPasteboard.general
         let previous = pasteboard.string(forType: .string)
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        if !keepInHistory {
+        // Declare both types up front, then write. Setting the string first and the marker
+        // second leaves a window where a clipboard manager polling changeCount sees an
+        // unmarked item and records it.
+        if keepInHistory {
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+        } else {
+            pasteboard.declareTypes([Self.transientType, .string], owner: nil)
             pasteboard.setData(Data(), forType: Self.transientType)
+            pasteboard.setString(text, forType: .string)
         }
 
         guard willPaste else {
@@ -63,7 +74,12 @@ final class TextInserter {
         // Restoring the previous clipboard is only right when this dictation was meant to
         // be invisible. When it is meant to be in history, restoring would push the older
         // item back to the top and bury the text the user just dictated.
-        if !keepInHistory, let previous {
+        //
+        // hasTextTarget still gates the restore, and this is where it belongs. Hiding a
+        // dictation from history loses nothing, because the text stays on the clipboard.
+        // Hiding it AND putting the old clipboard back does lose it, so when there is no
+        // sign the paste landed anywhere, the dictation stays on the clipboard for Cmd-V.
+        if !keepInHistory, hasTextTarget, let previous {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 pasteboard.clearContents()
                 pasteboard.setString(previous, forType: .string)
@@ -73,7 +89,7 @@ final class TextInserter {
             }
         }
         if !hasTextTarget {
-            Log.info("No text target focused — kept \(text.count) chars in clipboard history")
+            Log.info("No text target detected, left \(text.count) chars on the clipboard")
         }
         Log.info("Pasted \(text.count) chars")
         return .pasted

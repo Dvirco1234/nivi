@@ -106,6 +106,17 @@ test:
 APP  := build/$(APP_NAME).app
 DIST := dist
 
+# The bundle is assembled and signed here, then copied to $(APP).
+#
+# Why not sign in place: this repo can live in iCloud Drive, and iCloud's file
+# provider keeps stamping folders with a FinderInfo attribute. codesign refuses to
+# sign anything carrying one ("resource fork, Finder information, or similar detritus
+# not allowed"), and the stamp comes back faster than it can be cleared, so signing
+# inside an iCloud folder fails at random. A scratch folder outside iCloud has no
+# such problem, and copying a bundle after it is signed is harmless.
+STAGE_DIR := $(shell echo $${TMPDIR:-/tmp/})$(APP_NAME)-bundle
+STAGE     := $(STAGE_DIR)/$(APP_NAME).app
+
 # Assembles $(APP) around whichever binary is passed in as BIN, then signs it.
 # `swift build` alone only refreshes .build/<config>/$(APP_NAME) — the bundle keeps
 # the binary it was assembled with, so launching build/$(APP_NAME).app after a bare
@@ -114,15 +125,21 @@ DIST := dist
 # $(dir $(1)) is the build configuration directory, which is also where SwiftPM
 # leaves Sparkle.framework, so debug and release each pick up their own copy.
 define assemble_app
+	rm -rf $(STAGE_DIR)
+	mkdir -p $(STAGE)/Contents/MacOS $(STAGE)/Contents/Resources $(STAGE)/Contents/Frameworks
+	cp $(1) $(STAGE)/Contents/MacOS/$(APP_NAME)
+	cp Resources/Info.plist $(STAGE)/Contents/Info.plist
+	cp Resources/Nivi.icns $(STAGE)/Contents/Resources/$(APP_NAME).icns
+	cp Resources/*.png $(STAGE)/Contents/Resources/
+	cp -R $(dir $(1))Sparkle.framework $(STAGE)/Contents/Frameworks/
+	$(call stamp_plist,$(STAGE)/Contents/Info.plist)
+	@# The sources were copied out of iCloud and brought its FinderInfo tags with
+	@# them. Cleared once here; nothing re-adds them outside iCloud.
+	xattr -cr $(STAGE)
+	$(call sign_bundle,$(STAGE))
 	rm -rf $(APP)
-	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources $(APP)/Contents/Frameworks
-	cp $(1) $(APP)/Contents/MacOS/$(APP_NAME)
-	cp Resources/Info.plist $(APP)/Contents/Info.plist
-	cp Resources/Nivi.icns $(APP)/Contents/Resources/$(APP_NAME).icns
-	cp Resources/*.png $(APP)/Contents/Resources/
-	cp -R $(dir $(1))Sparkle.framework $(APP)/Contents/Frameworks/
-	$(call stamp_plist,$(APP)/Contents/Info.plist)
-	$(call sign_bundle,$(APP))
+	mkdir -p $(dir $(APP))
+	cp -R $(STAGE) $(APP)
 	@echo "Built $(APP)  v$(VERSION) ($(BUILD_NUMBER))  signed: $(SIGN_ID)"
 endef
 
@@ -147,13 +164,14 @@ endef
 # --preserve-metadata=entitlements keeps the sandbox entitlements Sparkle ships on
 # its XPC services; re-signing without that flag strips them.
 define sign_bundle
-	@F=$(1)/Contents/Frameworks/Sparkle.framework/Versions/B; \
+	@set -e; \
+	F=$(1)/Contents/Frameworks/Sparkle.framework/Versions/B; \
 	for x in $$F/XPCServices/*.xpc; do \
 		codesign --force --sign "$(SIGN_ID)" --preserve-metadata=entitlements "$$x"; \
 	done; \
 	codesign --force --sign "$(SIGN_ID)" "$$F/Autoupdate"; \
 	codesign --force --sign "$(SIGN_ID)" "$$F/Updater.app"; \
-	codesign --force --sign "$(SIGN_ID)" $(1)/Contents/Frameworks/Sparkle.framework
+	codesign --force --sign "$(SIGN_ID)" $(1)/Contents/Frameworks/Sparkle.framework; \
 	codesign --force --sign "$(SIGN_ID)" $(1)
 endef
 
@@ -170,6 +188,9 @@ dev: build
 	@sleep 1
 	rm -rf /Applications/$(APP_NAME).app
 	cp -R $(APP) /Applications/$(APP_NAME).app
+	@# The copy came out of iCloud and brought its FinderInfo tags along, which make
+	@# `codesign --verify` reject the installed app. The signature itself is fine.
+	@xattr -cr /Applications/$(APP_NAME).app
 	@open -a $(APP_NAME)
 	@echo "Installed + relaunched /Applications/$(APP_NAME).app (debug)"
 
@@ -198,6 +219,7 @@ version:
 install: app
 	rm -rf /Applications/$(APP_NAME).app
 	cp -R $(APP) /Applications/$(APP_NAME).app
+	@xattr -cr /Applications/$(APP_NAME).app
 	@echo "Installed /Applications/$(APP_NAME).app"
 
 run: app
@@ -211,15 +233,19 @@ DMG := $(DIST)/$(APP_NAME)-$(VERSION).dmg
 
 # The one file a stranger downloads: the app plus a shortcut to /Applications to
 # drag it onto.
+#
+# It ships $(STAGE), the bundle that was signed, not the copy at $(APP). They hold
+# the same code, but the copy can pick up iCloud's FinderInfo tags, and a downloaded
+# app carrying those fails `codesign --verify` on the stranger's Mac.
 dmg: app
-	@APP_NAME="$(APP_NAME)" VERSION="$(VERSION)" APP_BUNDLE="$(APP)" \
+	@APP_NAME="$(APP_NAME)" VERSION="$(VERSION)" APP_BUNDLE="$(STAGE)" \
 	 OUT="$(DMG)" SIGN_ID="$(SIGN_ID)" bash Tools/make-dmg.sh
 
 # Notarizing is Apple checking the app and telling every Mac it is safe to open.
 # It needs an Apple Developer account. Without credentials this prints why it was
 # skipped and carries on, so a self-signed release still works.
 notarize:
-	@APP_BUNDLE="$(APP)" DMG="$(DMG)" SIGN_ID="$(SIGN_ID)" bash Tools/notarize.sh
+	@APP_BUNDLE="$(STAGE)" DMG="$(DMG)" SIGN_ID="$(SIGN_ID)" bash Tools/notarize.sh
 
 # Adds this version to the update feed Sparkle reads, with its size and its
 # EdDSA signature.

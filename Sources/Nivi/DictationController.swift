@@ -201,10 +201,16 @@ final class DictationController {
                 return
             }
             do {
-                try recorder.start()
+                // Runs on the recorder's own queue with a deadline. It must never block the
+                // main thread: CoreAudio once took the whole app down with it here.
+                try await recorder.start()
             } catch {
+                // A start that timed out may still be in flight, and could yet open the
+                // microphone with nobody listening. This closes it whenever it gets there.
+                recorder.cancel()
                 Log.error("Recorder start failed: \(error.localizedDescription)")
-                showTransientError("Could not start recording")
+                showTransientError((error as? AudioRecorderError)?.errorDescription
+                                   ?? "Could not start recording")
                 return
             }
             activeReplacements = WordReplacing.decode(json: settings.wordReplacementsJSON)

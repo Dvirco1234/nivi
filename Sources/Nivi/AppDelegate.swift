@@ -5,6 +5,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: DictationController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Started first, so it is watching before anything else can wedge the main thread.
+        MainThreadWatchdog.start()
         InterfaceSettings.makeSureTheAppIsReachable()
         InterfaceSettings.applyToApp()
         NotificationCenter.default.addObserver(

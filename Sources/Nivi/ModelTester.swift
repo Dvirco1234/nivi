@@ -41,9 +41,13 @@ final class ModelTester: ObservableObject {
                 return
             }
             do {
-                try recorder.start()
+                try await recorder.start()
                 isRecording = true
             } catch {
+                // A start that timed out may still be in flight, and could yet open the
+                // microphone with nobody listening. This closes it whenever it gets there.
+                recorder.cancel()
+                Log.error("Model test recorder start failed: \(error.localizedDescription)")
                 errorMessage = "Could not start recording"
             }
         }

@@ -7,12 +7,19 @@ machine, using Whisper models through whisper.cpp.
 This file is for someone working ON the app. For what the app does and how to
 install it, read [README.md](README.md).
 
-Two more docs to read before you change anything:
+Three more docs to read before you change anything:
 
 - [docs/state-of-the-project.md](docs/state-of-the-project.md) is where things
   stand today: what is built, what is released, what is broken, what is untested.
+- [docs/architecture.md](docs/architecture.md) is how the code fits together: the
+  path a dictation takes, the state machine, how streaming works, the invariants
+  a change must not break, and how to add a setting or a test.
 - [docs/decisions.md](docs/decisions.md) is what has already been settled and why.
   Read it before you redo something on purpose.
+
+The design notes under `docs/superpowers/` are history. They stop in early August
+and some of what they describe changed during implementation. See the README in
+that folder.
 
 ## Build rules, all of them hard
 
@@ -118,6 +125,7 @@ Two consequences:
 This is why anything platform-specific lives in `Sources/Nivi/` and only pure
 logic goes in core. It is also why so much of this app is testable without Xcode.
 Tests are plain `check(cond, msg)` assertions in `Tools/core-tests/main.swift`.
+[docs/architecture.md](docs/architecture.md) has a section on how to add one.
 
 ## The private notes
 
@@ -128,6 +136,24 @@ only matches a real directory).
 
 So agent config and run artifacts are backed up on GitHub, but not in the public
 repo. The research and design notes under `docs/` are public on purpose.
+
+**If those paths are missing**, which is what a fresh clone on another Mac looks
+like, get them back with:
+
+```sh
+git clone git@github.com-private:Dvirco1234/dev-workspace.git ~/personal/dev-workspace
+bash ~/personal/dev-workspace/setup.sh nivi ~/personal/dictato
+```
+
+`setup.sh` takes a project name and a checkout path. For each private path it
+moves any real files into the workspace repo first, then replaces the path with a
+relative symlink pointing there. It is safe to run again: a link that is already
+correct is left alone, and it refuses rather than guessing if both a real folder
+and a stored copy exist. The repo is private, so this needs an account with
+access.
+
+Nothing in the app depends on these paths. Without them you lose the agent
+config and the run history, not the ability to build.
 
 ## Writing style
 

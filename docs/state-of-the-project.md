@@ -160,6 +160,25 @@ Cutting 0.2.0 also finally tests the update path, which has never been proven.
 
 ## Open work and known issues
 
+**`batchFastFinish` has no accuracy baseline, and that blocks work on streaming.**
+The mode transcribes while you speak and only handles the leftover tail when you
+stop, so the wait at the end stays about the same however long you spoke. The trade
+is accuracy: the model gets less context around each chunk boundary, and it never
+makes one pass over the whole recording. How much that costs in Hebrew has never
+been measured, and it is the judgement that decides whether the mode is worth
+keeping.
+
+This is an open issue and not just a missing test, because of what it blocks. There
+is no baseline to compare against, so nobody can say whether a later change to
+`StreamWindow`, the freeze rule, `audio_ctx` or the tail pass made Hebrew better or
+worse. Streaming work done before this is measured is done blind.
+
+What is needed: dictate the same few Hebrew passages twice, once with a profile set
+to `batch` and once with the same profile set to `batchFastFinish`. Write down the
+finish time and an honest read of the accuracy for each. Keep the passages so the
+comparison can be repeated after a change. A rough note is worth much more than
+nothing here. It does not need to be a formal benchmark.
+
 **Sparkle self-update has never been proven end to end.** The feed is well-formed
 and the EdDSA signature verifies independently, but no one has watched an app
 notice a new version and install it. That needs two real releases. This is the

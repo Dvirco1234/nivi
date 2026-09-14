@@ -1,5 +1,9 @@
 # Working on Nivi
 
+**New here? Read [docs/handoff.md](docs/handoff.md) first.** It is a map of
+every document and source file worth knowing about, with links.
+
+
 Nivi is an offline dictation app for macOS. You hold a hotkey, you speak, and the
 text lands in whatever app you were already typing in. Everything runs on the
 machine, using Whisper models through whisper.cpp.

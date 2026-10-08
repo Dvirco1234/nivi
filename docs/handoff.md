@@ -100,8 +100,9 @@ Added after the app froze on 6 September. Read
 
 | File | Job |
 |---|---|
-| [WithDeadline.swift](../Sources/Nivi/WithDeadline.swift) | Runs blocking work off the main thread and gives up after N seconds. |
+| [WithDeadline.swift](../Sources/Nivi/WithDeadline.swift) | Runs blocking work off the main thread and gives up after N seconds. It does not free the queue; read the note on it. |
 | [MainThreadWatchdog.swift](../Sources/Nivi/MainThreadWatchdog.swift) | Logs after 5 seconds of a stuck main thread, quits the app after 45. |
+| [StallWatch.swift](../Sources/NiviCore/StallWatch.swift) | The watchdog's rule, kept pure so it can be tested. Explains why sleep used to look like a stall. |
 
 ## Build, test and release
 
@@ -112,6 +113,7 @@ Added after the app froze on 6 September. Read
 | [Tools/core-tests/main.swift](../Tools/core-tests/main.swift) | Every test. Plain `check(cond, msg)` asserts, no XCTest. |
 | [Tools/publish-release.sh](../Tools/publish-release.sh) | Uploads a release. Two steps, `feed` then `upload`, and the order matters. |
 | [docs/release-pipeline.md](release-pipeline.md) | How releasing works, and the one-time setup. |
+| [vendor/patches/](../vendor/patches/) | Fixes carried on top of whisper.cpp v1.7.2. `make vendor` applies them. Read the README before touching the pin. |
 
 Safe ways to look at the UI without driving the running app:
 

@@ -160,6 +160,36 @@ Cutting 0.2.0 also finally tests the update path, which has never been proven.
 
 ## Open work and known issues
 
+**Clicking into a long transcript crashed the app. Fixed 2026-10-08.** Three crashes
+on 1 October, all the same:
+
+    CFRelease() called with NULL
+    __NSCoreTypesetterCreateBaseLineFromAttributedString
+    ...
+    SelectionTextField.Cell._selectOrEdit
+
+SwiftUI's `Text(...).textSelection(.enabled)` hands the whole string to AppKit's
+field editor on the first click, and the field editor lays it out as one line. A
+file transcript was saved as one line of 67,248 characters. Measured in a harness:
+10,000 characters survive, 33,000 crash. Long text now goes through
+`LongSelectableText`, a read-only `NSTextView`, which selected all 67,248
+characters without trouble. File transcripts are also split into paragraphs now
+(`TranscriptParagraphs`), so no paragraph is longer than 2,000 characters. A stray
+unclosed right-to-left mark in that transcript looked suspicious and turned out to
+be harmless.
+
+**Transcripts can be saved as Text, Word, Rich Text or OpenDocument.** Added
+2026-10-08. `TranscriptExporter` writes all four with `NSAttributedString`, so no
+new library. Each paragraph is marked right to left or left to right from its own
+letters, so Word lines Hebrew up on the right. Checked by rendering a Word file of
+the real 45 minute Hebrew transcript through Quick Look. Not yet opened in Word
+itself, which is not installed on this Mac.
+
+**File transcripts have their own list.** The Transcribe a file tab lists every
+file transcript still in history, and in History a file entry is headed by its file
+name with a document icon. Before, a file's name sat in the same grey tag a
+dictation uses for its app, so a file looked like any other entry.
+
 **Transcription ran on the CPU from 24 to 25 September 2026.** Rebuilding
 whisper.cpp from the iCloud path broke the Metal shaders (see patch 0002 in
 [vendor/patches/](../vendor/patches/README.md)), so every pass ran on the CPU.

@@ -173,22 +173,17 @@ signing trap, explained in [CLAUDE.md](../CLAUDE.md).
 
 ## Where the project stands
 
-Version 0.1.0 is released and downloadable. It is signed by its author and not
-notarised by Apple, so the first launch shows a warning.
-
-Four fixes have landed since 0.1.0 and are not in anyone's hands yet: the
-clipboard history fix, the audio main-thread fix, the watchdog, and the iCloud
-signing fix. A 0.2.0 is wanted.
+Version 0.2.0 is released and downloadable, published 2026-10-08. It is signed by
+its author and not notarised by Apple, so the first launch shows a warning.
 
 The full picture, including every open issue, is in
-[docs/state-of-the-project.md](state-of-the-project.md). The two most valuable
-next steps, in order:
+[docs/state-of-the-project.md](state-of-the-project.md). The most valuable next
+steps, in order:
 
-1. **Measure the fast finish accuracy in Hebrew.** It is the first open issue in
-   that document. Until it is measured there is no baseline, so no later change
-   to the streaming path can be judged better or worse.
-2. **Cut 0.2.0.** It ships the four fixes and is the only way to find out whether
-   Sparkle's self-update actually works, which has never been proven.
+1. **Watch a 0.1.0 install update itself to 0.2.0.** Sparkle's self-update has
+   never been seen working end to end, and every later fix depends on it.
+2. **Measure the fast finish accuracy in Hebrew.** Until it is measured there is
+   no baseline, so no change to the streaming path can be judged better or worse.
 
 ## What only the owner can decide
 

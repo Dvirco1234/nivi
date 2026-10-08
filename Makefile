@@ -307,8 +307,11 @@ publish:
 
 STEP ?= all
 
+# --ignore-submodules=dirty because make vendor applies vendor/patches inside the
+# whisper.cpp checkout, so it always has edits. A change to the submodule's commit
+# still counts as dirty.
 check-clean:
-	@git diff --quiet && git diff --cached --quiet || \
+	@git diff --quiet --ignore-submodules=dirty && git diff --cached --quiet || \
 		{ echo "Working tree is not clean. Commit or stash first."; exit 1; }
 
 # The one command. `make release VERSION=0.2.0`

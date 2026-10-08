@@ -124,39 +124,27 @@ asks before installing. The feed is a committed file served by GitHub Pages.
 
 ## What is released
 
-Version 0.1.0, build 2, published 2026-09-02.
+Version 0.2.0, build 3, published 2026-10-08. The previous one was 0.1.0, build 2,
+published 2026-09-02.
 
 - Repo: `Dvirco1234/nivi`, public
 - Download page: https://dvirco1234.github.io/nivi/
 - Update feed: https://dvirco1234.github.io/nivi/appcast.xml
-- DMG: a GitHub Release asset, 5.6 MB
+- DMG: a GitHub Release asset, 6.4 MB
+- What changed: [release-notes/0.2.0.md](../release-notes/0.2.0.md)
 
 It is **self-signed and not notarised**. macOS blocks it on first launch and says
 the app "cannot be checked" or is "damaged". It is neither.
 [INSTALL.md](../INSTALL.md) walks through it.
 
-## Not yet released, and this is why 0.2.0 is wanted
+0.2.0 carries every fix described under "Open work and known issues" below, plus
+four from before them: dictations kept out of clipboard managers in Electron and
+web apps (`c16eb77`), starting a recording no longer able to freeze the app
+(`45251ec`), the main-thread watchdog (`4ae17de`), and signing outside iCloud
+Drive (`dc6b345`).
 
-Four fixes have landed on `main` since 0.1.0 went out. Anyone who downloads today
-gets none of them.
-
-- **Dictations still show in clipboard history** (`c16eb77`). The transient
-  marker was only applied when the Accessibility API confirmed a text field had
-  focus. In Electron and web apps, which is where most dictation goes, the
-  focused element is an `AXGroup` or `AXWebArea` and that check says no. So the
-  setting silently did nothing in Slack, Arc and VS Code.
-- **The app could freeze with no way to quit it** (`45251ec`). An unqualified
-  `Task { }` inside a `@MainActor` method inherits the main actor, so the
-  blocking `engine.inputNode` call ran on the main thread with no time limit. One
-  cold access measured 15 seconds, and there is no upper bound. The menu bar died
-  with it, and because the app runs as an accessory it never appeared in Force
-  Quit.
-- **A watchdog now quits a wedged app** (`4ae17de`). It pings the main queue every
-  second, logs after 5 seconds of silence, and stops the process after 45.
-- **`make dev` could not sign at all** (`dc6b345`). The iCloud FinderInfo problem,
-  described in [CLAUDE.md](../CLAUDE.md).
-
-Cutting 0.2.0 also finally tests the update path, which has never been proven.
+**Self-update is still unproven.** 0.2.0 is the first version an older install
+can be offered. Nobody has yet watched a 0.1.0 copy notice it and install it.
 
 ## Open work and known issues
 

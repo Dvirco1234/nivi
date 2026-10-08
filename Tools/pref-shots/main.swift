@@ -54,11 +54,25 @@ struct VisualEffect: NSViewRepresentable {
     func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
+/// What the Transcribe a file tab needs. Built once and never asked to run anything: no
+/// model is loaded and no file is transcribed.
+@MainActor enum ShotStores {
+    static let models = ModelStore()
+    static let profiles = ProfileStore(defaultModelID: nil, defaultLanguage: "auto")
+    static let files = FileTranscriptionService(cache: RecognizerCache(capacity: 1), modelStore: models)
+}
+
 @ViewBuilder func page(named name: String) -> some View {
     switch name {
     case "general": GeneralSection()
     case "speech": SpeechSection()
     case "layout": LayoutTuningSection()
+    // Both read the real history file on this Mac, read only.
+    case "history": HistorySection(store: HistoryStore.shared)
+    case "files": MainActor.assumeIsolated {
+        TranscribeFileSection(service: ShotStores.files, modelStore: ShotStores.models,
+                              profileStore: ShotStores.profiles)
+    }
     // The real sidebar tab list. Which tabs it contains is the whole point: Layout and
     // Debug are absent unless this was built with DEBUG defined.
     case "sidebar": SidebarPreview()

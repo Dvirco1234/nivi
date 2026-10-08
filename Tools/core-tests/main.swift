@@ -820,4 +820,55 @@ stall.mainThreadAnswered(at: 11)
 check(stall.tick(at: 12) == .nothingToReport, "an answer ends the stall")
 check(stall.tick(at: 17) == .warn(seconds: 6), "and the next stall warns again on its own")
 
+
+// --- TranscriptParagraphs ---
+//
+// A file transcript used to be saved as one line. A 67,248-character line crashed the app
+// the moment someone clicked into it to copy (October 2026), and it is unreadable in Word.
+
+let sentence = "זה משפט אחד בעברית עם כמה מילים בתוכו."
+let wall = Array(repeating: sentence, count: 400).joined(separator: " ")   // ~15k chars, one line
+let paragraphs = TranscriptParagraphs.split(wall)
+check(paragraphs.count > 10, "a long transcript becomes many paragraphs")
+check(paragraphs.allSatisfy { $0.count <= TranscriptParagraphs.maximumLength },
+      "no paragraph is longer than the maximum")
+check(paragraphs.allSatisfy { $0.hasSuffix(".") }, "paragraphs break after a sentence, not inside one")
+check(paragraphs.joined(separator: " ") == wall, "splitting loses and adds no words")
+
+// Whisper sometimes writes long stretches with no full stop. Those still get cut, at a space.
+let noStops = Array(repeating: "מילה", count: 3000).joined(separator: " ")
+let forced = TranscriptParagraphs.split(noStops)
+check(forced.allSatisfy { $0.count <= TranscriptParagraphs.maximumLength },
+      "text with no full stops is still cut to the maximum")
+check(forced.joined(separator: " ") == noStops, "cutting at spaces keeps every word")
+
+check(TranscriptParagraphs.split("Short one. Two.") == ["Short one. Two."], "short text stays one paragraph")
+check(TranscriptParagraphs.split("   ") == [], "blank text has no paragraphs")
+check(TranscriptParagraphs.split("First part.\n\nSecond part.") == ["First part.", "Second part."],
+      "existing paragraph breaks are kept")
+check(TranscriptParagraphs.format(wall).contains("\n\n"), "formatted text separates paragraphs with a blank line")
+check(TranscriptParagraphs.format(TranscriptParagraphs.format(wall)) == TranscriptParagraphs.format(wall),
+      "formatting twice changes nothing")
+
+// --- TextDirection ---
+check(TextDirection.isRightToLeft("שלום, מה שלומך?"), "Hebrew is right to left")
+check(!TextDirection.isRightToLeft("Hello there"), "English is left to right")
+check(TextDirection.isRightToLeft("פגישה עם John מחר ב-10"), "mostly Hebrew with one English name is right to left")
+check(!TextDirection.isRightToLeft("Meeting with דני tomorrow at ten o'clock"), "mostly English with a Hebrew name is left to right")
+check(!TextDirection.isRightToLeft("12:30 ..."), "no letters at all counts as left to right")
+
+// --- TranscriptFormat and file names ---
+check(TranscriptFormat.word.fileExtension == "docx", "Word files end in .docx")
+check(TranscriptFormat.plainText.fileExtension == "txt", "text files end in .txt")
+check(Set(TranscriptFormat.allCases.map(\.fileExtension)).count == TranscriptFormat.allCases.count,
+      "every format has its own extension")
+check(TranscriptExport.suggestedFileName(sourceName: "meeting 3.mp4", format: .word) == "meeting 3 transcript.docx",
+      "the suggested name comes from the audio file")
+check(TranscriptExport.suggestedFileName(sourceName: "a/b:c.m4a", format: .plainText) == "a-b-c transcript.txt",
+      "characters a file name cannot hold are replaced")
+check(TranscriptExport.suggestedFileName(sourceName: nil, format: .richText) == "Transcript.rtf",
+      "with no source name the file is just called Transcript")
+check(TranscriptExport.suggestedFileName(sourceName: "   ", format: .openDocument) == "Transcript.odt",
+      "a blank source name counts as none")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

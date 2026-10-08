@@ -158,7 +158,9 @@ final class FileTranscriptionService: ObservableObject {
                                                             language: language)
                 pieces.append(TranscriptCleaning.clean(
                     piece, removeSoundDescriptions: Settings().removeSoundDescriptions))
-                transcript = ChunkedTranscription.join(pieces)
+                // In paragraphs, not one line. A single line of tens of thousands of
+                // characters crashed the app when clicked, and nobody can read it in Word.
+                transcript = TranscriptParagraphs.format(ChunkedTranscription.join(pieces))
             }
 
             workSeconds = Date().timeIntervalSince(startedAt)

@@ -8,11 +8,20 @@ struct TranscribeFileSection: View {
     @ObservedObject var service: FileTranscriptionService
     @ObservedObject var modelStore: ModelStore
     @ObservedObject var profileStore: ProfileStore
+    @ObservedObject var history: HistoryStore = .shared
 
     private let settings = Settings()
     @State private var chunkMinutes = Settings().fileChunkMinutes
     @State private var isDropTarget = false
     @State private var justCopied = false
+    @State private var expandedFileIDs: Set<String> = []
+
+    /// Every file transcript still in history, newest first. Shown here as well as in the
+    /// History tab, so a past file is found where it was made rather than among hundreds of
+    /// dictations.
+    private var pastFiles: [HistoryRecord] {
+        HistoryFiltering.apply(HistoryQuery(sources: [.file]), to: history.records)
+    }
 
     private var installedModels: [ManagedModel] {
         modelStore.catalog.models.filter { $0.isRunnable && modelStore.isInstalled($0.id) }
@@ -43,6 +52,7 @@ struct TranscribeFileSection: View {
                 settingsGroup
                 if service.isRunning { progressGroup }
                 if !service.transcript.isEmpty && !service.isRunning { resultGroup }
+                if !pastFiles.isEmpty { pastFilesGroup }
             }
         }
         .navigationTitle("Transcribe File")
@@ -167,15 +177,10 @@ struct TranscribeFileSection: View {
                         .font(.caption)
                         .foregroundStyle(PrefTheme.warning)
                 }
-                ScrollView {
-                    Text(service.transcript)
-                        .font(.callout)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .overlayScrollers()
-                }
-                .frame(height: PrefTheme.fileResultHeight)
+                // Not SwiftUI's selectable Text: a long transcript crashes it on the first
+                // click. See LongSelectableText.
+                LongSelectableText(text: service.transcript, maxHeight: PrefTheme.fileResultHeight)
+                    .frame(height: PrefTheme.fileResultHeight)
 
                 HStack(spacing: 8) {
                     Button(justCopied ? "Copied" : "Copy") {
@@ -183,7 +188,10 @@ struct TranscribeFileSection: View {
                         NSPasteboard.general.setString(service.transcript, forType: .string)
                         justCopied = true
                     }
-                    Button("Save as a text file...", action: saveTranscript)
+                    SaveTranscriptMenu(transcript: .init(text: service.transcript,
+                                                         sourceName: service.fileName,
+                                                         createdAt: Date(),
+                                                         durationMs: Int(service.audioSeconds * 1000)))
                     Spacer()
                     Button("Clear") {
                         service.clearResult()
@@ -197,6 +205,36 @@ struct TranscribeFileSection: View {
         }
     }
 
+    // MARK: - Past files
+
+    private var pastFilesGroup: some View {
+        PrefGroup("Transcribed files",
+                  footer: "Kept for as long as History keeps entries. Delete one here and it is gone from History too.") {
+            LazyVStack(alignment: .leading, spacing: UITuning.cardSpacing) {
+                ForEach(pastFiles) { record in
+                    HistoryEntryCard(record: record,
+                                     isExpanded: expandedFileIDs.contains(record.id),
+                                     selecting: false,
+                                     isSelected: false,
+                                     onToggleExpanded: {
+                                         if expandedFileIDs.contains(record.id) {
+                                             expandedFileIDs.remove(record.id)
+                                         } else {
+                                             expandedFileIDs.insert(record.id)
+                                         }
+                                     },
+                                     onToggleSelected: {},
+                                     onCopy: {
+                                         NSPasteboard.general.clearContents()
+                                         NSPasteboard.general.setString(record.text, forType: .string)
+                                     },
+                                     onDelete: { history.delete(id: record.id) })
+                }
+            }
+            .padding(UITuning.cardPadding)
+        }
+    }
+
     private var resultFooter: String {
         var parts = [service.fileName]
         if service.audioSeconds > 0 { parts.append(DurationFormatting.short(service.audioSeconds)) }
@@ -204,7 +242,8 @@ struct TranscribeFileSection: View {
             parts.append("took \(DurationFormatting.short(service.workSeconds))")
         }
         if !service.modelName.isEmpty { parts.append(service.modelName) }
-        parts.append("also saved in History")
+        parts.append(service.stoppedEarly ? "only part of the file, so not kept in History"
+                                          : "also saved below and in History")
         return parts.joined(separator: " · ")
     }
 
@@ -240,19 +279,6 @@ struct TranscribeFileSection: View {
         justCopied = false
         service.start(url: url, model: model, language: service.language,
                       chunkMinutes: chunkMinutes)
-    }
-
-    private func saveTranscript() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = (service.fileName as NSString)
-            .deletingPathExtension + ".txt"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try service.transcript.write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            Log.error("Could not save the transcript: \(error.localizedDescription)")
-        }
     }
 
     /// Starts on the model and language the user already dictates with, which is the

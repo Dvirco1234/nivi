@@ -234,7 +234,8 @@ private struct FilterChip: View {
 }
 
 /// One saved transcription: the text, then small grey facts under it.
-private struct HistoryEntryCard: View {
+/// One saved entry. Also used on the Transcribe a file tab, for the list of past files.
+struct HistoryEntryCard: View {
     let record: HistoryRecord
     let isExpanded: Bool
     let selecting: Bool
@@ -260,25 +261,44 @@ private struct HistoryEntryCard: View {
     /// Collapsed, the entry is clamped to a few lines so every card in the list is about
     /// the same height. Expanded, it grows only up to a limit and then scrolls inside the
     /// card, so a file transcript of several thousand words cannot fill the whole tab.
+    ///
+    /// Only short entries use SwiftUI's own selectable text. A long one is selectable once
+    /// expanded, in `LongSelectableText`, because clicking into a long selectable `Text`
+    /// crashes the app. That type explains why. Clicking a collapsed long entry expands it.
     @ViewBuilder private var transcriptText: some View {
         if isExpanded {
-            ScrollView {
-                Text(record.text)
-                    .font(.callout)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .overlayScrollers()
-            }
-            .frame(maxHeight: PrefTheme.historyExpandedMaxHeight)
-        } else {
+            LongSelectableText(text: record.text, maxHeight: PrefTheme.historyExpandedMaxHeight)
+        } else if isLong {
             Text(record.text)
                 .font(.callout)
-                .textSelection(.enabled)
                 .lineLimit(PrefTheme.historyCollapsedLines)
                 .truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(record.text)
+                .font(.callout)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var isFile: Bool { record.source == .file }
+
+    /// A file entry is headed by the file's name, so it stands out from the dictations
+    /// around it. Before, the name sat in the same small grey tag a dictation uses for the
+    /// app it went into, and a file looked like any other entry.
+    @ViewBuilder private var fileHeader: some View {
+        if isFile {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(PrefTheme.accent)
+                Text(record.sourceName?.isEmpty == false ? record.sourceName! : "Transcribed file")
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
     }
 
@@ -301,6 +321,7 @@ private struct HistoryEntryCard: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
+                fileHeader
                 transcriptText
 
                 if isLong {
@@ -311,7 +332,7 @@ private struct HistoryEntryCard: View {
                 }
 
                 HStack(spacing: 6) {
-                    MetaChip(text: sourceLabel)
+                    if !isFile { MetaChip(text: sourceLabel) }
                     MetaChip(text: Self.relativeTime.localizedString(for: record.createdAt,
                                                                      relativeTo: Date()))
                     MetaChip(text: DurationFormatting.short(milliseconds: record.durationMs))
@@ -324,6 +345,12 @@ private struct HistoryEntryCard: View {
                         Button(justCopied ? "Copied" : "Copy") {
                             onCopy()
                             justCopied = true
+                        }
+                        if isFile {
+                            SaveTranscriptMenu(transcript: .init(text: record.text,
+                                                                 sourceName: record.sourceName,
+                                                                 createdAt: record.createdAt,
+                                                                 durationMs: record.durationMs))
                         }
                         Button("Delete", role: .destructive, action: onDelete)
                             .foregroundStyle(PrefTheme.danger)

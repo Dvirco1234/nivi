@@ -85,6 +85,14 @@ The design system is the thing to read before adding any row or tab.
 Tabs are in [Sources/Nivi/Preferences/](../Sources/Nivi/Preferences/), one file
 each.
 
+### Transcripts as files
+
+| File | Job |
+|---|---|
+| [TranscriptDocument.swift](../Sources/NiviCore/TranscriptDocument.swift) | Paragraph splitting, text direction, export formats and file names. Pure, tested. |
+| [TranscriptExporter.swift](../Sources/Nivi/TranscriptExporter.swift) | Writes .txt, .docx, .rtf and .odt, and the Save as menu. |
+| [LongSelectableText.swift](../Sources/Nivi/Preferences/LongSelectableText.swift) | Selectable text that is safe at any length. Read it before using `.textSelection` on a transcript. |
+
 ### Recording displays
 
 | File | Job |

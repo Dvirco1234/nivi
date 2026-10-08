@@ -46,9 +46,6 @@ enum UITuning {
         ("dropZoneHeight", 170, "height of the drop zone on the Transcribe a file tab"),
         ("fileResultHeight", 220, "height of the transcript box on the Transcribe a file tab"),
         ("historyExpandChars", 240, "characters above which an entry gets a Show more button"),
-        ("trafficLightX", 22, "traffic lights: distance from the left edge"),
-        ("trafficLightTop", 21, "traffic lights: distance from the top edge"),
-        ("trafficLightPitch", 24, "traffic lights: spacing between the three buttons"),
 
         // The two Recording display pictures on the General tab. Change the width or
         // the height and the shipped pictures are the wrong shape, so re-run
@@ -105,11 +102,6 @@ enum UITuning {
     static var cardCorner: CGFloat { value("cardCorner") }
 
     // Preferences pages, groups and rows. Read through PrefTheme at the call sites.
-
-    // Window buttons
-    static var trafficLightX: CGFloat { value("trafficLightX") }
-    static var trafficLightTop: CGFloat { value("trafficLightTop") }
-    static var trafficLightPitch: CGFloat { value("trafficLightPitch") }
 
     // Recording display pictures
     static var recordingThumbnailWidth: CGFloat { value("recordingThumbnailWidth") }

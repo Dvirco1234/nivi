@@ -23,7 +23,6 @@ struct LayoutTuningSection: View {
         ("History and files", ["historyActionHeight", "historyCollapsedLines",
                                "historyExpandedMaxHeight", "historyExpandChars",
                                "dropZoneHeight", "fileResultHeight"]),
-        ("Traffic lights", ["trafficLightX", "trafficLightTop", "trafficLightPitch"]),
         ("Recording display pictures", ["recordingThumbnailWidth", "recordingThumbnailHeight",
                                         "recordingThumbnailCorner", "recordingThumbnailGap"]),
         ("Recording panel", ["panelWidth", "panelHeight", "panelTextHeight", "panelCorner",
@@ -64,7 +63,7 @@ struct LayoutTuningSection: View {
                               "Go back to the shipped values",
                               buttonTitle: "Reset") {
                     UITuning.resetAll()
-                    PreferencesWindow.refreshTrafficLights()
+                    PreferencesWindow.refreshWindowChrome()
                     copied = false
                 }
             }
@@ -93,7 +92,6 @@ struct LayoutTuningSection: View {
         case "historyExpandChars": return 60...600
         case "dropZoneHeight": return 100...320
         case "fileResultHeight": return 100...500
-        case "trafficLightPitch": return 14...32
         case "panelWidth": return 220...420
         case "panelHeight": return 40...90
         case "panelTextHeight": return 60...130
@@ -137,8 +135,8 @@ private struct TuningSliderRow: View {
 
     private func apply(_ newValue: CGFloat) {
         UITuning.set(entry.key, to: newValue)
-        // The window buttons are AppKit views, so they need to be told. SwiftUI redraws
-        // itself.
-        PreferencesWindow.refreshTrafficLights()
+        // The window's rounded corners are drawn by AppKit, so it needs to be told.
+        // SwiftUI redraws itself.
+        PreferencesWindow.refreshWindowChrome()
     }
 }

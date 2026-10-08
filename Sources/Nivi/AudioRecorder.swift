@@ -5,6 +5,9 @@ import CoreAudio
 enum AudioRecorderError: LocalizedError {
     case noInputDevice
     case audioSystemTimedOut(TimeInterval)
+    /// Thrown by a start that finally got its answer from CoreAudio long after the caller
+    /// stopped waiting. Nobody is listening for it; it only stops the work going further.
+    case abandonedWhileStarting
 
     var errorDescription: String? {
         switch self {
@@ -12,17 +15,70 @@ enum AudioRecorderError: LocalizedError {
             return "No audio input device available"
         case .audioSystemTimedOut(let seconds):
             return "The audio system did not answer within \(Int(seconds)) seconds"
+        case .abandonedWhileStarting:
+            return "The recording was given up on before the audio system answered"
         }
+    }
+}
+
+/// An `AVAudioEngine` and the serial queue that owns it, together, so that both can be
+/// thrown away as a unit.
+///
+/// They have to be thrown away together because of how a stuck CoreAudio call behaves. The
+/// call blocks on a queue, and a blocked Mach call cannot be cancelled, so that queue is
+/// occupied until the audio daemon decides to answer. If the queue is the only one the
+/// recorder has, everything the user does next lands behind a call that is going nowhere.
+/// That is exactly what happened on 14 September 2026: one start blocked for 27 minutes,
+/// and the five recordings the user tried in the meantime never ran at all. Each waited its
+/// eight seconds behind the stuck one and reported a timeout it had done nothing to earn.
+/// The app's own log shows them all completing at once when the daemon finally replied:
+///
+///     Recording input: ... (audio start took 1658094 ms)
+///     Recording input: ... (audio start took 3 ms)
+///     Recording input: ... (audio start took 2 ms)
+///
+/// Replacing the session gives the next recording a queue of its own, so a wedged audio
+/// daemon costs one dictation instead of every dictation until it recovers.
+private final class MicrophoneSession {
+    let queue: DispatchQueue
+    var engine: AVAudioEngine?
+    /// The microphone the user asked for when this engine was built, or nil if they have
+    /// no preference. If the answer changes, the engine has to be rebuilt.
+    var wantedDevice: AudioDeviceID?
+    /// The system's default input when this engine was built, for the same reason.
+    var systemDefault: AudioDeviceID?
+    var idleTeardown: DispatchWorkItem?
+
+    /// Read from the session's own queue and written from whichever thread gave up on it,
+    /// so it needs a lock of its own rather than the queue it is about to stop trusting.
+    private let retirementLock = NSLock()
+    private var retired = false
+
+    var isRetired: Bool {
+        retirementLock.lock()
+        defer { retirementLock.unlock() }
+        return retired
+    }
+
+    func retire() {
+        retirementLock.lock()
+        retired = true
+        retirementLock.unlock()
+    }
+
+    init(number: Int) {
+        queue = DispatchQueue(label: "com.dvir.nivi.audio-engine.\(number)", qos: .userInitiated)
     }
 }
 
 /// Records microphone input and accumulates 16 kHz mono Float32 samples in memory.
 ///
-/// Everything that talks to AVAudioEngine or CoreAudio runs on `engineQueue`, never on the
-/// main thread. These calls go through the system audio daemon, so they can block for a
-/// long time — and once, on a Mac whose audio daemon had got into a bad state, one of them
-/// never came back at all and took the whole app with it. Starting is therefore also given
-/// a deadline: see `startTimeout`.
+/// Everything that talks to AVAudioEngine or CoreAudio runs on the current session's queue,
+/// never on the main thread. These calls go through the system audio daemon, so they can
+/// block for a long time. Once, on a Mac whose audio daemon had got into a bad state,
+/// one of them never came back at all and took the whole app with it. Starting is therefore
+/// also given a deadline: see `startTimeout`. When that deadline passes the session is
+/// retired and a fresh one takes its place; `MicrophoneSession` explains why.
 final class AudioRecorder {
     static let sampleRate = 16_000.0
 
@@ -40,23 +96,21 @@ final class AudioRecorder {
 
     // MARK: - State
     //
-    // `engine` and the two "what was this engine built for" values are only ever read or
-    // written on `engineQueue`. `samples` and `isCapturing` are only ever touched under
-    // `samplesQueue`, because the audio tap appends from a real-time thread.
+    // Everything inside a session is only ever read or written on that session's own queue,
+    // apart from its retirement flag, which has its own lock. `samples` and `isCapturing`
+    // are only ever touched under `samplesQueue`, because the audio tap appends from a
+    // real-time thread.
 
-    private var engine: AVAudioEngine?
-    /// The microphone the user asked for when this engine was built, or nil if they have
-    /// no preference. If the answer changes, the engine has to be rebuilt.
-    private var engineWantedDevice: AudioDeviceID?
-    /// The system's default input when this engine was built, for the same reason.
-    private var engineSystemDefault: AudioDeviceID?
-    private var idleTeardown: DispatchWorkItem?
+    /// Guards the swap in `retire(_:because:)` only. The session's contents are still the
+    /// session queue's business.
+    private let sessionLock = NSLock()
+    private var session = MicrophoneSession(number: 1)
+    private var sessionsMade = 1
 
     private var samples: [Float] = []
     private var isCapturing = false
 
     private let samplesQueue = DispatchQueue(label: "com.dvir.nivi.audio")
-    private let engineQueue = DispatchQueue(label: "com.dvir.nivi.audio-engine", qos: .userInitiated)
 
     private let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false)!
@@ -68,28 +122,74 @@ final class AudioRecorder {
         NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
             guard let self else { return }
-            self.engineQueue.async {
+            let session = self.currentSession()
+            session.queue.async {
                 guard !self.capturing else { return }   // never pull the rug out mid-recording
-                self.discardEngine(because: "the audio route changed")
+                self.discardEngine(in: session, because: "the audio route changed")
             }
         }
+    }
+
+    private func currentSession() -> MicrophoneSession {
+        sessionLock.lock()
+        defer { sessionLock.unlock() }
+        return session
     }
 
     // MARK: - Recording
 
     /// Opens the microphone. Runs entirely off the main thread and gives up after
     /// `startTimeout`, so a wedged audio daemon fails one recording instead of the app.
+    ///
+    /// Giving up also retires the session, because the call it gave up on still owns that
+    /// session's queue and may hold it for many minutes. Without this the next recording
+    /// would queue behind it and fail too, and so would every one after that.
     func start() async throws {
         samplesQueue.sync {
             samples.removeAll()
             isCapturing = false
         }
-        try await withDeadline(Self.startTimeout,
-                               on: engineQueue,
-                               ifLate: AudioRecorderError.audioSystemTimedOut(Self.startTimeout)) {
-            [weak self] in
-            guard let self else { throw AudioRecorderError.noInputDevice }
-            try self.startOnEngineQueue()
+        let session = currentSession()
+        do {
+            try await withDeadline(Self.startTimeout,
+                                   on: session.queue,
+                                   ifLate: AudioRecorderError.audioSystemTimedOut(Self.startTimeout)) {
+                [weak self] in
+                guard let self else { throw AudioRecorderError.noInputDevice }
+                try self.startOnSessionQueue(session)
+            }
+        } catch let error as AudioRecorderError {
+            if case .audioSystemTimedOut(let seconds) = error {
+                retire(session, because: "it did not answer within \(Int(seconds)) seconds")
+            }
+            throw error
+        }
+    }
+
+    /// Gives up on a session for good and puts a fresh one in its place.
+    ///
+    /// The stuck call is left to finish on the old queue whenever the audio daemon lets it.
+    /// The teardown queued here runs behind it and closes whatever it opened. It cannot run
+    /// any sooner, and that is the whole reason the session had to be replaced rather than
+    /// repaired.
+    private func retire(_ stuck: MicrophoneSession, because reason: String) {
+        sessionLock.lock()
+        guard session === stuck else {       // something already replaced it
+            sessionLock.unlock()
+            return
+        }
+        stuck.retire()
+        sessionsMade += 1
+        session = MicrophoneSession(number: sessionsMade)
+        sessionLock.unlock()
+
+        Log.error("Audio engine abandoned: \(reason). The next recording builds a new one.")
+
+        stuck.queue.async {
+            guard let engine = stuck.engine else { return }
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+            stuck.engine = nil
         }
     }
 
@@ -99,7 +199,7 @@ final class AudioRecorder {
     /// until the next recording starts would hold the whole dictation in memory for as
     /// long as the app is idle, which is about 4 MB a minute of speech for no reason.
     ///
-    /// Stopping the hardware is left to `engineQueue`, so this returns straight away even
+    /// Stopping the hardware is left to the session queue, so this returns straight away even
     /// when CoreAudio is being slow.
     func stop() -> [Float] {
         let recorded = samplesQueue.sync { () -> [Float] in
@@ -127,23 +227,31 @@ final class AudioRecorder {
         stopHardwareInTheBackground()
     }
 
-    // MARK: - The engine (engineQueue only)
+    // MARK: - The engine (the session's own queue only)
 
-    private func startOnEngineQueue() throws {
-        dispatchPrecondition(condition: .onQueue(engineQueue))
-        idleTeardown?.cancel()
-        idleTeardown = nil
+    private func startOnSessionQueue(_ session: MicrophoneSession) throws {
+        dispatchPrecondition(condition: .onQueue(session.queue))
+        session.idleTeardown?.cancel()
+        session.idleTeardown = nil
 
         let started = Date()
-        let engine = readyEngine()
+        // Any of the next few calls can block for as long as the audio daemon wants. That
+        // is why `start()` puts a deadline on this whole function.
+        let engine = readyEngine(in: session)
         let input = engine.inputNode
         let inputFormat = input.inputFormat(forBus: 0)
+
+        // Asked again here because the calls above may have taken minutes, and the caller
+        // gave up after eight seconds and told the user the recording failed. Opening the
+        // microphone now would record with nobody listening and nothing left to stop it.
+        guard !session.isRetired else { throw AudioRecorderError.abandonedWhileStarting }
+
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
-            discardEngine(because: "the input node reported no usable format")
+            discardEngine(in: session, because: "the input node reported no usable format")
             throw AudioRecorderError.noInputDevice
         }
         guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-            discardEngine(because: "the input format cannot be converted to 16 kHz mono")
+            discardEngine(in: session, because: "the input format cannot be converted to 16 kHz mono")
             throw AudioRecorderError.noInputDevice
         }
 
@@ -157,7 +265,7 @@ final class AudioRecorder {
             try engine.start()
         } catch {
             samplesQueue.sync { isCapturing = false }
-            discardEngine(because: "the engine would not start")
+            discardEngine(in: session, because: "the engine would not start")
             throw error
         }
         Log.info("Recording input: \(Int(inputFormat.sampleRate)) Hz, \(inputFormat.channelCount) ch"
@@ -174,21 +282,21 @@ final class AudioRecorder {
     /// through the audio daemon for no gain. Reuse is safe as long as the engine is thrown
     /// away whenever the answer to "which microphone" changes, which is what the two
     /// stored device ids and the route-change notification are for.
-    private func readyEngine() -> AVAudioEngine {
-        dispatchPrecondition(condition: .onQueue(engineQueue))
+    private func readyEngine(in session: MicrophoneSession) -> AVAudioEngine {
+        dispatchPrecondition(condition: .onQueue(session.queue))
         let wanted = MicrophoneDevices.preferred()
         let systemDefault = MicrophoneDevices.systemDefault()?.audioDeviceID
 
-        if let engine, wanted?.audioDeviceID == engineWantedDevice,
-           systemDefault == engineSystemDefault {
+        if let engine = session.engine, wanted?.audioDeviceID == session.wantedDevice,
+           systemDefault == session.systemDefault {
             return engine
         }
-        discardEngine(because: "the microphone to record from changed")
+        discardEngine(in: session, because: "the microphone to record from changed")
 
         let engine = AVAudioEngine()
-        self.engine = engine
-        engineWantedDevice = wanted?.audioDeviceID
-        engineSystemDefault = systemDefault
+        session.engine = engine
+        session.wantedDevice = wanted?.audioDeviceID
+        session.systemDefault = systemDefault
         // Pick the microphone before asking the node anything about its format: the format
         // belongs to whichever device the node is bound to, and the binding cannot be
         // changed once the engine is running.
@@ -218,33 +326,38 @@ final class AudioRecorder {
     }
 
     private func stopHardwareInTheBackground() {
-        engineQueue.async { [weak self] in
-            guard let self, let engine = self.engine else { return }
+        let session = currentSession()
+        session.queue.async { [weak self] in
+            guard let self, let engine = session.engine else { return }
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
-            self.scheduleIdleTeardown()
+            self.scheduleIdleTeardown(in: session)
         }
     }
 
-    private func scheduleIdleTeardown() {
-        dispatchPrecondition(condition: .onQueue(engineQueue))
-        idleTeardown?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.discardEngine(because: "nothing has been recorded for a while")
+    private func scheduleIdleTeardown(in session: MicrophoneSession) {
+        dispatchPrecondition(condition: .onQueue(session.queue))
+        session.idleTeardown?.cancel()
+        // `session` is held weakly on purpose. The session owns this work item, so holding
+        // it back would be a cycle, and a retired session would keep its engine alive for
+        // the life of the app. A session nobody else wants can go; its engine goes with it.
+        let work = DispatchWorkItem { [weak self, weak session] in
+            guard let session else { return }
+            self?.discardEngine(in: session, because: "nothing has been recorded for a while")
         }
-        idleTeardown = work
-        engineQueue.asyncAfter(deadline: .now() + Self.idleTeardownDelay, execute: work)
+        session.idleTeardown = work
+        session.queue.asyncAfter(deadline: .now() + Self.idleTeardownDelay, execute: work)
     }
 
-    private func discardEngine(because reason: String) {
-        dispatchPrecondition(condition: .onQueue(engineQueue))
-        guard let engine else { return }
+    private func discardEngine(in session: MicrophoneSession, because reason: String) {
+        dispatchPrecondition(condition: .onQueue(session.queue))
+        guard let engine = session.engine else { return }
         Log.debug("Dropping the audio engine: \(reason)")
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        self.engine = nil
-        engineWantedDevice = nil
-        engineSystemDefault = nil
+        session.engine = nil
+        session.wantedDevice = nil
+        session.systemDefault = nil
     }
 
     private var capturing: Bool { samplesQueue.sync { isCapturing } }

@@ -10,6 +10,13 @@ import Foundation
 ///
 /// The work is not cancelled, because a blocked Mach call cannot be cancelled. A late
 /// result is simply thrown away, so `work` must be safe to leave running.
+///
+/// Note what this does **not** do: `queue` is still occupied by the stuck call after the
+/// caller has walked away, so anything else sent to that queue waits just as long. Giving up
+/// here keeps the caller moving; it does not free the queue. A caller that needs to try
+/// again must therefore hand the next attempt a different queue. `AudioRecorder` does that
+/// by retiring the whole `MicrophoneSession`, and the comment on that type explains what
+/// went wrong before it did.
 func withDeadline<T>(_ seconds: TimeInterval,
                      on queue: DispatchQueue,
                      ifLate lateError: Error,

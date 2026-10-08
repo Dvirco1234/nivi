@@ -160,6 +160,63 @@ Cutting 0.2.0 also finally tests the update path, which has never been proven.
 
 ## Open work and known issues
 
+**Transcription ran on the CPU from 24 to 25 September 2026.** Rebuilding
+whisper.cpp from the iCloud path broke the Metal shaders (see patch 0002 in
+[vendor/patches/](../vendor/patches/README.md)), so every pass ran on the CPU.
+Short clips went from about 0.7 s to about 2 s. Fixed, and `make vendor` now fails
+if it happens again.
+
+**The Preferences window buttons only responded along their top edge. Fixed
+2026-09-25.** Nivi used to move the close, minimise and zoom buttons down into the
+sidebar panel itself. AppKit still decided where the mouse counted as over them
+from its own position for them, 9 to 23 pt from the top, while they were drawn at
+21 to 35 pt, and the bottom 3 pt of each was outside the titlebar and took no
+clicks. An empty unified toolbar now makes the titlebar taller and AppKit places
+the buttons itself at 19 to 33 pt, where its hover area and hit area are too. The
+three Traffic lights sliders on the Layout tab are gone, because nothing reads
+them any more. **Not yet checked by eye:** a window that never becomes active does
+not draw its buttons, so the screenshot tool cannot show them.
+
+**Nivi crashed mid-dictation because of a bug in the vendored ggml. Fixed
+2026-09-24.** Two `SIGSEGV` crashes inside twenty minutes, both identical:
+
+    EXC_BAD_ACCESS (SIGSEGV)  KERN_INVALID_ADDRESS at 0x0000000000000020
+    ggml_backend_buft_get_alloc_size
+    ggml_gallocr_alloc_graph
+    ggml_backend_sched_alloc_graph
+    whisper_decode_internal
+    whisper_full
+
+`ggml_gallocr_node_needs_realloc` asked whether the **new** graph's tensor was a
+view, then indexed with a `buffer_id` saved from the **old** graph, where the
+allocator writes `-1` for views. A tensor that stopped being a view between two
+passes read `galloc->bufts[-1]`, got `NULL`, and read the fifth function pointer
+of the struct: offset `0x20`.
+
+Nivi provokes it because it asks one whisper context for two differently shaped
+graphs all day: streaming passes with timestamps and a growing `audio_ctx`, then
+a final pass with no timestamps and the model's full context. A harness that
+alternates the two crashed on the 12th simulated dictation and survived 40 after
+the fix. The fix is carried as a patch: see [vendor/patches/](../vendor/patches/).
+
+This is why the crashes started recently. The profile in daily use moved to a
+streaming mode on the large Hebrew model; plain `batch` never sets `audio_ctx`
+and never reshapes the graph.
+
+**`make vendor` silently copied no libraries at all, from 6 September to 24
+September.** `vendor/whisper.cpp/build` is a symlink to `build.nosync`, added to
+keep iCloud Drive off the build tree, and `find` does not follow symlinks. So the
+copy step matched nothing, said nothing, and exited 0. whisper.cpp was rebuilt
+every time and the app kept linking libraries built on 21 July. `make vendor` now
+uses `find -L` and fails loudly if the libraries are not there afterwards.
+
+**The build broke on its own on 16 September, with no change to Nivi.** A Command
+Line Tools update repointed `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`
+from the 26 series to `MacOSX27.0.sdk`. The bundled Swift toolchain targets
+macosx26 and has no `SwiftUIMacros` plugin, so every SwiftUI view failed with
+`plugin for module 'SwiftUIMacros' not found`. The Makefile now pins `SDKROOT` to
+the SDK matching the running system.
+
 **`batchFastFinish` has no accuracy baseline, and that blocks work on streaming.**
 The mode transcribes while you speak and only handles the leftover tail when you
 stop, so the wait at the end stays about the same however long you spoke. The trade
@@ -190,6 +247,28 @@ hardened-runtime re-sign and `Resources/Nivi.entitlements` have never executed.
 It costs $99 a year. It is the single biggest barrier to anyone else installing
 the app, because the current first-launch experience says the app is damaged.
 
+**A wedged CoreAudio call used to kill dictation until it recovered. Fixed
+2026-09-14.** On 14 September one `start()` blocked inside CoreAudio for 27
+minutes. The app's own log measured it: `audio start took 1658094 ms`. The
+recorder had one serial queue, and `withDeadline` frees the caller but not the
+queue, so the five recordings tried in the meantime never ran at all. Each waited
+its eight seconds behind a call that was going nowhere and reported a timeout it
+had done nothing to earn. They all completed at once when the audio daemon finally
+replied, at 3 ms, 2 ms, 1 ms, 79 ms and 76 ms.
+
+The trigger was outside Nivi. Its private aggregate device
+`CADefaultDeviceAggregate-71607-7` had degenerated to `Input:No | Output:No`, and
+`coreaudiod` stopped answering property queries about it. It only came unstuck
+when a Bluetooth device connected and forced a rebuild: `Device 189 died!`.
+
+`AudioRecorder` now groups the engine and its queue into a `MicrophoneSession` and
+retires the whole session when a start times out, so the next recording gets a
+queue of its own. A retired session checks before it opens the microphone, because
+the call it belongs to may return minutes after the user was told it failed. This
+has no core test: it is AVFoundation and dispatch, which a Foundation-only module
+cannot reach. It has not yet been seen to work against a real wedged daemon,
+because the wedge has never been reproduced on purpose.
+
 **The CoreAudio story is an explanation, not a proof.** The app hung on
 2026-09-06 and `coreaudiod` was at 68% CPU, dropping to 0% the moment Nivi was
 killed. What was proven: the main-thread block that made it fatal, and the churn
@@ -199,9 +278,28 @@ was **not** proven: that this churn is what drove `GetSubDevices` into an
 unbounded spin. Measured improvement over 40 record cycles: `coreaudiod` after
 went from 11.3% to 2.4%, worst main-thread stall from 183 ms to 46 ms.
 
-**The 45 second watchdog threshold has never fired in anger.** If some legitimate
-operation ever blocks the main thread that long, the app quits on its own. That
-is a judgement call, not a measurement.
+**The watchdog used to quit the app every time the Mac slept. Fixed 2026-09-14.**
+It fired twice in anger, and both times it was wrong. It measured with `Date()`,
+which is wall-clock time, and a sleeping Mac freezes the process while the wall
+clock keeps running. On the first tick after waking, a healthy app looked like one
+that had been stuck for the whole sleep:
+
+    nivi.log  2026-09-09T15:20:14Z ERROR Main thread has been stuck for 946s. Quitting
+    pmset     2026-09-09 18:20:15 +0300 DarkWake from Deep Idle
+
+Those are the same second. The five-second warning that a real stall produces
+first had never once been written to the log, which is the other half of the
+proof: the app went from healthy to 946 seconds in a single tick.
+
+The rule now lives in `Sources/NiviCore/StallWatch.swift` and is covered by core
+tests. Two guards have to agree before the app stops itself: elapsed time on
+`ProcessInfo.processInfo.systemUptime`, which stops while the Mac sleeps, and the
+number of readings the watch actually took, so one late tick is never enough. On
+this Mac `systemUptime` reads 450,846 s awake against 1,024,042 s of wall clock
+since boot, so the difference the fix depends on is real and large.
+
+Still a judgement call: whether 45 seconds is the right threshold for a genuine
+stall. That has never been measured.
 
 **The `'nope'` microphone error could not be reproduced.** The log showed
 `Could not select MacBook Pro Microphone (status 1852797029)`, which is
@@ -260,5 +358,10 @@ the app. Several need making noise or dictating, which agents must not do.
   seconds over a long session, CoreAudio is degrading again and there is now a
   number to point at.
 - `Main thread has not answered for Ns` is the early warning that used to be
-  completely invisible.
+  completely invisible. It has still never been seen. Until it is, a
+  `Main thread has been stuck` line should be treated as suspicious rather than
+  believed.
+- `Audio engine abandoned: ...` means a start timed out and the recorder threw the
+  whole session away. One line is a bad moment for the audio daemon. Several in a
+  session means something is wrong with it.
 - `Could not select <mic>` means the microphone binding is failing again.

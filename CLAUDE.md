@@ -42,6 +42,34 @@ with the stable `Nivi Self-Signed` identity, which `make cert` creates once.
 **Tests must pass.** `bash Tools/run-core-tests.sh` prints
 `ALL CORE CHECKS PASSED`. Run it before you commit.
 
+**`make vendor` is the only way to change whisper.cpp, and it used to lie.**
+`vendor/whisper.cpp/build` is a symlink to `build.nosync`, which keeps iCloud
+Drive off the build tree. Plain `find` does not follow symlinks, so the step that
+copies the built `.a` files into `vendor/lib/` matched nothing, printed nothing
+and exited 0. From 6 to 24 September 2026 every whisper.cpp rebuild was thrown
+away and the app kept linking libraries built on 21 July. It now uses `find -L`,
+prints what it copied, and fails if the libraries are missing. If you change
+anything under `vendor/`, check the timestamps on `vendor/lib/*.a` afterwards.
+
+**Fixes on top of whisper.cpp live in `vendor/patches/`**, not in the submodule.
+`make vendor` applies them and says so. The submodule will therefore always show
+as dirty in `git status`; that is correct. Read
+[vendor/patches/README.md](vendor/patches/README.md) before moving the pin.
+
+**The macOS SDK is pinned in the Makefile.** A Command Line Tools update on
+16 September 2026 repointed the default `MacOSX.sdk` at a newer SDK than the
+bundled Swift toolchain can use, and every SwiftUI view failed with
+`plugin for module 'SwiftUIMacros' not found`. Nothing in Nivi had changed.
+`Tools/pinned-sdk.sh` now picks the SDK matching the running system, and the
+Makefile and every script that calls `swiftc` itself use it. A new script that
+calls `swiftc` must do the same. If the build ever fails that way again, that
+script is the first thing to look at.
+
+**After `make vendor`, check that whisper still runs on the GPU.**
+`bash Tools/whisper-stress/run.sh` fails if it fell back to the CPU. A broken
+Metal build does not stop the app. It just makes every dictation about three
+times slower, and nothing in Nivi's own log says why.
+
 **Signing happens outside iCloud Drive, and it must stay that way.** This repo
 lives in iCloud Drive (see the layout note below). iCloud's file provider keeps
 stamping folders with a `com.apple.FinderInfo` extended attribute, and `codesign`

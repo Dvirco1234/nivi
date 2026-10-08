@@ -761,4 +761,63 @@ check((try? String(contentsOf: newSupport.appendingPathComponent("history.jsonl"
       "the current history is not replaced by the old one")
 try? FileManager.default.removeItem(at: migrationRoot)
 
+
+// --- StallWatch ---
+//
+// The regression this guards: before it existed the watchdog measured with `Date()`, so a
+// Mac that slept for 946 seconds looked exactly like a main thread that had been stuck for
+// 946 seconds, and the app quit itself on the first wake. It happened twice in September
+// 2026 and both times the log said `Main thread has been stuck for 946s. Quitting`.
+
+var stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+
+// A main thread that answers every tick is never reported.
+for second in 1...60 {
+    stall.mainThreadAnswered(at: TimeInterval(second))
+    check(stall.tick(at: TimeInterval(second)) == .nothingToReport, "an answering main thread stays healthy")
+}
+
+// A real stall: the ticks keep arriving and the answers stop.
+stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+stall.mainThreadAnswered(at: 0)
+var verdicts: [StallWatch.Verdict] = []
+for second in 1...45 { verdicts.append(stall.tick(at: TimeInterval(second))) }
+check(verdicts[3] == .nothingToReport, "four seconds of silence is not worth a line in the log")
+check(verdicts[4] == .warn(seconds: 5), "five seconds of silence warns")
+check(verdicts[5] == .nothingToReport, "the warning is written once, not once a second")
+check(verdicts[44] == .quit(seconds: 45), "forty-five seconds of silence quits")
+
+// Sleep. The clock the watch is given does not run while the Mac is asleep, so one tick
+// after a long sleep shows almost no time passing and the app stays alive.
+stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+stall.mainThreadAnswered(at: 100)
+check(stall.tick(at: 100.2) == .nothingToReport, "waking from a long sleep does not look like a stall")
+
+// The second guard, for a process that was frozen while the Mac stayed awake. Here the
+// clock did run, but the watch itself never got to tick, so it has not actually watched
+// anything for 45 seconds and must not quit on the strength of one reading.
+stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+stall.mainThreadAnswered(at: 0)
+check(stall.tick(at: 946) == .warn(seconds: 946),
+      "a single late tick may warn, because the number is worth having in the log")
+check(stall.tick(at: 947) != .quit(seconds: 947),
+      "but it must not quit until it has watched the main thread stay silent that long")
+
+// It still quits once it has genuinely watched the silence, however late it started.
+stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+stall.mainThreadAnswered(at: 0)
+var quitSecond: Int?
+for second in 1...60 {
+    if case .quit = stall.tick(at: TimeInterval(second)), quitSecond == nil { quitSecond = second }
+}
+check(quitSecond == 45, "a genuine stall is still caught at forty-five seconds")
+
+// An answer clears everything, so the next stall is judged on its own.
+stall = StallWatch(tickEvery: 1, warnAfter: 5, quitAfter: 45)
+stall.mainThreadAnswered(at: 0)
+for second in 1...10 { _ = stall.tick(at: TimeInterval(second)) }
+stall.mainThreadAnswered(at: 11)
+check(stall.tick(at: 12) == .nothingToReport, "an answer ends the stall")
+check(stall.tick(at: 17) == .warn(seconds: 6), "and the next stall warns again on its own")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

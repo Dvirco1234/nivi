@@ -1,0 +1,13 @@
+diff --git a/ggml/src/CMakeLists.txt b/ggml/src/CMakeLists.txt
+index 48df356..b49f28f 100644
+--- a/ggml/src/CMakeLists.txt
++++ b/ggml/src/CMakeLists.txt
+@@ -83,7 +83,7 @@ if (GGML_METAL)
+         add_custom_command(
+             OUTPUT ${METALLIB_EMBED_ASM}
+             COMMAND echo "Embedding Metal library"
+-            COMMAND sed -e '/\#include \"ggml-common.h\"/r ${METALLIB_COMMON}' -e '/\#include \"ggml-common.h\"/d' < ${METALLIB_SOURCE} > ${METALLIB_SOURCE_EMBED}
++            COMMAND sed -e "/ggml-common[.]h/r ${METALLIB_COMMON}" -e "/ggml-common[.]h/d" < ${METALLIB_SOURCE} > ${METALLIB_SOURCE_EMBED}
+             COMMAND echo ".section __DATA,__ggml_metallib"          >  ${METALLIB_EMBED_ASM}
+             COMMAND echo ".globl _ggml_metallib_start"              >> ${METALLIB_EMBED_ASM}
+             COMMAND echo "_ggml_metallib_start:"                    >> ${METALLIB_EMBED_ASM}

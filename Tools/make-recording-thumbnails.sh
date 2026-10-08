@@ -26,6 +26,8 @@
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# swiftc is called directly here, so it needs the same SDK pin as the Makefile.
+export SDKROOT="$(Tools/pinned-sdk.sh)"
 
 BUILD_DIR=.build/overlay-thumbnails
 APP="$BUILD_DIR/OverlayThumbnails.app"

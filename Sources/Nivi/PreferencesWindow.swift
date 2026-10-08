@@ -13,7 +13,7 @@ enum PreferencesWindow {
     private static var window: NSWindow?
     private static var store: ModelStore?
     private static var profileStore: ProfileStore?
-    private static var trafficLights: TrafficLightLayout?
+    private static var fullScreenCorners: FullScreenCorners?
     private static var tester: ModelTester?
     private static var fileTranscription: FileTranscriptionService?
 
@@ -25,10 +25,10 @@ enum PreferencesWindow {
         self.fileTranscription = fileTranscription
     }
 
-    /// Re-runs the AppKit button layout after a tuning change; SwiftUI redraws itself.
-    static func refreshTrafficLights() {
+    /// Re-applies the AppKit side of the window after a tuning change; SwiftUI redraws
+    /// itself.
+    static func refreshWindowChrome() {
         guard let window else { return }
-        trafficLights?.reposition(window)
         applyCornerRadius(to: window)
     }
 
@@ -46,6 +46,44 @@ enum PreferencesWindow {
         PreferencesWindowChrome.shared.cornerRadius = radius
     }
 
+    /// How the window frame looks and behaves. Kept apart from `show()` so the screenshot
+    /// tool can build a window with exactly the same chrome.
+    ///
+    /// The close, minimise and zoom buttons are placed by AppKit, not by Nivi. They sit
+    /// lower than a plain titlebar would put them because of the empty toolbar below:
+    /// a unified toolbar makes the titlebar taller, and AppKit centres the buttons in it,
+    /// which lands them inside the sidebar's rounded panel.
+    ///
+    /// Nivi used to pin the buttons there itself with constraints. They were drawn in the
+    /// right place, but AppKit decides where the mouse counts as "over the buttons" from
+    /// its own position for them, not from where they are drawn, and it clips clicks to
+    /// the 32 pt titlebar they had been pushed out of. Measured: the hover area was
+    /// 9 to 23 pt from the top while the buttons were drawn at 21 to 35 pt, and the bottom
+    /// 3 pt of each button did not take clicks at all. Hover and clicks only worked along
+    /// the top edge. Letting AppKit place the buttons keeps what is drawn and what is
+    /// clickable the same thing: 19 to 33 pt for both.
+    static func configureChrome(of win: NSWindow) {
+        win.title = "Nivi"
+        win.titleVisibility = .hidden            // tab is shown in the sidebar, not the titlebar
+        win.titlebarAppearsTransparent = true    // traffic lights float over the sidebar
+        let toolbar = NSToolbar(identifier: "preferences")
+        toolbar.allowsUserCustomization = false
+        win.toolbar = toolbar
+        win.toolbarStyle = .unified
+        win.titlebarSeparatorStyle = .none
+        win.isMovableByWindowBackground = true
+        win.isReleasedWhenClosed = false
+        win.minSize = NSSize(width: 760, height: 520)
+        win.maxSize = NSSize(width: 1600, height: 1200)
+        win.collectionBehavior.insert(.fullScreenPrimary)   // native green-button fullscreen
+        // The window is rounded to match the sidebar panel, which means drawing its own
+        // corners: a clear, non-opaque window plus a masked content layer. Nothing paints
+        // the window background any more, so SettingsView has to supply one: see the
+        // material behind its root view.
+        win.isOpaque = false
+        win.backgroundColor = .clear
+    }
+
     static func show() {
         UITuning.reload()
         if let window {
@@ -59,7 +97,6 @@ enum PreferencesWindow {
             }
             applyCornerRadius(to: window)
             window.makeKeyAndOrderFront(nil)
-            trafficLights?.reposition(window)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
@@ -68,114 +105,25 @@ enum PreferencesWindow {
             contentRect: NSRect(x: 0, y: 0, width: 880, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
-        win.title = "Nivi"
-        win.titleVisibility = .hidden            // tab is shown in the sidebar, not the titlebar
-        win.titlebarAppearsTransparent = true    // traffic lights float over the sidebar
-        win.isMovableByWindowBackground = true
-        win.isReleasedWhenClosed = false
-        win.minSize = NSSize(width: 760, height: 520)
-        win.maxSize = NSSize(width: 1600, height: 1200)
-        win.collectionBehavior.insert(.fullScreenPrimary)   // native green-button fullscreen
-        // The window is rounded to match the sidebar panel, which means drawing its own
-        // corners: a clear, non-opaque window plus a masked content layer. Nothing paints
-        // the window background any more, so SettingsView has to supply one — see the
-        // material behind its root view.
-        win.isOpaque = false
-        win.backgroundColor = .clear
+        configureChrome(of: win)
         win.center()
         win.contentView = NSHostingView(
             rootView: SettingsView(store: store, profileStore: profileStore,
                                    tester: tester, fileTranscription: fileTranscription))
         applyCornerRadius(to: win)
 
-        // Nudge the traffic lights down/right so they sit inside the inset sidebar panel.
-        let layout = TrafficLightLayout()
-        win.delegate = layout
-        trafficLights = layout
-        layout.install(in: win)
+        let corners = FullScreenCorners()
+        win.delegate = corners
+        fullScreenCorners = corners   // NSWindow holds its delegate weakly
 
         window = win
         win.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
 }
 
-/// Moves the standard window buttons into the sidebar's inset rounded panel and
-/// keeps them there.
-///
-/// AppKit owns these buttons and puts them back at their default spot every time the
-/// titlebar lays itself out, which happens whenever the window content changes —
-/// switching a tab in the sidebar is enough. Setting `frame` once therefore does not
-/// hold, and setting it again from a frame-change notification does not either: moving
-/// one button makes the titlebar lay out again straight away, which undoes the moves we
-/// just made to the other two. Measured on a tab switch, that fight ended with the close
-/// and miniaturise buttons in place and the zoom button left at the system position.
-///
-/// So the buttons are placed with constraints instead of frames. The titlebar's own
-/// layout pass then computes their position from those constraints rather than
-/// overwriting it, and there is nothing left to fight about.
-private final class TrafficLightLayout: NSObject, NSWindowDelegate {
-    // Panel inset (10) matches SettingsView's sidebar `.padding(10)`, plus an
-    // interior margin so the lights sit comfortably inside the rounded corner.
-    //
-    // Read when the constraints are built or refreshed rather than baked in, so the
-    // position can be nudged in the tuning file and seen by reopening the window —
-    // finding the pixel that looks right is guesswork that shouldn't need a rebuild
-    // each try.
-    private var x: CGFloat { UITuning.trafficLightX }
-    private var topMargin: CGFloat { UITuning.trafficLightTop }
-    private var pitch: CGFloat { UITuning.trafficLightPitch }
-    private var inFullScreen = false
-
-    private static let buttonTypes: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
-    /// One entry per button. The constraints are kept so the tuning sliders can move the
-    /// buttons by changing a constant, and so they can be torn down for fullscreen.
-    private var placements: [(button: NSButton, left: NSLayoutConstraint, top: NSLayoutConstraint)] = []
-
-    /// Pins the buttons to the top-left of the titlebar.
-    /// Safe to call again: the previous constraints are removed first. That matters after
-    /// leaving fullscreen, where the system hands the window a fresh titlebar view.
-    func install(in window: NSWindow) {
-        removeConstraints()
-        guard !inFullScreen else { return }   // system owns the buttons in fullscreen
-        let buttons = Self.buttonTypes.compactMap { window.standardWindowButton($0) }
-        guard buttons.count == 3, let titlebar = buttons.first?.superview else { return }
-        for (index, button) in buttons.enumerated() {
-            button.translatesAutoresizingMaskIntoConstraints = false
-            // Left, not leading: the traffic lights stay on the left even when the app is
-            // showing Hebrew and the interface flips to right-to-left.
-            let left = button.leftAnchor.constraint(
-                equalTo: titlebar.leftAnchor, constant: x + CGFloat(index) * pitch)
-            let top = button.topAnchor.constraint(equalTo: titlebar.topAnchor, constant: topMargin)
-            NSLayoutConstraint.activate([left, top])
-            placements.append((button, left, top))
-        }
-        titlebar.needsLayout = true
-    }
-
-    /// Applies the current tuning values. Builds the constraints first if they are missing,
-    /// so this doubles as "put them where they belong now".
-    func reposition(_ window: NSWindow) {
-        guard !inFullScreen else { return }
-        guard !placements.isEmpty else { return install(in: window) }
-        for (index, placement) in placements.enumerated() {
-            placement.left.constant = x + CGFloat(index) * pitch
-            placement.top.constant = topMargin
-        }
-        placements.first?.button.superview?.needsLayout = true
-    }
-
-    /// Hands the buttons back to AppKit, which needs their frames under its own control.
-    private func removeConstraints() {
-        for placement in placements {
-            NSLayoutConstraint.deactivate([placement.left, placement.top])
-            placement.button.translatesAutoresizingMaskIntoConstraints = true
-        }
-        placements.removeAll()
-    }
-
+/// Squares the window's corners in fullscreen and rounds them again afterwards.
+private final class FullScreenCorners: NSObject, NSWindowDelegate {
     func windowWillEnterFullScreen(_ notification: Notification) {
-        inFullScreen = true
-        removeConstraints()   // the system places the buttons itself in fullscreen
         // Squared off directly rather than via applyCornerRadius: the style mask does not
         // report .fullScreen yet at this point.
         if let win = notification.object as? NSWindow {
@@ -184,9 +132,7 @@ private final class TrafficLightLayout: NSObject, NSWindowDelegate {
         }
     }
     func windowDidExitFullScreen(_ notification: Notification) {
-        inFullScreen = false
         if let win = notification.object as? NSWindow {
-            install(in: win)
             PreferencesWindow.applyCornerRadius(to: win)
         }
     }

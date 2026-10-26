@@ -43,7 +43,7 @@ Follow these in order to understand one dictation end to end.
 |---|---|
 | [HotkeyRouter.swift](../Sources/Nivi/HotkeyRouter.swift) | Watches for the hotkey. One detector per modifier key. |
 | [DictationController.swift](../Sources/Nivi/DictationController.swift) | The state machine and the orchestrator. Start here for almost any change. |
-| [AudioRecorder.swift](../Sources/Nivi/AudioRecorder.swift) | Records 16 kHz mono samples. Keeps one engine between recordings. |
+| [AudioRecorder.swift](../Sources/Nivi/AudioRecorder.swift) | Records 16 kHz mono samples. Keeps one engine between recordings, and throws the whole `MicrophoneSession` away if a start gets stuck. |
 | [StreamingTranscriber.swift](../Sources/Nivi/StreamingTranscriber.swift) | Transcribes while you are still speaking. |
 | [WhisperCppRecognizer.swift](../Sources/Nivi/WhisperCppRecognizer.swift) | The whisper.cpp call itself. |
 | [RecognizerCache.swift](../Sources/Nivi/RecognizerCache.swift) | Holds a loaded model, and releases it when idle. |
@@ -79,7 +79,7 @@ The design system is the thing to read before adding any row or tab.
 | [PrefKit.swift](../Sources/Nivi/Preferences/PrefKit.swift) | `PrefPage`, `PrefGroup`, `PrefRow` and the typed rows. Every tab is built from these. |
 | [PrefTheme.swift](../Sources/Nivi/Preferences/PrefTheme.swift) | Colours and spacing tokens. |
 | [SettingsView.swift](../Sources/Nivi/Preferences/SettingsView.swift) | The sidebar, the tab list, and the window background. |
-| [PreferencesWindow.swift](../Sources/Nivi/PreferencesWindow.swift) | The window itself, and the traffic lights pinned into the sidebar. |
+| [PreferencesWindow.swift](../Sources/Nivi/PreferencesWindow.swift) | The window itself. An empty toolbar makes AppKit place the close, minimise and zoom buttons inside the sidebar; Nivi no longer moves them. |
 | [UITuning.swift](../Sources/Nivi/UITuning.swift) | Layout numbers, adjustable live from the Layout tab. |
 
 Tabs are in [Sources/Nivi/Preferences/](../Sources/Nivi/Preferences/), one file
@@ -122,12 +122,14 @@ Added after the app froze on 6 September. Read
 | [Tools/publish-release.sh](../Tools/publish-release.sh) | Uploads a release. Two steps, `feed` then `upload`, and the order matters. |
 | [docs/release-pipeline.md](release-pipeline.md) | How releasing works, and the one-time setup. |
 | [vendor/patches/](../vendor/patches/) | Fixes carried on top of whisper.cpp v1.7.2. `make vendor` applies them. Read the README before touching the pin. |
+| [Tools/whisper-stress/run.sh](../Tools/whisper-stress/run.sh) | Repeats the pattern that crashed whisper, on the GPU. Run it after `make vendor`. |
+| [Tools/pinned-sdk.sh](../Tools/pinned-sdk.sh) | Picks the macOS SDK. Anything that calls `swiftc` itself must use it. |
 
 Safe ways to look at the UI without driving the running app:
 
 | File | Job |
 |---|---|
-| [Tools/make-pref-shots.sh](../Tools/make-pref-shots.sh) | Renders real Preferences tabs in a throwaway app and photographs them. |
+| [Tools/make-pref-shots.sh](../Tools/make-pref-shots.sh) | Renders real Preferences tabs in a throwaway app and photographs them: `general`, `speech`, `layout`, `sidebar`, `history`, `files`. |
 | [Tools/make-recording-thumbnails.sh](../Tools/make-recording-thumbnails.sh) | Regenerates the Panel and Notch pictures shown in Preferences. |
 
 Use these instead of clicking. See the skill for why.

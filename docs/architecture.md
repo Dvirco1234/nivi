@@ -1,6 +1,6 @@
 # Architecture
 
-How the parts of Nivi fit together, as the code is today (2026-09-07).
+How the parts of Nivi fit together, as the code is today (2026-10-26).
 
 This describes what exists. The design notes under
 [superpowers/](superpowers/) describe what was planned, which is not always the
@@ -59,22 +59,31 @@ Global monitors can stop delivering after the machine sleeps, so
 ### 2. Recording
 
 `AudioRecorder` captures microphone input and converts it to 16 kHz mono
-`Float32`, which is what whisper.cpp wants. Two queues:
+`Float32`, which is what whisper.cpp wants. Two kinds of queue:
 
 - `samplesQueue` guards `samples` and `isCapturing`. The audio tap appends from a
   real-time thread, so nothing else may touch them directly.
-- `engineQueue` owns every `AVAudioEngine` and CoreAudio call.
+- Each `MicrophoneSession` owns one `AVAudioEngine` and the serial queue that
+  every `AVAudioEngine` and CoreAudio call for it runs on.
+
+There is normally one session for the life of the app. If `start()` hits its 8
+second deadline, the session is **retired** and a fresh one replaces it. The
+stuck call still owns the old queue, and a blocked Mach call cannot be cancelled,
+so sharing that queue would make every later recording wait behind it. That is
+exactly what happened on 2026-09-14, for 27 minutes. A retired session checks its
+mark before installing the tap, so a start that returns late never opens the
+microphone, and a teardown queued behind it closes the old engine.
 
 `currentSamples()` returns a snapshot of the growing buffer. That is what the
 streaming loop re-transcribes. `stop()` hands the buffer over and drops its own
 copy, then stops the hardware in the background so it returns immediately even
 when CoreAudio is slow.
 
-The engine is **kept between recordings** and rebuilt only when the answer to
-"which microphone" changes: a different preferred device, a different system
-default, or an `AVAudioEngineConfigurationChange`. It is dropped after 90 seconds
-idle. See [decisions.md](decisions.md) for why, and
-`AudioRecorder.readyEngine()` for how.
+Within a session, the engine is **kept between recordings** and rebuilt only
+when the answer to "which microphone" changes: a different preferred device, a
+different system default, or an `AVAudioEngineConfigurationChange`. It is dropped
+after 90 seconds idle. See [decisions.md](decisions.md) for why, and
+`AudioRecorder.readyEngine(in:)` for how.
 
 ### 3. Transcription
 
@@ -90,6 +99,19 @@ points:
 Only the segments entry point sets `audio_ctx`, because only the streaming loop
 transcribes a short slice. The final pass leaves it at whisper's default, which
 is the model's full context.
+
+So one whisper context is asked for two differently shaped graphs all day:
+streaming passes with timestamps and a growing `audio_ctx`, then a final pass
+with no timestamps and the full context. whisper.cpp v1.7.2 crashed on that
+alternation, in ggml's graph allocator, with `KERN_INVALID_ADDRESS at
+0x0000000000000020`. The fix is
+`vendor/patches/0001-ggml-alloc-guard-stale-buffer-id.patch`, and
+`Tools/whisper-stress/run.sh` repeats the alternation to prove it.
+
+Inference runs on the GPU through Metal. If the Metal shaders fail to build,
+whisper falls back to the CPU without telling Nivi, and every pass takes about
+three times longer. `make vendor` checks the shaders, and the stress tool refuses
+to pass on the CPU. See [../vendor/patches/README.md](../vendor/patches/README.md).
 
 `RecognizerCache` is an actor holding loaded models by id, least-recently-used
 first out. Capacity defaults to 1. `DictationController` releases everything
@@ -118,6 +140,30 @@ clipboard is restored afterwards. It must never gate pasting or the transient
 marker, because it returns false in Electron and web views even when typing works
 there, and that false negative already caused one bug. See
 [decisions.md](decisions.md).
+
+## Files, history and export
+
+`FileTranscriptionService` turns a dropped file into text without touching
+dictation. It decodes the file with AVFoundation, cuts it at quiet moments into
+parts (`AudioChunkPlanner`), and runs each part through the same
+`RecognizerCache` the dictation uses, stepping aside between parts whenever a
+dictation is running. The parts are joined (`ChunkedTranscription.join`) and
+split into paragraphs (`TranscriptParagraphs.format`), because whisper returns
+one endless line. A finished transcript goes to `HistoryStore` with
+`source == .file`; a stopped one does not.
+
+`HistoryStore` keeps everything in one JSON Lines file and in memory.
+`HistoryFiltering` (core) searches, filters by source and sorts. The History tab
+and the **Transcribed files** list on the Transcribe a file tab both read the same
+store and draw the same `HistoryEntryCard`.
+
+`TranscriptExporter` writes a transcript as `.txt`, `.docx`, `.rtf` or `.odt`
+through `NSAttributedString`, marking each paragraph's direction from its own
+letters (`TextDirection`, core). `SaveTranscriptMenu` is the one Save as menu,
+used on the result and on every file card.
+
+**Long text is shown with `LongSelectableText`**, a read-only `NSTextView`, never
+with SwiftUI's `.textSelection(.enabled)`. See the invariant below.
 
 ## The state machine
 
@@ -310,8 +356,21 @@ the final transcript disagrees with what was typed, the disagreement stays.
 
 **The recorder must never block the main thread.** CoreAudio calls go through the
 system audio daemon and can block with no upper bound. One of them once hung the
-app forever with no way to quit it. Everything goes through `engineQueue`, and
-`start()` has an 8 second deadline via `withDeadline`.
+app forever with no way to quit it. Everything goes through the current
+`MicrophoneSession`'s queue, and `start()` has an 8 second deadline via
+`withDeadline`.
+
+**A deadline frees the caller, not the queue.** Anything that retries after a
+`withDeadline` timeout must use a different queue, or it waits behind the stuck
+call. `AudioRecorder` does this by retiring the session.
+
+**Never put a transcript in SwiftUI's selectable `Text`.** On the first click,
+AppKit lays the whole string out as one line in its field editor, and past
+roughly 10,000 characters Core Text crashes the app (`CFRelease() called with
+NULL`). Use `LongSelectableText`.
+
+**whisper must run on Metal.** A CPU fallback is silent and about three times
+slower. After `make vendor`, run `bash Tools/whisper-stress/run.sh`.
 
 **`Sources/NiviCore/` imports Foundation only.** The test harness compiles it as
 one module. One `import AVFoundation` there breaks every test at once. See
@@ -326,7 +385,7 @@ differ.
 | Where | What runs there |
 |---|---|
 | Main actor | `DictationController`, `StreamingTranscriber`, `ModelTester`, all UI |
-| `engineQueue` | every `AVAudioEngine` and CoreAudio call in `AudioRecorder` |
+| the current `MicrophoneSession`'s queue | every `AVAudioEngine` and CoreAudio call in `AudioRecorder` |
 | `samplesQueue` | the sample buffer and `isCapturing`, written from the audio tap's real-time thread |
 | `com.dvir.nivi.whisper` | all inference and every `whisper_free` |
 | `RecognizerCache` actor | loading, eviction, the cache dictionary |
@@ -340,13 +399,16 @@ because the app runs as an accessory it never appeared in Force Quit.
 
 So: if work inside a main-actor type must not block the main thread, it needs an
 explicit queue or a `nonisolated` boundary. `AudioRecorder.start()` is `async`
-and hops to `engineQueue` internally, which is why the call site can stay simple.
+and hops to the session's queue internally, which is why the call site can stay simple.
 
 `MainThreadWatchdog` is the backstop. It pings the main queue every second, logs
-after 5 seconds of silence, and stops the process after 45. Quitting deliberately
-does not restore the output volume, because that is itself a CoreAudio call and
-CoreAudio is the usual suspect. `SystemVolume.restoreAfterCrash()` handles it at
-the next launch instead.
+after 5 seconds of silence, and stops the process after 45. The rule is
+`StallWatch` in core: time is measured on `systemUptime`, which stops while the
+Mac sleeps, and quitting also needs 45 readings actually taken. Measured with
+`Date()`, it used to quit a healthy app on the first tick after every sleep.
+Quitting deliberately does not restore the output volume, because that is itself a
+CoreAudio call and CoreAudio is the usual suspect.
+`SystemVolume.restoreAfterCrash()` handles it at the next launch instead.
 
 ## Settings
 
@@ -395,8 +457,8 @@ Run it with:
 bash Tools/run-core-tests.sh     # prints ALL CORE CHECKS PASSED
 ```
 
-`Tools/core-tests/main.swift` is one long script, currently about 760 lines. The
-whole framework is six lines at the top:
+`Tools/core-tests/main.swift` is one long script, currently about 870 lines and
+300 checks. The whole framework is six lines at the top:
 
 ```swift
 var failures = 0
@@ -416,7 +478,16 @@ neither may any core file.
 Things that need a real app, a microphone or a window cannot be tested here. That
 is deliberate: it is the reason as much logic as possible lives in core. For
 checking the UI, use the screenshot harnesses named in
-[../CLAUDE.md](../CLAUDE.md), never synthetic clicks.
+[../CLAUDE.md](../CLAUDE.md), never synthetic clicks. `Tools/make-pref-shots.sh`
+can draw `general`, `speech`, `layout`, `sidebar`, `history` and `files`; the
+last two read the real history file on the Mac, read only. It cannot show the
+window's close, minimise and zoom buttons, because a window that never becomes
+active does not draw them.
+
+Two checks live outside the core tests because they need more than Foundation:
+`bash Tools/whisper-stress/run.sh` needs a downloaded model and the GPU, and the
+throwaway harnesses described in [state-of-the-project.md](state-of-the-project.md)
+were how the September and October crashes were reproduced.
 
 For `UserDefaults`, make a throwaway suite rather than touching the real domain:
 

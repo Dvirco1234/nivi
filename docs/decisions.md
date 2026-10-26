@@ -92,7 +92,11 @@ change that in a way the build still succeeds through and only fails at runtime.
 A submodule records the exact commit; a setup script would drift.
 
 To move to a newer whisper.cpp, check out the tag inside `vendor/whisper.cpp`,
-commit the new submodule pointer, and re-test the encoder context path.
+commit the new submodule pointer, and re-test the encoder context path. Since
+2026-09-24 two more steps: check each patch in `vendor/patches/` against the new
+version and delete the ones upstream has fixed, and run
+`bash Tools/whisper-stress/run.sh`, which fails if whisper fell back to the CPU.
+See "whisper.cpp bugs are fixed with carried patches" below.
 
 ## Preferences does not use SwiftUI `Form`
 
@@ -128,6 +132,11 @@ The engine is now rebuilt only when the wanted microphone changes, the system
 default changes, or `AVAudioEngineConfigurationChange` fires, and it is dropped
 after 90 seconds idle so an idle app leaves nothing behind. That keeps the
 original protection without the churn.
+
+Revised 2026-09-14: the engine and the queue that owns it now live together in a
+`MicrophoneSession`, and a start that times out throws the whole session away.
+See "A timed-out start retires the whole microphone session" below. Reuse between
+normal recordings is unchanged.
 
 ## Microphone priority was kept, not deleted
 
@@ -268,3 +277,189 @@ line for every global keystroke and there would be no visible switch to stop it.
 **Escape hatch**, for running the release build day to day and still wanting the
 sliders: `defaults write com.dvir.nivi showDeveloperTabs -bool true`. Read once at
 launch, so it needs a restart.
+
+## The look: grey icon, a small panel with a moving glow, a notch-height bar
+
+2026-08-26. All three went back and forth before settling, mostly by the owner
+looking at a screenshot and saying what was wrong. Do not undo them by accident.
+
+**The app icon** is a grey tile with a white letter and a soft round highlight
+near the top. It replaced a blue tile with a yellow letter. The highlight is a
+real radial gradient that eases off, so it reads as a glow rather than a disc
+with an edge. The bars either side of the letter are a darker grey green, not
+white: at 16 points a white letter and white bars merged into one blob. The SVGs
+are the source of truth; `make icon` regenerates the PNGs and the `.icns`.
+
+**The recording panel** is deliberately small, 296x56pt, with rounder corners
+and a border at 6% white, half a point wide, so it only hints at an edge. A thin
+band of colour travels around the border while recording, so the panel looks
+alive during a pause instead of freezing whenever nobody speaks. Speaking only
+nudges the brightness, so a quiet voice gets the same motion as a loud one. The
+glow is clipped to the panel's own rounded shape; unclipped, its blur filled the
+window's square corners and the panel looked lopsided.
+
+**The notch bar** is exactly as tall as the camera notch, read from
+`NSScreen.safeAreaInsets.top`, and pinned to the notch's left edge rather than
+centred, because its two sides are different widths. It pretends to be part of
+the black plastic around the camera, so it shows one white language glyph and no
+colour logo, and the left side holds only that glyph while the right holds a 60
+point wave. On a display without a notch, the menu bar height stands in.
+
+## Reliability comes before accuracy work, while friends start using Nivi
+
+2026-09-14. The owner's call.
+
+[state-of-the-project.md](state-of-the-project.md) ranked the Hebrew fast-finish
+accuracy baseline first. That ranking suited one user. Once other people install
+the app, a crash or a dead microphone costs more than a slightly worse
+transcript, and the install experience (notarisation) matters more than either.
+So crashes, hangs and the release came first, and the baseline waits.
+
+## The watchdog only quits on silence it has watched
+
+2026-09-14. The rule is `StallWatch` in core, with tests.
+
+The watchdog measured with `Date()`. A sleeping Mac freezes the process while the
+wall clock keeps going, so the first tick after waking saw "946 seconds stuck"
+and quit a healthy app. Both self-quits in the log were this; one landed one
+second before a `DarkWake` in `pmset -g log`.
+
+Two guards now have to agree before the app stops itself. Time is measured on
+`ProcessInfo.processInfo.systemUptime`, which stops while the Mac sleeps. And
+the watch must have taken enough readings to have seen the silence for itself,
+so a process frozen for any other reason comes back with one late tick, which is
+not enough. Neither guard can hide a real stall: in a real stall the app runs,
+its timer fires and the awake clock moves.
+
+## A timed-out start retires the whole microphone session
+
+2026-09-14.
+
+On 14 September one start blocked inside CoreAudio for 27 minutes. `withDeadline`
+gave up after 8 seconds, but that frees the caller, not the queue: the stuck call
+still owned the recorder's only serial queue, so every later recording waited
+behind it and failed without running.
+
+A blocked Mach call cannot be cancelled, so the fix is to stop sharing. The
+engine and its queue are one `MicrophoneSession`. When a start times out, the
+session is marked retired and a fresh one takes its place, so the next recording
+gets a queue of its own. A teardown queued behind the stuck call closes whatever
+it opened, whenever it returns. The stuck call checks the retired mark before it
+opens the microphone, so a start that returns minutes late never records with
+nobody listening.
+
+Rejected: a longer deadline (it only moves the wait), and repairing the session
+in place (the queue cannot be freed while the call holds it).
+
+## whisper.cpp bugs are fixed with carried patches
+
+2026-09-24.
+
+Two whisper.cpp v1.7.2 bugs hurt Nivi: a crash in ggml's graph allocator that the
+streaming modes hit, and a Metal build step that breaks in a path with spaces.
+Moving the pin would bring a large, untested change into the core of the app to
+fix two small things. So the fixes live in `vendor/patches/`, `make vendor`
+applies them and says so, and running it twice is safe.
+
+The cost is that the submodule always shows as modified in `git status`. That is
+expected. If the list of patches grows past two or three, move the pin instead.
+Each patch, its evidence and its upstream status are in
+[../vendor/patches/README.md](../vendor/patches/README.md).
+
+## The macOS SDK is pinned to the running system
+
+2026-09-24, moved into one script 2026-09-25.
+
+A Command Line Tools update on 16 September repointed the default `MacOSX.sdk` at
+`MacOSX27.0.sdk`. The bundled Swift toolchain cannot use it, and every SwiftUI
+view failed with `plugin for module 'SwiftUIMacros' not found`, with no change in
+Nivi. `Tools/pinned-sdk.sh` picks the SDK that matches the running macOS, and the
+Makefile and every script that calls `swiftc` itself use it. Set `SDKROOT` to
+override.
+
+## AppKit places the Preferences window buttons
+
+2026-09-25. Replaces the tunable button position added on 2026-08-24.
+
+Nivi used to move the close, minimise and zoom buttons into the sidebar panel
+with constraints, at a position tunable from the Layout tab. They were drawn in
+the right place, but AppKit decides where the mouse counts as "over the buttons"
+from its own position for them, and clips clicks to the 32 point titlebar they
+had been pushed out of. Hover worked only on a 2 point strip and the bottom
+3 points of each button took no clicks.
+
+Now an empty `unified` toolbar makes the titlebar taller and AppKit places the
+buttons itself, where its hover and click areas match what is drawn: 19 to 33
+points from the top. The cost is that the buttons sit about 2 points higher and
+3 points further left than the old tuned position, and the Traffic lights
+sliders are gone. Do not bring back manual placement: whatever is drawn will
+disagree with what AppKit tracks.
+
+## Transcripts never go into SwiftUI's selectable `Text`
+
+2026-10-08.
+
+Clicking into `Text(...).textSelection(.enabled)` hands the whole string to
+AppKit's field editor, which lays it out as one line. Past roughly 10,000
+characters Core Text gives up and the app dies with
+`CFRelease() called with NULL`. Measured in a harness: 10,000 characters
+survived, 33,000 crashed. It crashed three times on a 67,248 character file
+transcript.
+
+Anything that can be long goes through `LongSelectableText`, a read-only
+`NSTextView`, which handled the full 67,248 characters. A collapsed history card
+that is long is not selectable at all; clicking it expands it. Short text, such
+as a single dictation, may still use SwiftUI's selectable text.
+
+## File transcripts are stored in paragraphs
+
+2026-10-08. `TranscriptParagraphs` in core, with tests.
+
+whisper returns one endless line, and a file transcript is many of those glued
+together. Paragraphs close at the first sentence end after 600 characters and are
+never longer than 2,000; a stretch with no sentence end is cut at a space.
+Paragraph breaks are a blank line, so Copy gives readable text and Save as gets
+real paragraphs. Formatting twice changes nothing.
+
+Dictations are not split. They are short, and a paragraph break typed into
+someone's message would be a surprise.
+
+## Save as uses macOS's own document writers
+
+2026-10-08.
+
+The formats are Text (`.txt`), Word (`.docx`), Rich Text (`.rtf`) and
+OpenDocument (`.odt`). `NSAttributedString` writes the three document formats, so
+there is no new library to vendor, sign and keep up to date. PDF was left out:
+`NSAttributedString` cannot write it, and Word can make one.
+
+The text file holds only the transcript, so it pastes cleanly anywhere. The
+document formats add a title (the file name) and one detail line with the date
+and the audio length. Every paragraph is marked right to left or left to right
+from its own letters, because Word otherwise lines Hebrew up on the left; the
+title block follows the direction of the whole document. The font is Arial,
+because the system font is saved under a private name Word does not know, and
+Arial is on every Mac and Windows machine and covers Hebrew.
+
+## File transcripts live in History and are shown in two places
+
+2026-10-08.
+
+There is one history file and one store. A file transcript is an entry with
+`source == .file`, so search, retention and delete work the same for it as for a
+dictation. It is shown twice: in History, headed by its file name and a document
+icon so it no longer looks like a dictation, and under **Transcribed files** on
+the Transcribe a file tab, where people look for it. Both use the same card,
+`HistoryEntryCard`.
+
+A transcript the user stopped part way is not saved to History. The result panel
+says so instead of claiming it was saved, which it used to.
+
+## The release clean check ignores edits inside the submodule
+
+2026-10-08.
+
+`make release` refuses to run on a dirty tree. With patches applied, the
+whisper.cpp submodule always has edits, so the release could never start.
+`check-clean` now passes `--ignore-submodules=dirty`. A change to which
+whisper.cpp commit the submodule points at still counts as dirty.

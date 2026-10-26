@@ -1,7 +1,8 @@
 # State of the project
 
-Written 2026-09-07. This is the catch-up document: what is built, what is
-released, what is known to be wrong, and what nobody has tested yet.
+Written 2026-09-07, last brought up to date 2026-10-26. This is the catch-up
+document: what is built, what is released, what is known to be wrong, and what
+nobody has tested yet.
 
 For what the app does, read [README.md](../README.md). For settled decisions,
 read [decisions.md](decisions.md).
@@ -78,6 +79,15 @@ Retention defaults to 30 days and is configurable, with a keep-forever option.
 Search, filter, delete one, delete all, and an off switch. The filtering and
 retention logic is pure and lives in core.
 
+Files and dictations share the one history file. Each entry carries a `source`
+(`dictation`, `file` or `modelTest`), and the tab has All, Dictation and Files
+chips. A file entry is headed by its file name and a document icon, so it does
+not look like a dictation, and it has a Save as menu next to Copy and Delete.
+
+Long entries are shown collapsed and are not selectable until expanded. Expanded,
+they use `LongSelectableText`, a read-only `NSTextView`. Never SwiftUI's
+`.textSelection(.enabled)` on a transcript: see "Fixed in 0.2.0" below.
+
 ### Transcribe File
 
 Drag an audio or video file in, or pick one, and get the text back. Decoding uses
@@ -86,6 +96,22 @@ and transcribed chunk by chunk with real progress and working cancellation. It
 refuses to start while a dictation is running, the same way `ModelTester` does,
 so it can never steal the microphone. Verified working on `.m4a`, `.wav` and
 `.mp4`. A 12.5 minute WAV ran as 3 chunks in 16 seconds.
+
+The transcript is split into paragraphs of at most 2,000 characters
+(`TranscriptParagraphs`), because whisper returns one endless line. A finished
+transcript is saved to History; one the user stopped part way is not.
+
+**Save as** writes Text (`.txt`), Word (`.docx`), Rich Text (`.rtf`) or
+OpenDocument (`.odt`), through `TranscriptExporter`. macOS's own
+`NSAttributedString` writes all three document formats, so there is no new
+library. Each paragraph is marked right to left or left to right from its own
+letters, and the font is Arial, which every Mac and Windows machine has and which
+covers Hebrew. A Word file of a 45 minute Hebrew transcript was checked through a
+Quick Look rendering: 105 of 107 paragraphs right to left and right aligned, the
+other two being the Latin file name and the English detail line.
+
+Below the result, **Transcribed files** lists every file transcript still in
+history, using the same card as the History tab.
 
 ### Word replacements
 
@@ -137,63 +163,19 @@ It is **self-signed and not notarised**. macOS blocks it on first launch and say
 the app "cannot be checked" or is "damaged". It is neither.
 [INSTALL.md](../INSTALL.md) walks through it.
 
-0.2.0 carries every fix described under "Open work and known issues" below, plus
+0.2.0 carries every fix described under "Fixed in 0.2.0" below, plus
 four from before them: dictations kept out of clipboard managers in Electron and
 web apps (`c16eb77`), starting a recording no longer able to freeze the app
 (`45251ec`), the main-thread watchdog (`4ae17de`), and signing outside iCloud
 Drive (`dc6b345`).
 
 **Self-update is still unproven.** 0.2.0 is the first version an older install
-can be offered. Nobody has yet watched a 0.1.0 copy notice it and install it.
+can be offered. See "Open work and known issues".
 
-## Open work and known issues
+## Fixed in 0.2.0
 
-**Clicking into a long transcript crashed the app. Fixed 2026-10-08.** Three crashes
-on 1 October, all the same:
-
-    CFRelease() called with NULL
-    __NSCoreTypesetterCreateBaseLineFromAttributedString
-    ...
-    SelectionTextField.Cell._selectOrEdit
-
-SwiftUI's `Text(...).textSelection(.enabled)` hands the whole string to AppKit's
-field editor on the first click, and the field editor lays it out as one line. A
-file transcript was saved as one line of 67,248 characters. Measured in a harness:
-10,000 characters survive, 33,000 crash. Long text now goes through
-`LongSelectableText`, a read-only `NSTextView`, which selected all 67,248
-characters without trouble. File transcripts are also split into paragraphs now
-(`TranscriptParagraphs`), so no paragraph is longer than 2,000 characters. A stray
-unclosed right-to-left mark in that transcript looked suspicious and turned out to
-be harmless.
-
-**Transcripts can be saved as Text, Word, Rich Text or OpenDocument.** Added
-2026-10-08. `TranscriptExporter` writes all four with `NSAttributedString`, so no
-new library. Each paragraph is marked right to left or left to right from its own
-letters, so Word lines Hebrew up on the right. Checked by rendering a Word file of
-the real 45 minute Hebrew transcript through Quick Look. Not yet opened in Word
-itself, which is not installed on this Mac.
-
-**File transcripts have their own list.** The Transcribe a file tab lists every
-file transcript still in history, and in History a file entry is headed by its file
-name with a document icon. Before, a file's name sat in the same grey tag a
-dictation uses for its app, so a file looked like any other entry.
-
-**Transcription ran on the CPU from 24 to 25 September 2026.** Rebuilding
-whisper.cpp from the iCloud path broke the Metal shaders (see patch 0002 in
-[vendor/patches/](../vendor/patches/README.md)), so every pass ran on the CPU.
-Short clips went from about 0.7 s to about 2 s. Fixed, and `make vendor` now fails
-if it happens again.
-
-**The Preferences window buttons only responded along their top edge. Fixed
-2026-09-25.** Nivi used to move the close, minimise and zoom buttons down into the
-sidebar panel itself. AppKit still decided where the mouse counted as over them
-from its own position for them, 9 to 23 pt from the top, while they were drawn at
-21 to 35 pt, and the bottom 3 pt of each was outside the titlebar and took no
-clicks. An empty unified toolbar now makes the titlebar taller and AppKit places
-the buttons itself at 19 to 33 pt, where its hover area and hit area are too. The
-three Traffic lights sliders on the Layout tab are gone, because nothing reads
-them any more. **Not yet checked by eye:** a window that never becomes active does
-not draw its buttons, so the screenshot tool cannot show them.
+Each of these was found from a log or a crash report, reproduced, and fixed. They are kept
+here, with the evidence, because several are easy to bring back.
 
 **Nivi crashed mid-dictation because of a bug in the vendored ggml. Fixed
 2026-09-24.** Two `SIGSEGV` crashes inside twenty minutes, both identical:
@@ -221,80 +203,23 @@ This is why the crashes started recently. The profile in daily use moved to a
 streaming mode on the large Hebrew model; plain `batch` never sets `audio_ctx`
 and never reshapes the graph.
 
-**`make vendor` silently copied no libraries at all, from 6 September to 24
-September.** `vendor/whisper.cpp/build` is a symlink to `build.nosync`, added to
-keep iCloud Drive off the build tree, and `find` does not follow symlinks. So the
-copy step matched nothing, said nothing, and exited 0. whisper.cpp was rebuilt
-every time and the app kept linking libraries built on 21 July. `make vendor` now
-uses `find -L` and fails loudly if the libraries are not there afterwards.
+**Clicking into a long transcript crashed the app. Fixed 2026-10-08.** Three crashes
+on 1 October, all the same:
 
-**The build broke on its own on 16 September, with no change to Nivi.** A Command
-Line Tools update repointed `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`
-from the 26 series to `MacOSX27.0.sdk`. The bundled Swift toolchain targets
-macosx26 and has no `SwiftUIMacros` plugin, so every SwiftUI view failed with
-`plugin for module 'SwiftUIMacros' not found`. The Makefile now pins `SDKROOT` to
-the SDK matching the running system.
+    CFRelease() called with NULL
+    __NSCoreTypesetterCreateBaseLineFromAttributedString
+    ...
+    SelectionTextField.Cell._selectOrEdit
 
-**`batchFastFinish` has no accuracy baseline, and that blocks work on streaming.**
-The mode transcribes while you speak and only handles the leftover tail when you
-stop, so the wait at the end stays about the same however long you spoke. The trade
-is accuracy: the model gets less context around each chunk boundary, and it never
-makes one pass over the whole recording. How much that costs in Hebrew has never
-been measured, and it is the judgement that decides whether the mode is worth
-keeping.
-
-This is an open issue and not just a missing test, because of what it blocks. There
-is no baseline to compare against, so nobody can say whether a later change to
-`StreamWindow`, the freeze rule, `audio_ctx` or the tail pass made Hebrew better or
-worse. Streaming work done before this is measured is done blind.
-
-What is needed: dictate the same few Hebrew passages twice, once with a profile set
-to `batch` and once with the same profile set to `batchFastFinish`. Write down the
-finish time and an honest read of the accuracy for each. Keep the passages so the
-comparison can be repeated after a change. A rough note is worth much more than
-nothing here. It does not need to be a formal benchmark.
-
-**Sparkle self-update has never been proven end to end.** The feed is well-formed
-and the EdDSA signature verifies independently, but no one has watched an app
-notice a new version and install it. That needs two real releases. This is the
-biggest untested piece of the pipeline.
-
-**Notarisation is written but never run.** `Tools/notarize.sh` exists and takes
-its skip path when Apple credentials are absent, which is always so far. The
-hardened-runtime re-sign and `Resources/Nivi.entitlements` have never executed.
-It costs $99 a year. It is the single biggest barrier to anyone else installing
-the app, because the current first-launch experience says the app is damaged.
-
-**A wedged CoreAudio call used to kill dictation until it recovered. Fixed
-2026-09-14.** On 14 September one `start()` blocked inside CoreAudio for 27
-minutes. The app's own log measured it: `audio start took 1658094 ms`. The
-recorder had one serial queue, and `withDeadline` frees the caller but not the
-queue, so the five recordings tried in the meantime never ran at all. Each waited
-its eight seconds behind a call that was going nowhere and reported a timeout it
-had done nothing to earn. They all completed at once when the audio daemon finally
-replied, at 3 ms, 2 ms, 1 ms, 79 ms and 76 ms.
-
-The trigger was outside Nivi. Its private aggregate device
-`CADefaultDeviceAggregate-71607-7` had degenerated to `Input:No | Output:No`, and
-`coreaudiod` stopped answering property queries about it. It only came unstuck
-when a Bluetooth device connected and forced a rebuild: `Device 189 died!`.
-
-`AudioRecorder` now groups the engine and its queue into a `MicrophoneSession` and
-retires the whole session when a start times out, so the next recording gets a
-queue of its own. A retired session checks before it opens the microphone, because
-the call it belongs to may return minutes after the user was told it failed. This
-has no core test: it is AVFoundation and dispatch, which a Foundation-only module
-cannot reach. It has not yet been seen to work against a real wedged daemon,
-because the wedge has never been reproduced on purpose.
-
-**The CoreAudio story is an explanation, not a proof.** The app hung on
-2026-09-06 and `coreaudiod` was at 68% CPU, dropping to 0% the moment Nivi was
-killed. What was proven: the main-thread block that made it fatal, and the churn
-that fed it (an `AVAudioEngine` built and destroyed per recording, 200 times in
-2000 log lines, each one making CoreAudio build a hidden aggregate device). What
-was **not** proven: that this churn is what drove `GetSubDevices` into an
-unbounded spin. Measured improvement over 40 record cycles: `coreaudiod` after
-went from 11.3% to 2.4%, worst main-thread stall from 183 ms to 46 ms.
+SwiftUI's `Text(...).textSelection(.enabled)` hands the whole string to AppKit's
+field editor on the first click, and the field editor lays it out as one line. A
+file transcript was saved as one line of 67,248 characters. Measured in a harness:
+10,000 characters survive, 33,000 crash. Long text now goes through
+`LongSelectableText`, a read-only `NSTextView`, which selected all 67,248
+characters without trouble. File transcripts are also split into paragraphs now
+(`TranscriptParagraphs`), so no paragraph is longer than 2,000 characters. A stray
+unclosed right-to-left mark in that transcript looked suspicious and turned out to
+be harmless.
 
 **The watchdog used to quit the app every time the Mac slept. Fixed 2026-09-14.**
 It fired twice in anger, and both times it was wrong. It measured with `Date()`,
@@ -319,6 +244,102 @@ since boot, so the difference the fix depends on is real and large.
 Still a judgement call: whether 45 seconds is the right threshold for a genuine
 stall. That has never been measured.
 
+**A wedged CoreAudio call used to kill dictation until it recovered. Fixed
+2026-09-14.** On 14 September one `start()` blocked inside CoreAudio for 27
+minutes. The app's own log measured it: `audio start took 1658094 ms`. The
+recorder had one serial queue, and `withDeadline` frees the caller but not the
+queue, so the five recordings tried in the meantime never ran at all. Each waited
+its eight seconds behind a call that was going nowhere and reported a timeout it
+had done nothing to earn. They all completed at once when the audio daemon finally
+replied, at 3 ms, 2 ms, 1 ms, 79 ms and 76 ms.
+
+The trigger was outside Nivi. Its private aggregate device
+`CADefaultDeviceAggregate-71607-7` had degenerated to `Input:No | Output:No`, and
+`coreaudiod` stopped answering property queries about it. It only came unstuck
+when a Bluetooth device connected and forced a rebuild: `Device 189 died!`.
+
+`AudioRecorder` now groups the engine and its queue into a `MicrophoneSession` and
+retires the whole session when a start times out, so the next recording gets a
+queue of its own. A retired session checks before it opens the microphone, because
+the call it belongs to may return minutes after the user was told it failed. This
+has no core test: it is AVFoundation and dispatch, which a Foundation-only module
+cannot reach. It has not yet been seen to work against a real wedged daemon,
+because the wedge has never been reproduced on purpose.
+
+**The Preferences window buttons only responded along their top edge. Fixed
+2026-09-25.** Nivi used to move the close, minimise and zoom buttons down into the
+sidebar panel itself. AppKit still decided where the mouse counted as over them
+from its own position for them, 9 to 23 pt from the top, while they were drawn at
+21 to 35 pt, and the bottom 3 pt of each was outside the titlebar and took no
+clicks. An empty unified toolbar now makes the titlebar taller and AppKit places
+the buttons itself at 19 to 33 pt, where its hover area and hit area are too. The
+three Traffic lights sliders on the Layout tab are gone, because nothing reads
+them any more. **Not yet checked by eye:** a window that never becomes active does
+not draw its buttons, so the screenshot tool cannot show them.
+
+**Transcription ran on the CPU from 24 to 25 September 2026.** This never reached
+a release; it is here because the cause is easy to repeat. Rebuilding whisper.cpp
+from the iCloud path broke the Metal shaders (see patch 0002 in
+[vendor/patches/](../vendor/patches/README.md)), so every pass ran on the CPU.
+Short clips went from about 0.7 s to about 2 s. Fixed, and `make vendor` now fails
+if it happens again.
+
+**`make vendor` silently copied no libraries at all, from 6 September to 24
+September.** `vendor/whisper.cpp/build` is a symlink to `build.nosync`, added to
+keep iCloud Drive off the build tree, and `find` does not follow symlinks. So the
+copy step matched nothing, said nothing, and exited 0. whisper.cpp was rebuilt
+every time and the app kept linking libraries built on 21 July. `make vendor` now
+uses `find -L` and fails loudly if the libraries are not there afterwards.
+
+**The build broke on its own on 16 September, with no change to Nivi.** A Command
+Line Tools update repointed `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`
+from the 26 series to `MacOSX27.0.sdk`. The bundled Swift toolchain targets
+macosx26 and has no `SwiftUIMacros` plugin, so every SwiftUI view failed with
+`plugin for module 'SwiftUIMacros' not found`. The Makefile now pins `SDKROOT` to
+the SDK matching the running system.
+
+## Open work and known issues
+
+**`batchFastFinish` has no accuracy baseline, and that blocks work on streaming.**
+The mode transcribes while you speak and only handles the leftover tail when you
+stop, so the wait at the end stays about the same however long you spoke. The trade
+is accuracy: the model gets less context around each chunk boundary, and it never
+makes one pass over the whole recording. How much that costs in Hebrew has never
+been measured, and it is the judgement that decides whether the mode is worth
+keeping.
+
+This is an open issue and not just a missing test, because of what it blocks. There
+is no baseline to compare against, so nobody can say whether a later change to
+`StreamWindow`, the freeze rule, `audio_ctx` or the tail pass made Hebrew better or
+worse. Streaming work done before this is measured is done blind.
+
+What is needed: dictate the same few Hebrew passages twice, once with a profile set
+to `batch` and once with the same profile set to `batchFastFinish`. Write down the
+finish time and an honest read of the accuracy for each. Keep the passages so the
+comparison can be repeated after a change. A rough note is worth much more than
+nothing here. It does not need to be a formal benchmark.
+
+**Sparkle self-update has never been proven end to end.** The feed is well-formed
+and the EdDSA signature verifies independently. Since 2026-10-08 the live feed
+lists 0.2.0 above 0.1.0, so a 0.1.0 install should be offered the update at its
+next daily check, or at once from "Check for updates". Nobody has watched that
+happen yet. Until someone does, every later fix rests on an unproven delivery path.
+
+**Notarisation is written but never run.** `Tools/notarize.sh` exists and takes
+its skip path when Apple credentials are absent, which is always so far. The
+hardened-runtime re-sign and `Resources/Nivi.entitlements` have never executed.
+It costs $99 a year. It is the single biggest barrier to anyone else installing
+the app, because the current first-launch experience says the app is damaged.
+
+**The CoreAudio story is an explanation, not a proof.** The app hung on
+2026-09-06 and `coreaudiod` was at 68% CPU, dropping to 0% the moment Nivi was
+killed. What was proven: the main-thread block that made it fatal, and the churn
+that fed it (an `AVAudioEngine` built and destroyed per recording, 200 times in
+2000 log lines, each one making CoreAudio build a hidden aggregate device). What
+was **not** proven: that this churn is what drove `GetSubDevices` into an
+unbounded spin. Measured improvement over 40 record cycles: `coreaudiod` after
+went from 11.3% to 2.4%, worst main-thread stall from 183 ms to 46 ms.
+
 **The `'nope'` microphone error could not be reproduced.** The log showed
 `Could not select MacBook Pro Microphone (status 1852797029)`, which is
 `kAudioHardwareIllegalOperationError`. It needs the hardware state the user was
@@ -326,6 +347,15 @@ in at the time, with a Logitech MeetUp and an iPhone microphone present and then
 dropping out. The binding is now rarer and harmless when it fails. If those lines
 come back, the agreed fallback is a single "preferred microphone" picker instead
 of the ordered list.
+
+**The `'nope'` lines did come back.** The decision log names a fallback for
+exactly this: replace the ordered microphone list with a single "preferred
+microphone" picker. The log shows the line on 2026-09-14 at 19:15 UTC, 11 minutes
+before the 27 minute CoreAudio wedge. The unified log also shows the same error,
+`Error setting device on iounit, err = 1852797029`, in the very start that wedged,
+3 ms before the recorder's thread went silent for 27 minutes. That is a
+correlation, not a proof that binding the device causes the wedge. It has not been
+acted on. It is the first thing to try if the wedge returns.
 
 **Light mode has never been reviewed.** The whole Preferences redesign was built
 and checked in dark mode only. The colours are semantic, so it should follow, but
@@ -350,6 +380,16 @@ which is not installed on this Mac.
 primary use case. See [parakeet/](parakeet/). The catalogue entries exist but
 `isRunnable` is false and no engine was written.
 
+**Two things from 0.2.0 have not been seen working by a person.** The Preferences
+window buttons were measured, not looked at: a window that never becomes active
+does not draw them, so the screenshot tool cannot show them. And a Word file has
+been checked through Quick Look, not opened in Word, which is not installed on
+this Mac. Both are in the list below.
+
+**The one file transcript saved before 0.2.0 is still a single line.** It is
+67,248 characters and displays safely now, but Copy gives one long line. Save as
+splits it into paragraphs. New transcripts are stored in paragraphs.
+
 ## What the owner has not tested yet
 
 These all work as far as the code goes, but nobody has confirmed them by using
@@ -367,6 +407,12 @@ the app. Several need making noise or dictating, which agents must not do.
   the replacement lands.
 - **Microphone priority failover**: drag a microphone to the top, dictate, check
   the log says `Recording from <name>`, then disconnect it and dictate again.
+- **Self-update from 0.1.0 to 0.2.0.** Use "Check for updates" on a 0.1.0
+  install. Permissions should survive, because both are signed `Nivi Self-Signed`.
+- **The Preferences window buttons**: hover shows the symbols, a click anywhere on
+  a button works, and the top of each page looks as it did before the toolbar.
+- **Save as Word**: open the `.docx` in Word itself, and check Hebrew sits on the
+  right.
 
 ## What to watch in the log
 
@@ -383,3 +429,8 @@ the app. Several need making noise or dictating, which agents must not do.
   whole session away. One line is a bad moment for the audio daemon. Several in a
   session means something is wrong with it.
 - `Could not select <mic>` means the microphone binding is failing again.
+- `Saved transcript as <ext>: <name>` and `Could not save transcript: ...` are
+  the Save as menu. A failed save also tells the user in a dialog.
+- Nivi's own log cannot show whisper running on the CPU instead of the GPU. If
+  transcription suddenly takes about three times longer, run
+  `bash Tools/whisper-stress/run.sh`. See [vendor/patches/](../vendor/patches/README.md).

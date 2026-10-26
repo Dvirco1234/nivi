@@ -3,12 +3,15 @@
 One command:
 
 ```
-make release VERSION=0.2.0
+make release VERSION=0.3.0
 ```
 
 That does all of this, in order:
 
-1. Refuses to run if the working tree is dirty or the tag already exists.
+1. Refuses to run if the working tree is dirty or the tag already exists. Edits
+   inside the whisper.cpp submodule do not count, because `make vendor` applies
+   the patches in `vendor/patches/` there on purpose. A changed submodule commit
+   does count.
 2. Writes the new version into `version.mk` and bumps the build counter.
 3. Builds the release binary and assembles the signed `.app`.
 4. Packs `dist/Nivi-<version>.dmg`.
@@ -17,6 +20,20 @@ That does all of this, in order:
 7. Uploads the DMG as a GitHub Release asset, and writes the new
    `docs/appcast.xml` and `docs/index.html`.
 8. Commits, tags `v<version>`, and pushes both.
+
+Before releasing, run both checks. The release does not run them for you:
+
+```
+bash Tools/run-core-tests.sh
+bash Tools/whisper-stress/run.sh
+```
+
+The second one matters because a release built against broken Metal shaders
+still builds, signs and ships. It just transcribes on the CPU, about three times
+slower, and nothing tells the user why. It happened on a local build on
+24 September 2026; see [../vendor/patches/README.md](../vendor/patches/README.md).
+0.2.0 was checked from the outside after release: the binary inside the DMG
+contains the complete shader source.
 
 To build a release without publishing anything, run `make dist`. Nothing in it
 touches git or the network except the notarizing step.

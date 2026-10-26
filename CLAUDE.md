@@ -70,6 +70,18 @@ script is the first thing to look at.
 Metal build does not stop the app. It just makes every dictation about three
 times slower, and nothing in Nivi's own log says why.
 
+**Delete iCloud's "name 2" copies before you build.** When iCloud Drive meets
+two versions of a file it keeps both and names one `StallWatch 2.swift`. A copy
+like that inside `Sources/` is compiled along with the original, and the
+duplicate type breaks the core tests and the build. On 2026-10-26 one sat in
+`Sources/NiviCore/`, byte for byte identical to the real file. Check with:
+
+```sh
+find Sources Tools -name "* [0-9].*"
+```
+
+Compare before deleting: if the copy differs, it may hold the newer work.
+
 **Signing happens outside iCloud Drive, and it must stay that way.** This repo
 lives in iCloud Drive (see the layout note below). iCloud's file provider keeps
 stamping folders with a `com.apple.FinderInfo` extended attribute, and `codesign`
@@ -123,7 +135,8 @@ permissions problem.
 | `Sources/CWhisper/` | A small shim over the vendored whisper.cpp static libraries |
 | `Tools/` | Build scripts, the test harness, and the screenshot harnesses |
 | `docs/` | Design specs, research notes, and the two docs named above |
-| `vendor/whisper.cpp` | Git submodule, pinned to v1.7.2. `make vendor` builds it |
+| `vendor/whisper.cpp` | Git submodule, pinned to v1.7.2. `make vendor` patches and builds it |
+| `vendor/patches/` | The fixes carried on top of whisper.cpp, with the evidence for each |
 
 **The directory is still named `dictato`, and the app is Nivi.** The rename in
 August 2026 changed the app, the bundle id and the GitHub repo, but not the

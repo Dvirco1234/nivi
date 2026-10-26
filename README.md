@@ -30,7 +30,9 @@ the small English one about 400 MB.
   of waiting for the end.
 - **Fast finish.** When you stop, Nivi only transcribes the part it has not
   already done, so the wait at the end is short even after a long stretch.
-- **Transcribe a file.** Drop in an audio or video file and get the text back.
+- **Transcribe a file.** Drop in an audio or video file and get the text back,
+  in paragraphs. Save it as a text, Word, Rich Text or OpenDocument file, with
+  Hebrew set right to left. Past files are listed on the same tab.
 - **Local history.** Every dictation is kept on your Mac so you can find and
   copy something you said earlier. You choose how long it is kept.
 - **Word replacements.** Names and terms the model keeps getting wrong can be
@@ -97,11 +99,17 @@ for you too.
 
 **3. Build whisper.cpp.** This compiles the static libraries the app links
 against, with Metal support. It takes a few minutes and only has to be done
-once.
+once. It also applies the small fixes Nivi carries on top of whisper.cpp (see
+[vendor/patches/](vendor/patches/README.md)) and stops with an error if the GPU
+code did not build.
 
 ```sh
 make vendor
+bash Tools/whisper-stress/run.sh   # optional: proves whisper runs on the GPU
 ```
+
+The stress check needs a model, so it only works once you have downloaded one
+from Preferences.
 
 **4. Create a signing identity.** One time, and it matters more than it looks.
 
@@ -147,13 +155,14 @@ never needs the network again.
 They run without full Xcode:
 
 ```sh
-bash Tools/run-core-tests.sh   # prints ALL CORE CHECKS PASSED
+bash Tools/run-core-tests.sh       # prints ALL CORE CHECKS PASSED
+bash Tools/whisper-stress/run.sh   # needs a model; prints WHISPER GRAPH STRESS PASSED (on Metal)
 ```
 
 ### Releasing
 
 ```sh
-make release VERSION=0.2.0
+make release VERSION=0.3.0
 ```
 
 One command: builds the app, packs the DMG, signs and updates the Sparkle feed,

@@ -126,9 +126,9 @@ every one of those files into a page, and could fail on one of them.
 
 ## Which GitHub account uploads
 
-`gh` may not be logged in to the account that owns this
-repo. So `Tools/publish-release.sh` looks for a token in the login
-keychain first, and only falls back to `gh`'s own login:
+`Tools/publish-release.sh` looks for a token in the login keychain first, so the
+upload always goes to the account that owns this repo. It only falls back to
+`gh`'s own login when no token is stored:
 
 ```
 security find-generic-password -a nivi-release -s nivi-gh-token -w

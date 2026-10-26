@@ -25,9 +25,8 @@ STEP="${1:-all}"
 
 # The GitHub API token.
 #
-# `gh` may not be logged in to the account that owns this repo,
-# and it would then upload to the wrong place or just fail. So a token stored in the
-# login keychain wins over whatever `gh` is logged in as. Store it once with:
+# A token stored in the login keychain wins over whatever `gh` is logged in as, so
+# the upload always goes to the account that owns this repo. Store it once with:
 #
 #   security add-generic-password -a nivi-release -s nivi-gh-token -w <token>
 #

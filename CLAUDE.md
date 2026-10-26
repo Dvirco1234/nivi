@@ -142,12 +142,9 @@ permissions problem.
 August 2026 changed the app, the bundle id and the GitHub repo, but not the
 folder on disk. The remote is `Dvirco1234/nivi`. You are in the right repo.
 
-**`~/personal` is a symlink** to
-`~/personal`. So
-this repo shows up at two paths that are the same directory:
-
-    /Users/dvir/personal/dictato
-    ~/personal/dictato
+**`~/personal` is a symlink** to a folder in iCloud Drive. So this repo shows
+up at two paths: `~/personal/dictato`, and the same folder under
+`~/Library/Mobile Documents/com~apple~CloudDocs/`. They are the same directory.
 
 There is one checkout, not two. Do not try to reconcile them.
 

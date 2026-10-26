@@ -99,6 +99,12 @@ over plain HTTPS with no login, and a public repo answers both.
 | `index.html` (the download page) | `docs/index.html`, committed on `main` | GitHub Pages |
 | `Nivi-<version>.dmg` | this repo, Releases | GitHub Releases |
 
+**`docs/index.html` and `docs/appcast.xml` are generated. Never edit them by
+hand.** Every `make release` rewrites both: the page from
+`Tools/make-download-page.sh`, the feed from Sparkle's tool. A hand edit to the
+page is lost at the next release; a hand edit to the feed can stop every
+installed copy from updating. To change the website, change the script.
+
 GitHub Pages is set to serve the `docs` folder, and Pages treats that folder as
 the site root. So the two addresses are:
 

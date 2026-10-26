@@ -56,6 +56,12 @@ SPARKLE_BIN := .build/artifacts/sparkle/Sparkle/bin
 # vendor/whisper.cpp and commit the new submodule pointer.
 VENDOR := vendor/whisper.cpp
 
+# whisper.cpp's asserts embed each source file's full path in the app binary, and
+# that path names this Mac's folders. Mapping it to "whisper.cpp/" keeps the
+# shipped app free of local paths. The quotes are part of the value because the
+# real path has a space in it ("Mobile Documents").
+VENDOR_PATH_FLAG := "-ffile-prefix-map=$(realpath $(VENDOR))/=whisper.cpp/"
+
 # Stable self-signed identity keeps TCC grants (Accessibility, Input Monitoring,
 # Microphone) across rebuilds. macOS keys those grants to the signing identity, so
 # ad-hoc signing ("-") mints a new identity every build and silently revokes them —
@@ -99,6 +105,9 @@ vendor:
 	done
 	cmake -S $(VENDOR) -B $(VENDOR)/build \
 		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_C_FLAGS='$(VENDOR_PATH_FLAG)' \
+		-DCMAKE_CXX_FLAGS='$(VENDOR_PATH_FLAG)' \
+		-DCMAKE_OBJC_FLAGS='$(VENDOR_PATH_FLAG)' \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DGGML_METAL=ON \
 		-DGGML_METAL_EMBED_LIBRARY=ON \
@@ -132,6 +141,12 @@ build:
 
 release-build:
 	swift build -c release
+	@# The linker leaves debug entries that hold the full path of every source and
+	@# object file, which names this Mac's folders. Shipped apps must not carry them.
+	strip -S .build/release/$(APP_NAME)
+	@if LC_ALL=C grep -a -q -F "$$(pwd -P)" .build/release/$(APP_NAME); then \
+		echo "release-build: $(APP_NAME) still holds the local path $$(pwd -P)"; exit 1; \
+	fi
 
 test:
 	swift test

@@ -366,9 +366,9 @@ expected. If the list of patches grows past two or three, move the pin instead.
 Each patch, its evidence and its upstream status are in
 [../vendor/patches/README.md](../vendor/patches/README.md).
 
-## The macOS SDK is pinned to the running system
+## The macOS SDK is the newest one the toolchain can compile SwiftUI with
 
-2026-09-24, moved into one script 2026-09-25.
+2026-09-24, moved into one script 2026-09-25, rule changed 2026-10-26.
 
 A Command Line Tools update on 16 September repointed the default `MacOSX.sdk` at
 `MacOSX27.0.sdk`. The bundled Swift toolchain cannot use it, and every SwiftUI
@@ -376,6 +376,13 @@ view failed with `plugin for module 'SwiftUIMacros' not found`, with no change i
 Nivi. `Tools/pinned-sdk.sh` picks the SDK that matches the running macOS, and the
 Makefile and every script that calls `swiftc` itself use it. Set `SDKROOT` to
 override.
+
+On 26 October this Mac moved to macOS 27. The "match the running macOS" rule then
+chose `MacOSX27.sdk`, the same SDK the toolchain cannot use, and the build broke the
+same way. So the script stopped guessing from version numbers. It now compiles a
+one-line SwiftUI view against each installed SDK, newest first, and keeps the first
+that works. The answer is cached in `.build/pinned-sdk` until the toolchain or the
+list of SDKs changes. The first run takes about a minute; later runs are instant.
 
 ## AppKit places the Preferences window buttons
 

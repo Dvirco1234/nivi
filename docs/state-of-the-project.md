@@ -1,6 +1,6 @@
 # State of the project
 
-Written 2026-09-07, last brought up to date 2026-10-26. This is the catch-up
+Written 2026-09-07, last brought up to date 2026-10-28. This is the catch-up
 document: what is built, what is released, what is known to be wrong, and what
 nobody has tested yet.
 
@@ -150,14 +150,23 @@ asks before installing. The feed is a committed file served by GitHub Pages.
 
 ## What is released
 
-Version 0.2.0, build 3, published 2026-10-08. The previous one was 0.1.0, build 2,
-published 2026-09-02.
+Version 0.2.1, build 4, published 2026-10-28. It is a maintenance release with
+no change anyone can see. It builds with the macOS 27 tools, and the shipped app no
+longer carries the debug entries that held this Mac's folder paths. Apple Silicon
+only. `main` now builds one app for Apple Silicon and Intel, but no release has
+shipped that yet.
+
+Before it: 0.2.0, build 3, published 2026-10-08, and 0.1.0, build 2, published
+2026-09-02. Their DMGs were removed from GitHub Releases on 2026-10-28 because they
+held local folder paths, and the feed now lists only 0.2.1. The release pages and
+their notes are still there.
 
 - Repo: `Dvirco1234/nivi`, public
 - Download page: https://dvirco1234.github.io/nivi/
 - Update feed: https://dvirco1234.github.io/nivi/appcast.xml
-- DMG: a GitHub Release asset, 6.4 MB
-- What changed: [release-notes/0.2.0.md](../release-notes/0.2.0.md)
+- DMG: a GitHub Release asset, 4.5 MB
+- What changed: [release-notes/0.2.1.md](../release-notes/0.2.1.md), and for the
+  fixes before it, [release-notes/0.2.0.md](../release-notes/0.2.0.md)
 
 It is **self-signed and not notarised**. macOS blocks it on first launch and says
 the app "cannot be checked" or is "damaged". It is neither.
@@ -169,8 +178,8 @@ web apps (`c16eb77`), starting a recording no longer able to freeze the app
 (`45251ec`), the main-thread watchdog (`4ae17de`), and signing outside iCloud
 Drive (`dc6b345`).
 
-**Self-update is still unproven.** 0.2.0 is the first version an older install
-can be offered. See "Open work and known issues".
+**Self-update is still unproven.** An install of 0.1.0 or 0.2.0 should be offered
+0.2.1, but nobody has watched that happen. See "Open work and known issues".
 
 ## Fixed in 0.2.0
 
@@ -329,9 +338,9 @@ comparison can be repeated after a change. A rough note is worth much more than
 nothing here. It does not need to be a formal benchmark.
 
 **Sparkle self-update has never been proven end to end.** The feed is well-formed
-and the EdDSA signature verifies independently. Since 2026-10-08 the live feed
-lists 0.2.0 above 0.1.0, so a 0.1.0 install should be offered the update at its
-next daily check, or at once from "Check for updates". Nobody has watched that
+and the EdDSA signature verifies independently. Since 2026-10-28 the live feed
+lists only 0.2.1, so a 0.1.0 or 0.2.0 install should be offered it at its next
+daily check, or at once from "Check for updates". Nobody has watched that
 happen yet. Until someone does, every later fix rests on an unproven delivery path.
 
 **Notarisation is written but never run.** `Tools/notarize.sh` exists and takes
@@ -416,7 +425,7 @@ the app. Several need making noise or dictating, which agents must not do.
   the replacement lands.
 - **Microphone priority failover**: drag a microphone to the top, dictate, check
   the log says `Recording from <name>`, then disconnect it and dictate again.
-- **Self-update from 0.1.0 to 0.2.0.** Use "Check for updates" on a 0.1.0
+- **Self-update to 0.2.1.** Use "Check for updates" on a 0.1.0 or 0.2.0
   install. Permissions should survive, because both are signed `Nivi Self-Signed`.
 - **The Preferences window buttons**: hover shows the symbols, a click anywhere on
   a button works, and the top of each page looks as it did before the toolbar.

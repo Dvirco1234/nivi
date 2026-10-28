@@ -1,11 +1,17 @@
 import Foundation
+import NiviCore
 
 /// LRU cache of loaded recognizers keyed by model id. Loads on miss, evicts the
 /// least-recently-used past capacity. Serialized via an actor.
 actor RecognizerCache {
     private var capacity: Int
-    private var order: [String] = []                    // most-recent last
+    private var order = RecentlyUsedOrder()
     private var loaded: [String: SpeechRecognizer] = [:]
+    /// Loads still running, one per model id. An actor lets a second caller in while the
+    /// first waits for its load, and both used to load the same model. Recording start and
+    /// stop often ask for a cold model at the same moment, so a second caller now waits on
+    /// the first caller's load instead of starting its own.
+    private var loading: [String: Task<SpeechRecognizer, Error>] = [:]
 
     init(capacity: Int) {
         self.capacity = max(1, capacity)
@@ -13,20 +19,34 @@ actor RecognizerCache {
 
     func setCapacity(_ n: Int) async {
         capacity = max(1, n)
-        await evictIfNeeded()
+        await unload(order.trim(to: capacity))
     }
 
     func recognizer(id: String, modelPath: URL) async throws -> SpeechRecognizer {
         if let existing = loaded[id] {
-            touch(id)
+            order.touch(id)
             return existing
         }
-        let recognizer = WhisperCppRecognizer(modelPath: modelPath)
-        try await recognizer.load()
+        if let inFlight = loading[id] {
+            return try await inFlight.value
+        }
+        let load = Task { () throws -> SpeechRecognizer in
+            let recognizer = WhisperCppRecognizer(modelPath: modelPath)
+            try await recognizer.load()
+            return recognizer
+        }
+        loading[id] = load
+        let recognizer: SpeechRecognizer
+        do {
+            recognizer = try await load.value
+        } catch {
+            loading[id] = nil
+            throw error
+        }
+        loading[id] = nil
         loaded[id] = recognizer
-        order.append(id)
         Log.info("Recognizer loaded into cache: \(id)")
-        await evictIfNeeded()
+        await unload(order.insert(id, capacity: capacity))
         return recognizer
     }
 
@@ -39,17 +59,13 @@ actor RecognizerCache {
         for recognizer in victims { await recognizer.unload() }
     }
 
-    private func touch(_ id: String) {
-        order.removeAll { $0 == id }
-        order.append(id)
-    }
-
-    private func evictIfNeeded() async {
-        while order.count > capacity {
-            let victim = order.removeFirst()
-            let recognizer = loaded.removeValue(forKey: victim)
-            await recognizer?.unload()
-            Log.info("Recognizer evicted from cache: \(victim)")
+    private func unload(_ ids: [String]) async {
+        // Every id leaves `loaded` before the first await, for the same reason as in
+        // `evictAll`: nobody may be handed a model that is being freed.
+        let victims = ids.compactMap { id in loaded.removeValue(forKey: id).map { (id, $0) } }
+        for (id, recognizer) in victims {
+            await recognizer.unload()
+            Log.info("Recognizer evicted from cache: \(id)")
         }
     }
 }

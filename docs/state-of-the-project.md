@@ -289,14 +289,23 @@ September.** `vendor/whisper.cpp/build` is a symlink to `build.nosync`, added to
 keep iCloud Drive off the build tree, and `find` does not follow symlinks. So the
 copy step matched nothing, said nothing, and exited 0. whisper.cpp was rebuilt
 every time and the app kept linking libraries built on 21 July. `make vendor` now
-uses `find -L` and fails loudly if the libraries are not there afterwards.
+names each library and fails loudly if it is missing or lacks either chip.
 
 **The build broke on its own on 16 September, with no change to Nivi.** A Command
 Line Tools update repointed `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`
 from the 26 series to `MacOSX27.0.sdk`. The bundled Swift toolchain targets
 macosx26 and has no `SwiftUIMacros` plugin, so every SwiftUI view failed with
 `plugin for module 'SwiftUIMacros' not found`. The Makefile now pins `SDKROOT` to
-the SDK matching the running system.
+the newest SDK that can compile SwiftUI with the installed toolchain. See
+`docs/decisions.md` for why "the SDK matching the running system" was not enough.
+
+**Two loads of the same model could lose a dictation, until 28 October.** When
+recording start and stop asked for a cold model at the same moment,
+`RecognizerCache` loaded it twice, then unloaded the copy it had just stored and
+handed it out anyway. The dictation failed with
+`Inference failed: Model not loaded`. The log shows it 5 times, on 12 and 21
+October. A second caller now waits on the first caller's load, and the order
+bookkeeping lives in `RecentlyUsedOrder` in core, with tests.
 
 ## Open work and known issues
 

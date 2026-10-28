@@ -871,4 +871,24 @@ check(TranscriptExport.suggestedFileName(sourceName: nil, format: .richText) == 
 check(TranscriptExport.suggestedFileName(sourceName: "   ", format: .openDocument) == "Transcript.odt",
       "a blank source name counts as none")
 
+// --- RecentlyUsedOrder: the cache must never unload the model it just stored ---
+var recent = RecentlyUsedOrder()
+check(recent.insert("turbo", capacity: 1) == [], "first insert evicts nothing")
+// Two loads of the same model finishing one after the other: the October 2026 bug.
+check(recent.insert("turbo", capacity: 1) == [], "same id twice evicts nothing")
+check(recent.ids == ["turbo"], "same id twice is held once")
+check(recent.insert("small", capacity: 1) == ["turbo"], "new id at capacity evicts the old one")
+check(recent.ids == ["small"], "the id just inserted stays")
+recent.removeAll()
+_ = recent.insert("a", capacity: 3); _ = recent.insert("b", capacity: 3); _ = recent.insert("c", capacity: 3)
+recent.touch("a")
+check(recent.ids == ["b", "c", "a"], "touch moves an id to the most recent end")
+recent.touch("missing")
+check(recent.ids == ["b", "c", "a"], "touching an absent id changes nothing")
+check(recent.trim(to: 1) == ["b", "c"], "trim evicts oldest first")
+check(recent.ids == ["a"], "trim keeps the most recent")
+check(recent.trim(to: 0) == [], "capacity below 1 still keeps one")
+recent.removeAll()
+check(recent.trim(to: 1) == [] && recent.ids.isEmpty, "removeAll leaves nothing to evict")
+
 if failures == 0 { print("ALL CORE CHECKS PASSED") } else { print("\(failures) FAILURES"); exit(1) }

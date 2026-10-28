@@ -114,7 +114,9 @@ three times longer. `make vendor` checks the shaders, and the stress tool refuse
 to pass on the CPU. See [../vendor/patches/README.md](../vendor/patches/README.md).
 
 `RecognizerCache` is an actor holding loaded models by id, least-recently-used
-first out. Capacity defaults to 1. `DictationController` releases everything
+first out. Capacity defaults to 1. Only one load per model id runs at a time: a
+second caller waits on the first one's load. Which ids to unload is decided by
+`RecentlyUsedOrder` in core, which never holds an id twice. `DictationController` releases everything
 after `idleUnloadSeconds` (default 120) of sitting idle, which takes an idle app
 from about 1.6 GB back down to about 34 MB.
 

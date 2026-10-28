@@ -384,6 +384,20 @@ one-line SwiftUI view against each installed SDK, newest first, and keeps the fi
 that works. The answer is cached in `.build/pinned-sdk` until the toolchain or the
 list of SDKs changes. The first run takes about a minute; later runs are instant.
 
+## Releases are built for Apple Silicon and Intel
+
+2026-10-26.
+
+`make app`, and so every DMG, now holds one binary for both chips. whisper.cpp is
+built twice by `make vendor`: for Apple Silicon with Metal, and for Intel with Metal
+off and AVX2, FMA and F16C on. Every Intel Mac that runs macOS 14 has those. `lipo`
+joins each pair into one library in `vendor/lib`. The Swift app is built once per
+chip with `--triple` and joined the same way. `make dev` stays Apple Silicon only.
+
+On Intel, whisper runs on the CPU. Expect only the small models to feel quick. The
+Intel build has not yet been run on a real Intel Mac, so the README still says
+Apple Silicon only.
+
 ## AppKit places the Preferences window buttons
 
 2026-09-25. Replaces the tunable button position added on 2026-08-24.

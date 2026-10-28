@@ -47,9 +47,10 @@ with the stable `Nivi Self-Signed` identity, which `make cert` creates once.
 Drive off the build tree. Plain `find` does not follow symlinks, so the step that
 copies the built `.a` files into `vendor/lib/` matched nothing, printed nothing
 and exited 0. From 6 to 24 September 2026 every whisper.cpp rebuild was thrown
-away and the app kept linking libraries built on 21 July. It now uses `find -L`,
-prints what it copied, and fails if the libraries are missing. If you change
-anything under `vendor/`, check the timestamps on `vendor/lib/*.a` afterwards.
+away and the app kept linking libraries built on 21 July. It now names each
+library, joins the Apple Silicon and Intel builds with `lipo`, checks that both
+chips are in the result, and fails otherwise. If you change anything under
+`vendor/`, check the timestamps on `vendor/lib/*.a` afterwards.
 
 **Fixes on top of whisper.cpp live in `vendor/patches/`**, not in the submodule.
 `make vendor` applies them and says so. The submodule will therefore always show
@@ -60,8 +61,8 @@ as dirty in `git status`; that is correct. Read
 16 September 2026 repointed the default `MacOSX.sdk` at a newer SDK than the
 bundled Swift toolchain can use, and every SwiftUI view failed with
 `plugin for module 'SwiftUIMacros' not found`. Nothing in Nivi had changed.
-`Tools/pinned-sdk.sh` now picks the SDK matching the running system, and the
-Makefile and every script that calls `swiftc` itself use it. A new script that
+`Tools/pinned-sdk.sh` now picks the newest SDK that can really compile a
+SwiftUI view with the installed toolchain, and the Makefile and every script that calls `swiftc` itself use it. A new script that
 calls `swiftc` must do the same. If the build ever fails that way again, that
 script is the first thing to look at.
 

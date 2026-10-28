@@ -9,5 +9,5 @@
 #
 # `make release VERSION=0.2.0` rewrites this file. You can also edit VERSION here
 # and run `make release` with no argument.
-VERSION := 0.2.0
-BUILD_NUMBER := 3
+VERSION := 0.2.1
+BUILD_NUMBER := 4

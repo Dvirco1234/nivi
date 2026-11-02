@@ -1,0 +1,199 @@
+---
+import { Download } from '@lucide/astro';
+import { locales, localeCodes, type Locale } from '@/i18n/config';
+import { useTranslations, translateList, homePath, assetPath } from '@/i18n/i18n';
+import { links } from '@/data/release';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const navLinks = translateList<{ href: string; label: string }>(t, 'nav.links');
+const otherLocales = localeCodes.filter((code) => code !== locale);
+---
+
+<a class="skip" href="#main">{t('nav.skip')}</a>
+
+<header class="header" data-header>
+  <div class="header__inner nv-wrap">
+    <a class="header__brand" href={homePath(locale)} aria-label={t('nav.home')}>
+      <img src={assetPath('images/app-icon.svg')} alt="" width="28" height="28" />
+      <span>Nivi</span>
+    </a>
+
+    <nav class="header__nav" aria-label={t('nav.primary')}>
+      <ul>
+        {navLinks.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
+      </ul>
+    </nav>
+
+    <div class="header__actions">
+      <a class="nv-button nv-button--small header__cta" href={links.dmg} data-header-cta>
+        <Download aria-hidden="true" />
+        {t('nav.download')}
+      </a>
+      <ul class="header__languages" aria-label={t('nav.language')}>
+        {
+          otherLocales.map((code) => (
+            <li>
+              <a href={homePath(code)} hreflang={locales[code].htmlLang} lang={locales[code].htmlLang}>
+                <span aria-hidden="true">{locales[code].shortLabel}</span>
+                <span class="visually-hidden">{locales[code].label}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</header>
+
+<script>
+  // The header's Download button stays out of the way while the hero's own button
+  // is on screen, so there are never two of the same button in view.
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const heroCta = document.querySelector<HTMLElement>('[data-hero-cta]');
+
+  if (header) {
+    const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    if (heroCta) {
+      new IntersectionObserver(([entry]) => {
+        header.classList.toggle('has-cta', entry ? !entry.isIntersecting : true);
+      }).observe(heroCta);
+    } else {
+      header.classList.add('has-cta');
+    }
+  }
+</script>
+
+<style>
+  .skip {
+    position: fixed;
+    inset-block-start: var(--nv-3);
+    inset-inline-start: var(--nv-3);
+    z-index: 100;
+    padding: var(--nv-2) var(--nv-4);
+    border-radius: 8px;
+    background: var(--nv-accent);
+    color: var(--nv-accent-ink);
+    font-weight: 600;
+    text-decoration: none;
+    transform: translateY(-200%);
+  }
+  .skip:focus-visible {
+    transform: none;
+  }
+
+  .header {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: var(--nv-z-header);
+    block-size: var(--nv-header-height);
+    border-block-end: 1px solid transparent;
+    transition:
+      background-color var(--nv-d-base) var(--nv-ease-out),
+      border-color var(--nv-d-base) var(--nv-ease-out);
+  }
+  .header.is-scrolled {
+    background: color-mix(in oklab, var(--nv-canvas) 94%, transparent);
+    border-block-end-color: var(--nv-hairline);
+  }
+  .header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--nv-6);
+    block-size: 100%;
+  }
+  .header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    font-weight: 650;
+    font-size: 1.05rem;
+    letter-spacing: var(--nv-track-snug);
+    text-decoration: none;
+  }
+  .header__brand img {
+    border-radius: 7px;
+  }
+
+  .header__nav {
+    margin-inline-end: auto;
+  }
+  .header__nav ul,
+  .header__languages {
+    display: flex;
+    gap: var(--nv-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .header__nav a,
+  .header__languages a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.25rem;
+    padding-inline: var(--nv-3);
+    border-radius: 8px;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+    text-decoration: none;
+    transition:
+      color var(--nv-d-fast) var(--nv-ease-out),
+      background-color var(--nv-d-fast) var(--nv-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .header__nav a:hover,
+    .header__languages a:hover {
+      color: var(--nv-ink);
+      background: color-mix(in oklab, var(--nv-ink) 6%, transparent);
+    }
+  }
+
+  .header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--nv-3);
+  }
+  .header__languages a {
+    font-family: var(--nv-font-mono);
+    border: 1px solid var(--nv-hairline);
+  }
+
+  /* Hidden, not removed, so it can slide in. Out of the tab order while hidden. */
+  .header__cta {
+    opacity: 0;
+    transform: translateY(-6px);
+    visibility: hidden;
+    transition:
+      opacity var(--nv-d-base) var(--nv-ease-out),
+      transform var(--nv-d-base) var(--nv-ease-out),
+      visibility 0s linear var(--nv-d-base);
+  }
+  .header.has-cta .header__cta {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  @media (max-width: 860px) {
+    .header__nav {
+      display: none;
+    }
+    .header__actions {
+      margin-inline-start: auto;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .header__cta {
+      transform: none;
+    }
+  }
+</style>

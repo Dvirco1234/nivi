@@ -1,0 +1,179 @@
+---
+import { Keyboard, AudioLines, Timer, FileVolume, Replace, Mic, RotateCcwClock, PanelBottom } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList, assetPath } from '@/i18n/i18n';
+import RecordingPanel from '@/components/demo/RecordingPanel.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+
+type Feature = { title: string; body: string; key: keyof typeof icons };
+const icons = {
+  profiles: Keyboard,
+  live: AudioLines,
+  finish: Timer,
+  files: FileVolume,
+  replacements: Replace,
+  microphones: Mic,
+  history: RotateCcwClock,
+  display: PanelBottom,
+};
+const features = translateList<Feature>(t, 'features.items');
+---
+
+<section id="features" class="features nv-section" aria-labelledby="features-title">
+  <div class="nv-wrap">
+    <header class="nv-section-head" data-in data-stagger="60">
+      <p class="nv-eyebrow">{t('features.eyebrow')}</p>
+      <h2 id="features-title" class="nv-heading">{t('features.heading')}</h2>
+      <p class="nv-lede">{t('features.lede')}</p>
+    </header>
+
+    <ul class="features__tiles" data-in data-stagger="40">
+      {
+        features.map((feature) => {
+          const Icon = icons[feature.key];
+          return (
+            <li class="features__tile">
+              <span class="features__icon">
+                <Icon aria-hidden="true" />
+              </span>
+              <h3>{feature.title}</h3>
+              <p>{feature.body}</p>
+            </li>
+          );
+        })
+      }
+    </ul>
+
+    <!-- Real screens from the app, photographed by Tools/make-pref-shots.sh. They
+         drift at slightly different rates as the page scrolls past, so the group
+         reads as layered paper rather than one flat picture. -->
+    <div class="features__screens">
+      <figure class="features__shot features__shot--start" data-parallax="-0.6">
+        <img src={assetPath('images/app/general.webp')} width="1184" height="1800" alt={t('features.shots.general')} loading="lazy" decoding="async" />
+      </figure>
+      <figure class="features__shot features__shot--end" data-parallax="0.5">
+        <img src={assetPath('images/app/speech.webp')} width="1184" height="1800" alt={t('features.shots.speech')} loading="lazy" decoding="async" />
+      </figure>
+      <figure class="features__panel" data-parallax="1.2" role="img" aria-label={t('features.shots.panel')}>
+        <RecordingPanel appName={t('demo.appName')} brand={t('demo.brand')} still />
+      </figure>
+    </div>
+  </div>
+</section>
+
+<style>
+  .features__tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--nv-4);
+    margin: var(--nv-8) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .features__tile {
+    padding: var(--nv-5);
+    border-radius: var(--nv-r-md);
+    border: 1px solid var(--nv-hairline);
+    background: linear-gradient(var(--nv-surface), color-mix(in oklab, var(--nv-surface) 40%, var(--nv-canvas)));
+    box-shadow: var(--nv-edge);
+    transition: border-color var(--nv-d-base) var(--nv-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .features__tile:hover {
+      border-color: var(--nv-accent-line);
+    }
+  }
+  .features__icon {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--nv-hairline);
+    background: var(--nv-accent-soft);
+    color: var(--nv-accent);
+  }
+  .features__icon :global(svg) {
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    stroke-width: 1.75;
+  }
+  .features__tile h3 {
+    margin: var(--nv-5) 0 0;
+    font-size: var(--nv-t-base);
+    font-weight: 620;
+    letter-spacing: var(--nv-track-snug);
+  }
+  .features__tile p {
+    margin: var(--nv-2) 0 0;
+    font-size: var(--nv-t-sm);
+    line-height: 1.6;
+    color: var(--nv-ink-soft);
+    text-wrap: pretty;
+  }
+
+  /* Two screens side by side, cropped to their top part, with the recording
+     panel laid across the seam between them. */
+  .features__screens {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1rem, 3vw, 2.5rem);
+    max-inline-size: 60rem;
+    margin: var(--nv-9) auto 0;
+    padding-block-end: 2rem;
+    direction: ltr;
+  }
+  .features__shot {
+    margin: 0;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, white 8%, transparent);
+    box-shadow: var(--nv-e3);
+  }
+  .features__shot img {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: top;
+  }
+  .features__shot--start {
+    opacity: 0.8;
+  }
+  .features__panel {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    inline-size: min(26rem, 70%);
+    margin: 0;
+  }
+  .features__panel :global(.panel) {
+    inline-size: 100%;
+  }
+
+  @media (max-width: 1100px) {
+    .features__tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .features__tiles {
+      grid-template-columns: 1fr;
+    }
+    .features__screens {
+      grid-template-columns: 1fr;
+    }
+    .features__shot--start {
+      display: none;
+    }
+  }
+</style>

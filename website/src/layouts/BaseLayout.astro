@@ -1,0 +1,64 @@
+---
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '@fontsource-variable/heebo';
+import 'lenis/dist/lenis.css';
+import '@/styles/tokens.css';
+import '@/styles/base.css';
+import '@/styles/global.css';
+
+import { locales, localeCodes, defaultLocale, type Locale } from '@/i18n/config';
+import { useTranslations, homePath, assetPath } from '@/i18n/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const language = locales[locale];
+const site = Astro.site ?? new URL('https://dvirco1234.github.io');
+const absolute = (path: string) => new URL(path, site).href;
+const canonical = absolute(homePath(locale));
+const ogImage = absolute(assetPath('images/og.jpg'));
+---
+
+<!doctype html>
+<html lang={language.htmlLang} dir={language.dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{t('meta.title')}</title>
+    <meta name="description" content={t('meta.description')} />
+    <meta name="theme-color" content="#0b0c0d" />
+    <link rel="canonical" href={canonical} />
+    {
+      localeCodes.map((code) => (
+        <link rel="alternate" hreflang={locales[code].htmlLang} href={absolute(homePath(code))} />
+      ))
+    }
+    <link rel="alternate" hreflang="x-default" href={absolute(homePath(defaultLocale))} />
+    <link rel="icon" type="image/svg+xml" href={assetPath('images/app-icon.svg')} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={t('meta.title')} />
+    <meta property="og:description" content={t('meta.description')} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={language.ogLocale} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content={t('meta.ogImageAlt')} />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <div class="nv-grain" aria-hidden="true"></div>
+    <slot />
+
+    <script>
+      import { startSmoothScroll } from '@/scripts/smooth-scroll';
+      import { startScrollEffects } from '@/scripts/scroll-effects';
+
+      startSmoothScroll();
+      startScrollEffects();
+    </script>
+  </body>
+</html>

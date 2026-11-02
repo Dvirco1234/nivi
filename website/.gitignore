@@ -1,0 +1,8 @@
+# Dependencies live in a .nosync folder so iCloud Drive leaves them alone.
+# node_modules is a symlink to it on the owner's Mac and a real folder elsewhere.
+node_modules
+node_modules.nosync/
+
+# Build output and Astro's generated types.
+dist/
+.astro/

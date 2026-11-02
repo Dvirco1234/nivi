@@ -1,0 +1,57 @@
+---
+import type { Locale } from '@/i18n/config';
+import { useTranslations } from '@/i18n/i18n';
+import { links } from '@/data/release';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<footer class="footer">
+  <div class="footer__inner nv-wrap">
+    <p class="footer__made">{t('footer.made')}</p>
+    <ul class="footer__links">
+      <li><a class="nv-link" href={links.source}>{t('footer.source')}</a></li>
+      <li><a class="nv-link" href={links.releases}>{t('footer.releases')}</a></li>
+      <li><a class="nv-link" href={links.licence}>{t('footer.licence')}</a></li>
+    </ul>
+    <p class="footer__privacy">{t('footer.privacy')}</p>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-block-start: 1px solid var(--nv-hairline);
+    padding-block: var(--nv-5);
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+  .footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--nv-3) var(--nv-6);
+  }
+  .footer__inner p {
+    margin: 0;
+  }
+  .footer__links {
+    display: flex;
+    gap: var(--nv-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .footer__inner .footer__privacy {
+    margin-inline-start: auto;
+  }
+  @media (max-width: 760px) {
+    .footer__inner .footer__privacy {
+      margin-inline-start: 0;
+    }
+  }
+</style>

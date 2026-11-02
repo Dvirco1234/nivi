@@ -1,0 +1,115 @@
+---
+/**
+ * The recording panel, rebuilt from the real one (docs/images/recording-panel.png):
+ * the app you are dictating into on the start side, the elapsed time and the Nivi
+ * mark on the end side, and a live waveform underneath.
+ *
+ * It holds no logic. DictationDemo fills the timer and moves the bars.
+ */
+import { assetPath } from '@/i18n/i18n';
+
+interface Props {
+  appName: string;
+  brand: string;
+  class?: string;
+  /** Freeze the panel mid-word, for places where nothing drives it. */
+  still?: boolean;
+}
+
+const { appName, brand, class: className, still = false } = Astro.props;
+const BAR_COUNT = 46;
+
+// A fixed, speech-like shape for the still panel: louder in the middle of a
+// phrase, quieter at its edges, with some unevenness between syllables.
+const stillLevel = (index: number) =>
+  (0.2 + 0.8 * Math.sin((index / (BAR_COUNT - 1)) * Math.PI) * (0.55 + 0.45 * Math.abs(Math.sin(index * 1.9)))).toFixed(3);
+---
+
+<div class:list={['panel', className]} aria-hidden="true">
+  <div class="panel__row">
+    <span class="panel__app">
+      <span class="panel__notes-icon"></span>
+      {appName}
+    </span>
+    <span class="panel__meta">
+      <span class="panel__timer" data-demo-timer>{still ? '0:04' : '0:00'}</span>
+      <img class="panel__mark" src={assetPath('images/app-icon.svg')} alt="" width="18" height="18" />
+      {brand}
+    </span>
+  </div>
+  <div class="panel__bars" data-demo-bars>
+    {Array.from({ length: BAR_COUNT }, (_, index) => <i style={still ? `--level: ${stillLevel(index)}` : undefined} />)}
+  </div>
+</div>
+
+<style>
+  .panel {
+    inline-size: min(26rem, 100%);
+    padding: 0.7rem 1rem 0.8rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, #1f2223 88%, transparent);
+    border: 1px solid color-mix(in oklab, white 9%, transparent);
+    box-shadow:
+      0 18px 40px -12px hsl(var(--nv-shadow-color) / 0.7),
+      0 4px 10px hsl(var(--nv-shadow-color) / 0.4),
+      inset 0 1px 0 color-mix(in oklab, white 8%, transparent);
+    color: var(--nv-ink);
+    font-size: 0.78rem;
+    font-weight: 560;
+    /* The panel is part of the app, and the app is left to right in both
+       languages. Keep it that way on the Hebrew page too. */
+    direction: ltr;
+  }
+  .panel__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-inline: 0.35rem;
+  }
+  .panel__app,
+  .panel__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .panel__notes-icon {
+    inline-size: 15px;
+    block-size: 15px;
+    border-radius: 4px;
+    background: linear-gradient(#f6cd44 0 32%, #f4f2ec 32%);
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.2);
+  }
+  .panel__timer {
+    font-family: var(--nv-font-mono);
+    font-variant-numeric: tabular-nums;
+    color: #f2b8d2;
+    min-inline-size: 2.6em;
+    text-align: end;
+  }
+  .panel__mark {
+    border-radius: 4px;
+  }
+  .panel__bars {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    block-size: 1.6rem;
+    margin-block-start: 0.45rem;
+    padding-inline: 0.35rem;
+  }
+  .panel__bars i {
+    --level: 0.12;
+    display: block;
+    inline-size: 3px;
+    block-size: 100%;
+    border-radius: 2px;
+    background: color-mix(in oklab, white 70%, transparent);
+    transform: scaleY(var(--level));
+    transition: transform 90ms linear;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panel__bars i {
+      transition: none;
+    }
+  }
+</style>

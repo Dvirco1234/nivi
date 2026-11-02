@@ -1,0 +1,344 @@
+---
+/**
+ * Transcribe a file, and save it in the format you need.
+ *
+ * A recreated "Transcribe a file" pane. The formats are the app's own: the
+ * inputs come from TranscribableFormat.displayNames, the outputs from
+ * TranscriptFormat, and the saved name follows TranscriptExport ("meeting.mp4"
+ * becomes "meeting transcript.docx"). The progress plays once, on time, when the
+ * pane is on screen. The format picker is a real set of radio buttons.
+ */
+import { FileHeadphone, FileText, Check } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+import { locales } from '@/i18n/config';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const inputs = translateList<string>(t, 'files.inputs');
+const formats = translateList<{ ext: string; name: string }>(t, 'files.formats');
+const paragraphs = translateList<string>(t, 'files.paragraphs');
+const DEFAULT_FORMAT = 'docx';
+const sourceName = `${t('files.fileName')}.${t('files.fileExt')}`;
+const savedName = (ext: string) => `${t('files.fileName')} ${t('files.transcriptWord')}.${ext}`;
+---
+
+<section id="files" class="files nv-section" aria-labelledby="files-title">
+  <div class="files__grid nv-wrap">
+    <div class="files__copy nv-stack" data-in data-stagger="60">
+      <p class="nv-eyebrow">{t('files.eyebrow')}</p>
+      <h2 id="files-title" class="nv-heading">{t('files.heading')}</h2>
+      <p class="nv-lede">{t('files.lede')}</p>
+      <div class="files__inputs">
+        <span class="nv-small">{t('files.inputLabel')}</span>
+        <ul>{inputs.map((name) => <li>{name}</li>)}</ul>
+      </div>
+      <p class="files__rtl nv-small"><Check aria-hidden="true" />{t('files.rtlNote')}</p>
+    </div>
+
+    <div class="files__drift" data-parallax="-0.5">
+      <figure class="files__pane" data-files data-state="waiting" aria-label={t('files.label')}>
+        <div class="files__bar" aria-hidden="true"><i></i><i></i><i></i></div>
+
+        <div class="files__source">
+          <span class="files__file"><FileHeadphone aria-hidden="true" /><span dir="ltr">{sourceName}</span></span>
+          <span class="files__status" aria-hidden="true">
+            <span data-when="working">{t('files.transcribing')} <b data-files-percent>0%</b></span>
+            <span data-when="done"><Check />{t('files.done')}</span>
+          </span>
+        </div>
+        <div class="files__progress" aria-hidden="true"><i data-files-progress></i></div>
+
+        <div class="files__text" lang={locales[locale].htmlLang} dir={locales[locale].dir}>
+          {paragraphs.map((paragraph) => <p data-files-paragraph>{paragraph}</p>)}
+        </div>
+
+        <fieldset class="files__save">
+          <legend>{t('files.saveAs')}</legend>
+          <div class="files__formats">
+            {
+              formats.map((format) => (
+                <label class="files__format">
+                  <input type="radio" name="files-format" value={format.ext} checked={format.ext === DEFAULT_FORMAT} data-files-format />
+                  <span>{format.name}</span>
+                  <span class="files__ext">.{format.ext}</span>
+                </label>
+              ))
+            }
+          </div>
+          <p class="files__saved" aria-live="polite">
+            <FileText aria-hidden="true" />
+            <span>{t('files.savedAs')}</span>
+            <b dir="ltr" data-files-name data-base={`${t('files.fileName')} ${t('files.transcriptWord')}`}>{savedName(DEFAULT_FORMAT)}</b>
+          </p>
+        </fieldset>
+        <figcaption class="files__label">{t('files.label')}</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { startFileTranscription } from '@/scripts/file-transcription';
+  const pane = document.querySelector<HTMLElement>('[data-files]');
+  if (pane) startFileTranscription(pane);
+</script>
+
+<style>
+  .files__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+  }
+  .files__inputs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--nv-2) var(--nv-3);
+    margin-block-start: var(--nv-6);
+  }
+  .files__inputs ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nv-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .files__inputs li {
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--nv-hairline);
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+  .files__rtl {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    margin: var(--nv-4) 0 0;
+  }
+  .files__rtl :global(svg) {
+    flex: none;
+    inline-size: 1rem;
+    block-size: 1rem;
+    color: var(--nv-accent);
+  }
+
+  /* The pane, styled as the app's own window. */
+  .files__pane {
+    position: relative;
+    margin: 0 0 2rem;
+    border-radius: var(--nv-radius-window);
+    border: 1px solid color-mix(in oklab, white 8%, transparent);
+    background: var(--nv-window);
+    box-shadow:
+      0 40px 80px -24px hsl(var(--nv-shadow-color) / 0.85),
+      0 12px 24px -8px hsl(var(--nv-shadow-color) / 0.5),
+      inset 0 1px 0 color-mix(in oklab, white 6%, transparent);
+  }
+  .files__bar {
+    display: flex;
+    gap: 0.45rem;
+    padding: 0.85rem 0.9rem;
+    background: var(--nv-window-bar);
+    border-block-end: 1px solid color-mix(in oklab, white 5%, transparent);
+    border-start-start-radius: var(--nv-radius-window);
+    border-start-end-radius: var(--nv-radius-window);
+    direction: ltr;
+  }
+  .files__bar i {
+    inline-size: 0.72rem;
+    block-size: 0.72rem;
+    border-radius: 50%;
+    background: color-mix(in oklab, white 16%, transparent);
+  }
+  .files__source {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--nv-3);
+    padding: var(--nv-5) var(--nv-5) var(--nv-3);
+  }
+  .files__file {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    font-weight: 600;
+  }
+  .files__file :global(svg) {
+    inline-size: 1.15rem;
+    block-size: 1.15rem;
+    color: var(--nv-accent);
+  }
+  .files__status {
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+  .files__status [data-when] {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  [data-state='waiting'] .files__status [data-when='working'],
+  [data-state='working'] .files__status [data-when='working'],
+  [data-state='done'] .files__status [data-when='done'] {
+    display: inline-flex;
+  }
+  [data-state='done'] .files__status {
+    color: var(--nv-accent);
+  }
+  .files__status :global(svg) {
+    inline-size: 0.9rem;
+    block-size: 0.9rem;
+  }
+  .files__progress {
+    block-size: 3px;
+    margin-inline: var(--nv-5);
+    border-radius: 3px;
+    background: var(--nv-hairline);
+    overflow: hidden;
+  }
+  .files__progress i {
+    display: block;
+    block-size: 100%;
+    background: var(--nv-accent);
+    transform-origin: left;
+    transform: scaleX(var(--progress, 0));
+  }
+  :global([dir='rtl']) .files__progress i {
+    transform-origin: right;
+  }
+
+  .files__text {
+    min-block-size: 9.5rem;
+    padding: var(--nv-5);
+  }
+  .files__text p {
+    margin: 0 0 var(--nv-3);
+    line-height: 1.65;
+    text-wrap: pretty;
+    transition:
+      opacity 420ms var(--nv-ease-out),
+      transform 420ms var(--nv-ease-out);
+  }
+  .files__text p:last-child {
+    margin-block-end: 0;
+  }
+  [data-state='waiting'] .files__text p,
+  .files__text p[data-hidden] {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  .files__save {
+    margin: 0;
+    padding: var(--nv-4) var(--nv-5) var(--nv-5);
+    border: 0;
+    border-block-start: 1px solid var(--nv-hairline);
+  }
+  .files__save legend {
+    float: inline-start;
+    margin-block-end: var(--nv-3);
+    padding: 0;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+  .files__formats {
+    clear: both;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nv-1);
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--nv-surface-sunken);
+    border: 1px solid var(--nv-hairline);
+  }
+  .files__format {
+    position: relative;
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
+    font-size: var(--nv-t-sm);
+    font-weight: 560;
+    color: var(--nv-ink-soft);
+    cursor: pointer;
+    transition:
+      background-color var(--nv-d-fast) var(--nv-ease-out),
+      color var(--nv-d-fast) var(--nv-ease-out);
+  }
+  /* The real radio stays in the page for keyboards and screen readers, drawn
+     by the label instead of the browser's default dot. */
+  .files__format input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .files__format:has(input:checked) {
+    background: var(--nv-accent);
+    color: var(--nv-accent-ink);
+  }
+  .files__format:has(input:focus-visible) {
+    outline: 2px solid var(--nv-accent);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .files__format:not(:has(input:checked)):hover {
+      color: var(--nv-ink);
+    }
+  }
+  .files__ext {
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    opacity: 0.75;
+  }
+  .files__saved {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--nv-2);
+    margin: var(--nv-4) 0 0;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+  .files__saved :global(svg) {
+    inline-size: 1rem;
+    block-size: 1rem;
+    color: var(--nv-accent);
+  }
+  .files__saved b {
+    color: var(--nv-ink);
+    font-weight: 600;
+  }
+  .files__label {
+    position: absolute;
+    inset-block-start: calc(100% + var(--nv-3));
+    inset-inline-end: 0;
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+
+  @media (max-width: 900px) {
+    .files__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .files__text p {
+      transition: none;
+    }
+  }
+</style>

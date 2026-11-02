@@ -1,0 +1,302 @@
+---
+/**
+ * Profiles, Nivi's main idea: one hotkey per way of writing.
+ *
+ * A recreated profile list with three example profiles. Each is built from what
+ * the app really offers: its models (src: Sources/NiviCore/ManagedModel.swift),
+ * its four insertion modes (InsertionMode) and its right-side modifier hotkeys.
+ * The list is a set of tabs. They cycle by themselves while on screen, until the
+ * visitor picks one.
+ */
+import { Keyboard, Cpu, Languages, AudioLines } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+
+type ModeKey = 'batch' | 'fastFinish' | 'preview' | 'live';
+type Profile = {
+  name: string;
+  hotkey: string;
+  hotkeySide: string;
+  model: string;
+  language: string;
+  mode: ModeKey;
+  note: string;
+};
+const profiles = translateList<Profile>(t, 'profiles.items');
+const modeKeys: ModeKey[] = ['batch', 'fastFinish', 'preview', 'live'];
+const modeName = (key: ModeKey) => t(`profiles.modes.${key}.name`);
+const modeBody = (key: ModeKey) => t(`profiles.modes.${key}.body`);
+---
+
+<section id="profiles" class="profiles nv-section" aria-labelledby="profiles-title">
+  <div class="nv-wrap">
+    <header class="nv-section-head" data-in data-stagger="60">
+      <p class="nv-eyebrow">{t('profiles.eyebrow')}</p>
+      <h2 id="profiles-title" class="nv-heading">{t('profiles.heading')}</h2>
+      <p class="nv-lede">{t('profiles.lede')}</p>
+    </header>
+
+    <div class="profiles__app" data-profiles data-in>
+      <div class="profiles__list" role="tablist" aria-label={t('profiles.listLabel')} aria-orientation="vertical">
+        {
+          profiles.map((profile, index) => (
+            <button
+              type="button"
+              role="tab"
+              class="profiles__tab"
+              id={`profile-tab-${index}`}
+              aria-controls={`profile-panel-${index}`}
+              aria-selected={index === 0 ? 'true' : 'false'}
+              tabindex={index === 0 ? 0 : -1}
+              data-profile-tab
+            >
+              <span class="profiles__tab-name">{profile.name}</span>
+              <span class="profiles__tab-keys" dir="ltr">{profile.hotkey}</span>
+              <span class="profiles__tab-model">{profile.model}</span>
+            </button>
+          ))
+        }
+      </div>
+
+      {
+        profiles.map((profile, index) => (
+          <div
+            class="profiles__panel"
+            role="tabpanel"
+            id={`profile-panel-${index}`}
+            aria-labelledby={`profile-tab-${index}`}
+            hidden={index !== 0}
+            data-profile-panel
+          >
+            <dl class="profiles__fields">
+              <div>
+                <dt><Keyboard aria-hidden="true" />{t('profiles.fields.hotkey')}</dt>
+                <dd>
+                  <span class="profiles__keys" dir="ltr">
+                    {profile.hotkey.split(' ').map((key) => <span class="nv-key">{key}</span>)}
+                  </span>
+                  <span class="profiles__muted">{profile.hotkeySide}, {t('profiles.tapTwice')}</span>
+                </dd>
+              </div>
+              <div>
+                <dt><Cpu aria-hidden="true" />{t('profiles.fields.model')}</dt>
+                <dd dir="ltr" class="profiles__model">{profile.model}</dd>
+              </div>
+              <div>
+                <dt><Languages aria-hidden="true" />{t('profiles.fields.language')}</dt>
+                <dd>{profile.language}</dd>
+              </div>
+              <div>
+                <dt><AudioLines aria-hidden="true" />{t('profiles.fields.mode')}</dt>
+                <dd>
+                  <ul class="profiles__modes">
+                    {
+                      modeKeys.map((key) => (
+                        <li class:list={['profiles__mode', { 'is-on': key === profile.mode }]} aria-current={key === profile.mode ? 'true' : undefined}>
+                          {modeName(key)}
+                        </li>
+                      ))
+                    }
+                  </ul>
+                  <span class="profiles__muted">{modeBody(profile.mode)}</span>
+                </dd>
+              </div>
+            </dl>
+            <p class="profiles__note">{profile.note}</p>
+          </div>
+        ))
+      }
+    </div>
+    <p class="profiles__footnote nv-small">{t('profiles.footnote')}</p>
+  </div>
+</section>
+
+<script>
+  import { startProfiles } from '@/scripts/profiles';
+  const root = document.querySelector<HTMLElement>('[data-profiles]');
+  if (root) startProfiles(root);
+</script>
+
+<style>
+  .profiles__app {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    max-inline-size: 62rem;
+    margin: var(--nv-8) auto 0;
+    border-radius: var(--nv-r-lg);
+    border: 1px solid var(--nv-hairline);
+    background: var(--nv-window);
+    box-shadow: var(--nv-e3), var(--nv-edge);
+    overflow: hidden;
+  }
+
+  .profiles__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nv-1);
+    padding: var(--nv-3);
+    background: var(--nv-surface-sunken);
+    border-inline-end: 1px solid var(--nv-hairline);
+  }
+  .profiles__tab {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.15rem var(--nv-3);
+    padding: var(--nv-4);
+    border: 1px solid transparent;
+    border-radius: var(--nv-r-md);
+    background: transparent;
+    color: var(--nv-ink);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition:
+      background-color var(--nv-d-fast) var(--nv-ease-out),
+      border-color var(--nv-d-fast) var(--nv-ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .profiles__tab:hover {
+      background: color-mix(in oklab, var(--nv-ink) 5%, transparent);
+    }
+  }
+  .profiles__tab[aria-selected='true'] {
+    background: var(--nv-accent-soft);
+    border-color: var(--nv-accent-line);
+  }
+  .profiles__tab-name {
+    font-weight: 620;
+  }
+  .profiles__tab-keys {
+    font-family: var(--nv-font-mono);
+    color: var(--nv-ink-soft);
+  }
+  .profiles__tab[aria-selected='true'] .profiles__tab-keys {
+    color: var(--nv-accent);
+  }
+  .profiles__tab-model {
+    grid-column: 1 / -1;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+
+  .profiles__panel {
+    padding: clamp(1.25rem, 3vw, 2.25rem);
+  }
+  .profiles__panel:not([hidden]) {
+    animation: panel-in 320ms var(--nv-ease-out);
+  }
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  .profiles__fields {
+    display: grid;
+    margin: 0;
+  }
+  .profiles__fields > div {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: var(--nv-4);
+    align-items: start;
+    padding-block: var(--nv-4);
+    border-block-end: 1px solid var(--nv-hairline);
+  }
+  .profiles__fields dt {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    color: var(--nv-ink-soft);
+    font-size: var(--nv-t-sm);
+  }
+  .profiles__fields dt :global(svg) {
+    inline-size: 1rem;
+    block-size: 1rem;
+    color: var(--nv-accent);
+  }
+  .profiles__fields dd {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nv-2);
+    margin: 0;
+    font-weight: 560;
+  }
+  .profiles__keys {
+    display: inline-flex;
+    gap: var(--nv-1);
+  }
+  .profiles__model {
+    text-align: start;
+  }
+  .profiles__muted {
+    font-weight: 400;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+  .profiles__modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nv-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .profiles__mode {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--nv-hairline);
+    font-size: var(--nv-t-xs);
+    font-weight: 500;
+    color: var(--nv-ink-soft);
+  }
+  .profiles__mode.is-on {
+    border-color: var(--nv-accent);
+    background: var(--nv-accent);
+    color: var(--nv-accent-ink);
+  }
+  .profiles__note {
+    margin: var(--nv-5) 0 0;
+    color: var(--nv-ink-soft);
+    text-wrap: pretty;
+  }
+  .profiles__footnote {
+    margin: var(--nv-4) auto 0;
+    max-inline-size: 62rem;
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .profiles__app {
+      grid-template-columns: 1fr;
+    }
+    .profiles__list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      border-inline-end: 0;
+      border-block-end: 1px solid var(--nv-hairline);
+    }
+    .profiles__tab {
+      flex: 1 0 auto;
+    }
+    .profiles__tab-model {
+      display: none;
+    }
+    .profiles__fields > div {
+      grid-template-columns: 1fr;
+      gap: var(--nv-2);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .profiles__panel:not([hidden]) {
+      animation: none;
+    }
+  }
+</style>

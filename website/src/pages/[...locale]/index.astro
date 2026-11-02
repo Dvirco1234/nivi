@@ -1,0 +1,52 @@
+---
+/**
+ * The home page, once per language: / for the default language, /<code>/ for the
+ * rest. The language list in src/i18n/config.ts decides which pages exist.
+ */
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import SiteHeader from '@/components/layout/SiteHeader.astro';
+import Hero from '@/components/sections/Hero.astro';
+import LanguageMoment from '@/components/sections/LanguageMoment.astro';
+import Profiles from '@/components/sections/Profiles.astro';
+import FileTranscription from '@/components/sections/FileTranscription.astro';
+import Offline from '@/components/sections/Offline.astro';
+import Features from '@/components/sections/Features.astro';
+import HebrewFirst from '@/components/sections/HebrewFirst.astro';
+import Compare from '@/components/sections/Compare.astro';
+import Testimonials from '@/components/sections/Testimonials.astro';
+import Faq from '@/components/sections/Faq.astro';
+import DownloadClose from '@/components/sections/DownloadClose.astro';
+import SiteFooter from '@/components/layout/SiteFooter.astro';
+import { defaultLocale, localeCodes, type Locale } from '@/i18n/config';
+
+export const getStaticPaths = (() =>
+  localeCodes.map((code) => ({
+    params: { locale: code === defaultLocale ? undefined : code },
+    props: { locale: code },
+  }))) satisfies GetStaticPaths;
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<BaseLayout locale={locale}>
+  <SiteHeader locale={locale} />
+  <main id="main">
+    <Hero locale={locale} />
+    <LanguageMoment locale={locale} />
+    <Profiles locale={locale} />
+    <Offline locale={locale} />
+    <FileTranscription locale={locale} />
+    <Features locale={locale} />
+    <HebrewFirst locale={locale} />
+    <Compare locale={locale} />
+    <Testimonials locale={locale} />
+    <Faq locale={locale} />
+    <DownloadClose locale={locale} />
+  </main>
+  <SiteFooter locale={locale} />
+</BaseLayout>

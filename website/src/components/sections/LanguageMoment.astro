@@ -1,0 +1,253 @@
+---
+/**
+ * The second language, as an ordinary section. Nothing is pinned.
+ *
+ * The hero showed the visitor's own language. Here the other one gets its own
+ * key: on the English page this is Hebrew, on the Hebrew page it is English.
+ * When the section comes into view, that dictation plays once by itself: two
+ * taps on the key, the paragraph arrives word by word, one tap pastes it and the
+ * punctuation lights up. The visitor can replay it with the keycap, using the
+ * app's own gesture. Scrolling only drifts the window slightly against the page.
+ * src/scripts/language-moment.ts drives it.
+ */
+import type { Locale } from '@/i18n/config';
+import { useTranslations } from '@/i18n/i18n';
+import { demoNote, demoOrder } from '@/i18n/demo';
+import NoteWindow from '@/components/demo/NoteWindow.astro';
+import RecordingPanel from '@/components/demo/RecordingPanel.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const [firstLanguage, secondLanguage] = demoOrder(t);
+const first = demoNote(t, firstLanguage);
+const second = demoNote(t, secondLanguage);
+---
+
+<section id="how" class="moment nv-section" aria-labelledby="moment-title">
+  <div
+    class="moment__grid nv-wrap"
+    data-moment
+    data-phase="idle"
+    data-text-start={t('moment.tapToStart')}
+    data-text-stop={t('moment.tapToStop')}
+    data-text-pasted={t('moment.pasted')}
+    data-text-replay={t('moment.replay')}
+  >
+    <div class="moment__copy">
+      <p class="nv-eyebrow">{t('moment.eyebrow')}</p>
+      <h2 id="moment-title" class="nv-heading moment__title">{t('moment.heading')}</h2>
+      <p class="nv-lede">{t('moment.lede')}</p>
+
+      <dl class="moment__keys">
+        <div class="moment__key-row">
+          <dt>{first.keyName}</dt>
+          <dd><span class="nv-key">{first.hotkey}</span><span class="nv-key">{first.hotkey}</span></dd>
+        </div>
+        <div class="moment__key-row">
+          <dt>{second.keyName}</dt>
+          <dd>
+            <button type="button" class="moment__keycap" data-keycap aria-label={second.keycapLabel}>{second.hotkey}</button>
+            <span class="moment__status" data-status aria-live="polite">{t('moment.tapToStart')}</span>
+          </dd>
+        </div>
+      </dl>
+      <p class="nv-small moment__example">{t('moment.example')}</p>
+
+      <div class="moment__result">
+        <p class="moment__result-line">{second.result}</p>
+        <p class="nv-small">{t('moment.typingNote')}</p>
+      </div>
+    </div>
+
+    <div class="moment__drift" data-parallax="-0.7">
+      <figure class="moment__scene" aria-label={t('demo.label')}>
+        <NoteWindow class="moment__window" notes={[second]} />
+        <div class="moment__panel">
+          <RecordingPanel appName={t('demo.appName')} brand={t('demo.brand')} />
+        </div>
+        <figcaption class="moment__label">{t('demo.label')}</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { startLanguageMoment } from '@/scripts/language-moment';
+  const root = document.querySelector<HTMLElement>('[data-moment]');
+  if (root) startLanguageMoment(root);
+</script>
+
+<style>
+  .moment__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+  }
+  .moment__title {
+    font-size: var(--nv-t-2xl);
+    max-inline-size: 16ch;
+  }
+
+  .moment__keys {
+    display: grid;
+    gap: var(--nv-2);
+    margin: var(--nv-6) 0 0;
+  }
+  .moment__key-row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    align-items: center;
+    padding-block: var(--nv-3);
+    border-block-start: 1px solid var(--nv-hairline);
+  }
+  .moment__key-row dt {
+    color: var(--nv-ink-soft);
+    font-size: var(--nv-t-sm);
+  }
+  .moment__key-row dd {
+    display: flex;
+    align-items: center;
+    gap: var(--nv-2);
+    margin: 0;
+  }
+
+  /* The one control on the page that is not a link. A real key: it travels down
+     when pressed and lights up while the dictation is listening. */
+  .moment__keycap {
+    display: grid;
+    place-items: center;
+    inline-size: 3.4rem;
+    block-size: 3.4rem;
+    border-radius: 10px;
+    border: 1px solid var(--nv-accent-line);
+    background: linear-gradient(#232627, #191b1c);
+    color: var(--nv-ink);
+    font: 500 1.35rem / 1 var(--nv-font-text);
+    box-shadow:
+      0 4px 0 #0a0b0c,
+      0 10px 20px -8px hsl(var(--nv-shadow-color) / 0.8),
+      inset 0 1px 0 color-mix(in oklab, white 10%, transparent);
+    cursor: pointer;
+    transition:
+      transform 90ms var(--nv-ease-out),
+      box-shadow 90ms var(--nv-ease-out),
+      background-color 160ms var(--nv-ease-out),
+      color 160ms var(--nv-ease-out);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .moment__keycap:active,
+  .moment__keycap.is-pressed {
+    transform: translateY(3px);
+    box-shadow:
+      0 1px 0 #0a0b0c,
+      0 4px 10px -6px hsl(var(--nv-shadow-color) / 0.8),
+      inset 0 1px 0 color-mix(in oklab, white 10%, transparent);
+  }
+  [data-phase='listening'] .moment__keycap {
+    background: var(--nv-accent);
+    color: var(--nv-accent-ink);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .moment__keycap:hover {
+      border-color: var(--nv-accent);
+    }
+  }
+  .moment__status {
+    margin-inline-start: var(--nv-3);
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+  [data-phase='listening'] .moment__status {
+    color: var(--nv-accent);
+  }
+  .moment__example {
+    margin: var(--nv-3) 0 0;
+  }
+
+  /* The result fades in once the paragraph has been pasted. Its space is kept,
+     so nothing below it moves when it appears. */
+  .moment__result {
+    margin-block-start: var(--nv-5);
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 420ms var(--nv-ease-out),
+      transform 420ms var(--nv-ease-out);
+  }
+  [data-phase='committed'] .moment__result {
+    opacity: 1;
+    transform: none;
+  }
+  .moment__result-line {
+    margin: 0 0 var(--nv-2);
+    font-size: var(--nv-t-lg);
+    font-weight: 560;
+    color: var(--nv-accent);
+  }
+
+  .moment__scene {
+    position: relative;
+    margin: 0;
+    padding-block-end: 3.5rem;
+  }
+  .moment__window :global(.window__body) {
+    min-block-size: 14rem;
+  }
+  /* This window is the whole point of the section, so its paragraph is set
+     larger than the hero's. */
+  .moment__window :global(.window__text) {
+    font-size: clamp(1.2rem, 0.95rem + 1vw, 1.75rem);
+    line-height: 1.55;
+  }
+  .moment__panel {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    inline-size: min(26rem, 80%);
+  }
+  :global([dir='rtl']) .moment__panel {
+    translate: 50% 0;
+  }
+  .moment__panel :global(.panel) {
+    inline-size: 100%;
+    transition:
+      opacity 260ms var(--nv-ease-out),
+      transform 260ms var(--nv-ease-out);
+  }
+  [data-phase='idle'] .moment__panel :global(.panel),
+  [data-phase='committed'] .moment__panel :global(.panel) {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  .moment__label {
+    position: absolute;
+    inset-block-start: calc(100% + var(--nv-3));
+    inset-inline-end: 0;
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+
+  @media (max-width: 900px) {
+    .moment__grid {
+      grid-template-columns: 1fr;
+      gap: var(--nv-7);
+    }
+    .moment__title {
+      font-size: var(--nv-t-xl);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .moment__result {
+      transform: none;
+    }
+  }
+</style>

@@ -1,0 +1,195 @@
+---
+/**
+ * The closing call to action: one bold band in the accent colour, the button,
+ * the requirements and the three install steps. The pattern on its end side is
+ * the recording panel's waveform, drawn large.
+ */
+import { Download } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+import { links, version } from '@/data/release';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const steps = translateList<string>(t, 'download.steps');
+
+// Bar heights for the waveform pattern: a phrase that swells and settles,
+// with uneven syllables, the same shape the still panel uses.
+const BAR_COUNT = 23;
+const bars = Array.from({ length: BAR_COUNT }, (_, index) =>
+  (0.18 + 0.82 * Math.sin((index / (BAR_COUNT - 1)) * Math.PI) * (0.5 + 0.5 * Math.abs(Math.sin(index * 1.9)))).toFixed(3),
+);
+---
+
+<section id="download" class="close nv-section" aria-labelledby="close-title">
+  <div class="nv-wrap">
+    <div class="close__band" data-in data-stagger="60">
+      <div class="close__copy">
+        <p class="close__eyebrow">{t('download.eyebrow')}</p>
+        <h2 id="close-title" class="close__title">{t('download.heading')}</h2>
+        <div class="close__actions">
+          <a class="close__button" href={links.dmg}>
+            <Download aria-hidden="true" />
+            {t('download.button')}
+          </a>
+          <a class="close__install" href={links.install}>{t('download.install')}</a>
+        </div>
+        <p class="close__details">{t('download.details', { version })}</p>
+        <ol class="close__steps">
+          {steps.map((step) => <li>{step}</li>)}
+        </ol>
+      </div>
+      <div class="close__wave" aria-hidden="true">
+        {bars.map((level) => <i style={`--level: ${level}`} />)}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .close__band {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: center;
+    gap: var(--nv-6);
+    padding: clamp(2rem, 5vw, 4.5rem);
+    border-radius: var(--nv-r-lg);
+    background:
+      radial-gradient(70% 90% at 85% 50%, color-mix(in oklab, white 22%, transparent), transparent 70%),
+      var(--nv-accent);
+    color: var(--nv-accent-ink);
+    overflow: hidden;
+    box-shadow: var(--nv-e3);
+  }
+  .close__eyebrow {
+    margin: 0 0 var(--nv-4);
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    letter-spacing: var(--nv-track-wide);
+    text-transform: uppercase;
+  }
+  :lang(he) .close__eyebrow {
+    letter-spacing: 0;
+  }
+  .close__title {
+    margin: 0;
+    max-inline-size: 16ch;
+    font-size: var(--nv-t-3xl);
+    font-weight: 660;
+    letter-spacing: var(--nv-track-tight);
+    line-height: var(--nv-leading-tight);
+    text-wrap: balance;
+  }
+  .close__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--nv-3) var(--nv-6);
+    margin-block-start: var(--nv-6);
+  }
+  /* On the accent ground the button inverts: dark, with light text. */
+  .close__button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    padding: 0.95rem 1.5rem;
+    border-radius: 10px;
+    background: var(--nv-accent-ink);
+    color: var(--nv-accent);
+    font-weight: 600;
+    font-size: var(--nv-t-lg);
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.5);
+    transition: transform var(--nv-d-fast) var(--nv-ease-out);
+  }
+  .close__button:active {
+    transform: scale(0.97);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .close__button:hover {
+      transform: translateY(-1px);
+    }
+  }
+  .close__button :global(svg) {
+    inline-size: 1.15em;
+    block-size: 1.15em;
+  }
+  .close__button:focus-visible,
+  .close__install:focus-visible {
+    outline-color: var(--nv-accent-ink);
+  }
+  .close__install {
+    color: inherit;
+    font-weight: 560;
+    text-underline-offset: 0.25em;
+  }
+  .close__details {
+    margin: var(--nv-4) 0 0;
+    font-size: var(--nv-t-sm);
+    opacity: 0.8;
+  }
+  .close__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nv-2) var(--nv-6);
+    margin: var(--nv-6) 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    font-size: var(--nv-t-sm);
+  }
+  .close__steps li {
+    counter-increment: step;
+  }
+  .close__steps li::before {
+    content: counter(step);
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.4rem;
+    block-size: 1.4rem;
+    margin-inline-end: var(--nv-2);
+    border-radius: 50%;
+    border: 1px solid color-mix(in oklab, var(--nv-accent-ink) 35%, transparent);
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+  }
+
+  /* The waveform, drawn large from rounded bars. */
+  .close__wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(5px, 0.8vw, 10px);
+    block-size: clamp(9rem, 22vw, 16rem);
+    direction: ltr;
+  }
+  .close__wave i {
+    flex: 1;
+    max-inline-size: 14px;
+    block-size: 100%;
+    border-radius: 999px;
+    background: var(--nv-accent-ink);
+    transform: scaleY(var(--level));
+    opacity: 0.85;
+  }
+
+  @media (max-width: 860px) {
+    .close__band {
+      grid-template-columns: 1fr;
+    }
+    .close__wave {
+      order: -1;
+      block-size: 6rem;
+      justify-content: flex-start;
+    }
+    .close__steps {
+      flex-direction: column;
+    }
+  }
+</style>

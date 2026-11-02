@@ -1,0 +1,98 @@
+---
+import { Plus } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+import { links } from '@/data/release';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const questions = translateList<{ q: string; a: string }>(t, 'faq.items');
+---
+
+<section id="faq" class="faq nv-section" aria-labelledby="faq-title">
+  <div class="nv-wrap">
+    <header class="nv-section-head">
+      <p class="nv-eyebrow">{t('faq.eyebrow')}</p>
+      <h2 id="faq-title" class="nv-heading">{t('faq.heading')}</h2>
+    </header>
+
+    <div class="faq__list" data-in data-stagger="40">
+      {
+        questions.map((item) => (
+          <details class="faq__item">
+            <summary>
+              <span>{item.q}</span>
+              <Plus class="faq__toggle" aria-hidden="true" />
+            </summary>
+            <p>{item.a}</p>
+          </details>
+        ))
+      }
+    </div>
+    <p class="faq__install nv-small">
+      <a class="nv-link" href={links.install}>{t('download.install')}</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .faq__list {
+    max-inline-size: 48rem;
+    margin: var(--nv-8) auto 0;
+  }
+  .faq__install {
+    max-inline-size: 48rem;
+    margin: var(--nv-5) auto 0;
+  }
+
+  .faq__item {
+    border-block-start: 1px solid var(--nv-hairline);
+  }
+  .faq__item:last-child {
+    border-block-end: 1px solid var(--nv-hairline);
+  }
+  .faq__item summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--nv-4);
+    padding-block: var(--nv-5);
+    font-size: var(--nv-t-lg);
+    font-weight: 560;
+    letter-spacing: var(--nv-track-snug);
+    cursor: pointer;
+    list-style: none;
+    border-radius: 6px;
+  }
+  .faq__item summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq__item :global(.faq__toggle) {
+    flex: none;
+    inline-size: 1.2rem;
+    block-size: 1.2rem;
+    color: var(--nv-ink-soft);
+    transition: transform var(--nv-d-base) var(--nv-ease-out);
+  }
+  .faq__item[open] :global(.faq__toggle) {
+    transform: rotate(45deg);
+    color: var(--nv-accent);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .faq__item summary:hover :global(.faq__toggle) {
+      color: var(--nv-ink);
+    }
+  }
+  .faq__item p {
+    margin: 0;
+    padding-block-end: var(--nv-5);
+    max-inline-size: 62ch;
+    color: var(--nv-ink-soft);
+    text-wrap: pretty;
+  }
+
+</style>

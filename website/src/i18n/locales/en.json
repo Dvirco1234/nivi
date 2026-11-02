@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "title": "Nivi: dictation for your Mac that never leaves it",
+    "description": "Tap a key, speak, and your words land in whatever app you are typing in. Free, offline, and great at Hebrew.",
+    "ogImageAlt": "The Nivi recording panel over a dark desktop"
+  },
+  "nav": {
+    "skip": "Skip to content",
+    "home": "Nivi home",
+    "primary": "Main",
+    "links": [
+      {
+        "href": "#how",
+        "label": "How it works"
+      },
+      {
+        "href": "#profiles",
+        "label": "Profiles"
+      },
+      {
+        "href": "#private",
+        "label": "Privacy"
+      },
+      {
+        "href": "#files",
+        "label": "Files"
+      },
+      {
+        "href": "#faq",
+        "label": "Questions"
+      }
+    ],
+    "language": "Language",
+    "download": "Download"
+  },
+  "hero": {
+    "title": "Say it. Nivi writes it.",
+    "subtitle": "Tap a key and speak. Your words land in whatever app you are typing in, and nothing leaves your Mac.",
+    "note": "Free · macOS 14 or newer · Apple Silicon",
+    "facts": [
+      "Free",
+      "Works offline",
+      "Open source",
+      "macOS 14+ on Apple Silicon"
+    ]
+  },
+  "demo": {
+    "label": "Sample dictation, recreated in your browser",
+    "appName": "Notes",
+    "noteTitle": "Draft for Sam",
+    "brand": "Nivi",
+    "english": {
+      "language": "English",
+      "words": "Hey Sam, the draft is ready. Can we go over it tomorrow morning? If that doesn't work, tell me and we'll find another time.",
+      "key": "⌘",
+      "keyName": "English",
+      "result": "Commas and a question mark, already in place. Ready to send.",
+      "keycapLabel": "Right Command. Tap it twice to start the sample English dictation, and once to stop it and paste."
+    },
+    "hebrew": {
+      "language": "עברית",
+      "noteTitle": "הצעה לנועה",
+      "words": "היי נועה, סיימתי את הטיוטה של ההצעה. אפשר לעבור עליה מחר בבוקר? אם זה לא מתאים, תגידי לי ונמצא זמן אחר.",
+      "key": "⌥",
+      "keyName": "Hebrew",
+      "result": "Commas, a question mark, right to left. Ready to send.",
+      "keycapLabel": "Right Option. Tap it twice to start the sample Hebrew dictation, and once to stop it and paste."
+    },
+    "order": [
+      "english",
+      "hebrew"
+    ]
+  },
+  "moment": {
+    "heading": "One key for English. Another for Hebrew.",
+    "lede": "Each language gets its own hotkey and its own model. Press the one you want and start talking.",
+    "tapToStart": "Tap twice to start",
+    "tapToStop": "Tap once to paste",
+    "listening": "Listening",
+    "pasted": "Pasted",
+    "typingNote": "Typed at an average 40 words a minute, that paragraph takes about half a minute.",
+    "example": "An example setup: right Command for English, right Option for Hebrew.",
+    "eyebrow": "Two languages",
+    "replay": "Tap twice to play it again"
+  },
+  "offline": {
+    "heading": "Your voice never leaves your Mac.",
+    "body": "Recording, transcription and pasting all happen on the speech model on your disk. There is no server to send anything to, so nothing is sent.",
+    "wifi": "Wi-Fi off",
+    "stillWorks": "Still works",
+    "facts": [
+      {
+        "title": "No audio leaves",
+        "body": "The model runs on your Mac, on its own graphics chip."
+      },
+      {
+        "title": "No text leaves",
+        "body": "What you say goes to the app you are typing in. Nowhere else."
+      },
+      {
+        "title": "No account",
+        "body": "Nothing to sign up for, and nothing to log in to."
+      }
+    ],
+    "footnote": "Two optional things use the network, and neither is about you: downloading a speech model once, and a daily check for updates that you can turn off.",
+    "eyebrow": "Privacy"
+  },
+  "features": {
+    "heading": "Built for people who write all day.",
+    "lede": "Everything below is in the free version. There is no other version.",
+    "items": [
+      {
+        "title": "Words while you speak",
+        "body": "Live modes type the words into your app as you talk, instead of making you wait for the end.",
+        "key": "live"
+      },
+      {
+        "title": "A short wait at the end",
+        "body": "When you stop, Nivi only transcribes the part it has not done yet. Even after a long stretch, the finish is quick.",
+        "key": "finish"
+      },
+      {
+        "title": "Your words, fixed for good",
+        "body": "Names and terms the model keeps getting wrong are replaced automatically, every time.",
+        "key": "replacements"
+      },
+      {
+        "title": "The right microphone, every time",
+        "body": "List your microphones in the order you prefer. Nivi uses the first one that is plugged in.",
+        "key": "microphones"
+      },
+      {
+        "title": "History that stays home",
+        "body": "Every dictation is kept on your Mac, so you can find something you said last week. You choose how long.",
+        "key": "history"
+      },
+      {
+        "title": "A panel or the notch",
+        "body": "Watch the recording in a small panel near the bottom of the screen, or in a thin bar that merges with the MacBook notch.",
+        "key": "display"
+      }
+    ],
+    "shots": {
+      "general": "The General tab of Nivi's Preferences, with appearance, updates and recording display settings",
+      "speech": "The Speech tab of Nivi's Preferences, with model memory and live preview settings",
+      "panel": "The Nivi recording panel, showing the app you are dictating into, the time and a live waveform",
+      "notch": "The Nivi recording bar merged with the MacBook notch"
+    },
+    "eyebrow": "What is inside"
+  },
+  "hebrew": {
+    "heading": "Hebrew is not an afterthought here.",
+    "body": "Nivi was made by someone who dictates in Hebrew every day. The ivrit-ai model, trained on Hebrew speech, is the default for Hebrew and is far better at it than the general models. Saved files keep Hebrew on the right, where it belongs.",
+    "points": [
+      "ivrit-ai model by default",
+      "Right to left in Word, RTF and ODT",
+      "Its own hotkey"
+    ]
+  },
+  "compare": {
+    "heading": "How Nivi compares.",
+    "lede": "Most dictation apps send your voice to a company's servers. Here is what that changes.",
+    "caption": "Nivi compared with typical cloud dictation apps",
+    "columns": {
+      "feature": "",
+      "nivi": "Nivi",
+      "cloud": "Typical cloud dictation app"
+    },
+    "rows": [
+      {
+        "label": "Where your voice is processed",
+        "nivi": "On your Mac",
+        "cloud": "On the company's servers"
+      },
+      {
+        "label": "Works without internet",
+        "nivi": "Yes",
+        "cloud": "Usually not"
+      },
+      {
+        "label": "Free plan limit",
+        "nivi": "None",
+        "cloud": "Often a weekly word cap"
+      },
+      {
+        "label": "Price",
+        "nivi": "Free",
+        "cloud": "About $12 to $15 a month"
+      },
+      {
+        "label": "Hebrew model",
+        "nivi": "ivrit-ai, made for Hebrew",
+        "cloud": "A general model"
+      },
+      {
+        "label": "Source code",
+        "nivi": "Open, MIT licence",
+        "cloud": "Closed"
+      }
+    ],
+    "source": "Cloud apps: based on the public pricing pages of Wispr Flow, Aqua Voice, Willow, Glaido and Monologue, October 2026.",
+    "eyebrow": "Compared"
+  },
+  "testimonials": {
+    "heading": "What people say",
+    "items": []
+  },
+  "faq": {
+    "heading": "Questions",
+    "items": [
+      {
+        "q": "Is it really free?",
+        "a": "Yes. Every feature is in the one version there is, and the code is open under the MIT licence."
+      },
+      {
+        "q": "Does anything I say leave my Mac?",
+        "a": "No. Audio and text stay on your Mac. The only network use is downloading a model once and an optional daily update check, which sends nothing about you."
+      },
+      {
+        "q": "Why does macOS warn me the first time I open it?",
+        "a": "Nivi is signed by its author, not yet checked by Apple, which costs $99 a year. macOS blocks it once and may call it damaged. It is not. The install guide shows the fifteen seconds of clicking that gets past it, and you only do it once."
+      },
+      {
+        "q": "Which Macs does it run on?",
+        "a": "Macs with Apple Silicon (M1 or newer) on macOS 14 or newer. You also need disk space for the model you choose: about 1.6 GB for the large models, about 400 MB for the small English one."
+      },
+      {
+        "q": "Which languages can I dictate in?",
+        "a": "About a hundred, through Whisper models. Hebrew gets the ivrit-ai model by default. You choose the model for each language."
+      },
+      {
+        "q": "Where does the text go?",
+        "a": "Into whatever app you are typing in, as if you had typed it. It also goes into a history on your Mac, kept for as long as you choose."
+      },
+      {
+        "q": "How do I start and stop?",
+        "a": "Out of the box, double-tap the right Command key to start and tap it once to stop and paste. Press Esc to cancel. You can change all three."
+      },
+      {
+        "q": "Which permissions does it need, and why?",
+        "a": "Microphone, to hear you. Accessibility, to paste into other apps and notice your hotkey. Input Monitoring, to notice Esc when you cancel."
+      }
+    ],
+    "eyebrow": "Questions"
+  },
+  "download": {
+    "heading": "Your next paragraph is one tap away.",
+    "button": "Download for Mac",
+    "details": "Free · Version {{version}} · macOS 14 or newer · Apple Silicon",
+    "install": "How to install",
+    "steps": [
+      "Open the DMG and drag Nivi to Applications.",
+      "Allow it once in System Settings.",
+      "Grant microphone and accessibility."
+    ],
+    "eyebrow": "Free for Mac"
+  },
+  "footer": {
+    "made": "Made by Dvir.",
+    "source": "Source code",
+    "licence": "MIT licence",
+    "releases": "All releases",
+    "privacy": "This site sets no cookies, runs no analytics and loads nothing from anyone else."
+  },
+  "profiles": {
+    "eyebrow": "Profiles",
+    "heading": "One key for every way you write.",
+    "lede": "A profile is a hotkey, a speech model, a language and a way of typing. Make as many as you need. The key you press picks the profile.",
+    "listLabel": "Example profiles",
+    "fields": {
+      "hotkey": "Hotkey",
+      "model": "Model",
+      "language": "Language",
+      "mode": "Mode"
+    },
+    "tapTwice": "tap twice",
+    "items": [
+      {
+        "name": "Hebrew",
+        "hotkey": "⌥ ⌥",
+        "hotkeySide": "right Option",
+        "model": "ivrit-ai Large v3 Turbo",
+        "language": "Hebrew",
+        "mode": "live",
+        "note": "For messages and documents in Hebrew, with the model trained on Hebrew speech."
+      },
+      {
+        "name": "English",
+        "hotkey": "⌘ ⌘",
+        "hotkeySide": "right Command",
+        "model": "Whisper Large v3 Turbo",
+        "language": "English",
+        "mode": "fastFinish",
+        "note": "The default setup. Long emails and documents, with a short wait at the end."
+      },
+      {
+        "name": "Quick English",
+        "hotkey": "⌃ ⌃",
+        "hotkeySide": "right Control",
+        "model": "Whisper Small (English)",
+        "language": "English",
+        "mode": "preview",
+        "note": "A small, fast model for short replies and chat."
+      }
+    ],
+    "modes": {
+      "batch": {
+        "name": "Batch",
+        "body": "Record, then paste."
+      },
+      "fastFinish": {
+        "name": "Fast finish",
+        "body": "Transcribes while you speak, so the end is quick."
+      },
+      "preview": {
+        "name": "Live preview",
+        "body": "Words appear in the panel as you speak."
+      },
+      "live": {
+        "name": "Live typing",
+        "body": "Words are typed into your app as you speak."
+      }
+    },
+    "footnote": "These three are examples. Any model, any language Whisper knows, any free hotkey."
+  },
+  "files": {
+    "eyebrow": "Transcribe a file",
+    "heading": "Recordings in. Documents out.",
+    "lede": "Drop in an interview, a lecture or a voice memo. Nivi turns it into paragraphs on your Mac, and saves it in the format you need.",
+    "inputLabel": "Opens",
+    "inputs": [
+      "MP3",
+      "WAV",
+      "M4A",
+      "AAC",
+      "AIFF",
+      "CAF",
+      "FLAC",
+      "MP4",
+      "MOV",
+      "M4V"
+    ],
+    "fileName": "interview",
+    "fileExt": "m4a",
+    "transcribing": "Transcribing",
+    "done": "Done",
+    "saveAs": "Save as",
+    "savedAs": "Saved as",
+    "transcriptWord": "transcript",
+    "formats": [
+      {
+        "ext": "txt",
+        "name": "Text"
+      },
+      {
+        "ext": "docx",
+        "name": "Word"
+      },
+      {
+        "ext": "rtf",
+        "name": "Rich Text"
+      },
+      {
+        "ext": "odt",
+        "name": "OpenDocument"
+      }
+    ],
+    "paragraphs": [
+      "Thanks for making the time. I want to start with how the project began, and why we chose to build it ourselves.",
+      "It started as a side project. Within a month, half the team was using it every day, and that told us we should take it seriously."
+    ],
+    "rtlNote": "Hebrew stays right to left in Word, Rich Text and OpenDocument files.",
+    "label": "Sample transcript, recreated in your browser"
+  }
+}

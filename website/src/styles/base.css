@@ -1,0 +1,108 @@
+/*
+ * The page's base: document defaults, the browser's own surfaces (selection,
+ * scrollbar, focus ring), the film grain, and the states that
+ * src/scripts/scroll-effects.ts switches.
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--nv-canvas);
+  color: var(--nv-ink);
+  font-family: var(--nv-font-text);
+  font-size: var(--nv-t-base);
+  line-height: var(--nv-leading-body);
+  letter-spacing: var(--nv-track-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+  overflow-x: clip;
+}
+img,
+svg {
+  display: block;
+  max-inline-size: 100%;
+}
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The parts of the page the browser draws, themed to match. */
+::selection {
+  background: var(--nv-accent);
+  color: var(--nv-accent-ink);
+}
+:root {
+  caret-color: var(--nv-accent);
+  accent-color: var(--nv-accent);
+}
+@supports (scrollbar-color: auto) {
+  html {
+    scrollbar-color: color-mix(in oklab, var(--nv-ink) 26%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* A faint film grain over everything. A flat dark ground shows banding on
+   real screens; a little noise makes it read as a lit surface. */
+.nv-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.nv-section {
+  padding-block: var(--nv-section);
+}
+/* Text stacked with even gaps, and more room above a heading than below it. */
+.nv-stack > * + * {
+  margin-block-start: var(--nv-4);
+}
+.nv-stack > * {
+  margin-block-end: 0;
+}
+
+/* Fade in once, on arrival. [data-in] marks a group; its children arrive one
+   after another (the gap comes from data-stagger, applied by the script).
+   Without JavaScript nothing is hidden: the hiding only starts once the script
+   has marked the page as ready. */
+.has-scroll-effects [data-in]:not([data-stagger]),
+.has-scroll-effects [data-stagger] > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 620ms var(--nv-ease-out),
+    transform 620ms var(--nv-ease-out);
+  transition-delay: var(--in-delay, 0ms);
+}
+.has-scroll-effects [data-in].is-in:not([data-stagger]),
+.has-scroll-effects [data-stagger].is-in > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* Elements the script moves every frame. */
+[data-parallax] {
+  will-change: transform;
+}
+[data-wipe] {
+  will-change: clip-path;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .has-scroll-effects [data-in]:not([data-stagger]),
+  .has-scroll-effects [data-stagger] > * {
+    transform: none;
+    transition: opacity 300ms linear;
+  }
+}

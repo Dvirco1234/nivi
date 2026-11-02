@@ -1,0 +1,79 @@
+---
+import { Check } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+import LogoAleph from '@/components/demo/LogoAleph.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const points = translateList<string>(t, 'hebrew.points');
+---
+
+<section class="hebrew nv-section" aria-labelledby="hebrew-title">
+  <div class="hebrew__grid nv-wrap">
+    <!-- The aleph from the app icon, with its waveform bars. -->
+    <div class="hebrew__mark" data-in>
+      <LogoAleph />
+    </div>
+    <div class="hebrew__copy nv-stack" data-in data-stagger="60">
+      <h2 id="hebrew-title" class="nv-heading">{t('hebrew.heading')}</h2>
+      <p class="nv-lede hebrew__body">{t('hebrew.body')}</p>
+      <ul class="hebrew__points">
+        {points.map((point) => <li><Check aria-hidden="true" />{point}</li>)}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hebrew {
+    border-block: 1px solid var(--nv-hairline);
+    background: linear-gradient(var(--nv-surface), var(--nv-canvas));
+  }
+  .hebrew__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: center;
+    gap: clamp(2rem, 6vw, 6rem);
+  }
+  .hebrew__mark {
+    inline-size: min(100%, 30rem);
+    justify-self: center;
+  }
+  .hebrew__body {
+    max-inline-size: 52ch;
+  }
+  .hebrew__points {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--nv-3) var(--nv-6);
+    margin: var(--nv-6) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .hebrew__points li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--nv-2);
+    font-weight: 560;
+  }
+  .hebrew__points :global(svg) {
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    color: var(--nv-accent);
+  }
+
+  @media (max-width: 900px) {
+    .hebrew__grid {
+      grid-template-columns: 1fr;
+    }
+    .hebrew__mark {
+      inline-size: min(100%, 18rem);
+      justify-self: start;
+    }
+  }
+</style>

@@ -1,0 +1,289 @@
+---
+/**
+ * The hero: the promise, the button, and the app working underneath it.
+ *
+ * Nothing here holds the scroll. The English dictation plays on its own clock,
+ * and scrolling only adds depth on top: the window tilts flat and comes forward,
+ * the grid behind it drifts, the keyboard row slides away. src/scripts/hero.ts
+ * drives both.
+ */
+import { Download, Check } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+import { demoNote, demoOrder } from '@/i18n/demo';
+import { links } from '@/data/release';
+import NoteWindow from '@/components/demo/NoteWindow.astro';
+import RecordingPanel from '@/components/demo/RecordingPanel.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const facts = translateList<string>(t, 'hero.facts');
+// The visitor's own language plays first: English on the English page, Hebrew
+// on the Hebrew page.
+const [firstLanguage] = demoOrder(t);
+const note = demoNote(t, firstLanguage);
+
+// The bottom row of a Mac keyboard. The key on the right side that this
+// language's profile uses lights up when the loop "taps" it.
+const keyRow = [
+  { label: 'fn', size: 'unit', right: false },
+  { label: '⌃', size: 'unit', right: false },
+  { label: '⌥', size: 'unit', right: false },
+  { label: '⌘', size: 'wide', right: false },
+  { label: '', size: 'space', right: false },
+  { label: '⌘', size: 'wide', right: true },
+  { label: '⌥', size: 'unit', right: true },
+].map((key) => ({ ...key, hotkey: key.right && key.label === note.hotkey }));
+---
+
+<section class="hero" data-hero aria-labelledby="hero-title">
+  <div class="hero__far" data-plane="far" aria-hidden="true"></div>
+
+  <div class="hero__copy nv-wrap" data-plane="copy">
+    <h1 id="hero-title" class="hero__title">{t('hero.title')}</h1>
+    <p class="hero__subtitle">{t('hero.subtitle')}</p>
+    <a class="nv-button hero__button" href={links.dmg} data-hero-cta>
+      <Download aria-hidden="true" />
+      {t('nav.download')}
+    </a>
+    <ul class="hero__facts">
+      {facts.map((fact) => <li><Check aria-hidden="true" />{fact}</li>)}
+    </ul>
+  </div>
+
+  <div class="hero__stage nv-wrap" data-plane="stage">
+    <figure class="hero__scene" data-plane="scene" aria-label={t('demo.label')}>
+      <NoteWindow class="hero__window" notes={[note]} />
+      <div class="hero__panel" data-plane="panel" data-panel="hidden">
+        <RecordingPanel appName={t('demo.appName')} brand={t('demo.brand')} />
+      </div>
+      <figcaption class="hero__label">{t('demo.label')}</figcaption>
+    </figure>
+
+    <div class="hero__keys" data-plane="keys" aria-hidden="true">
+      {
+        keyRow.map((key) => (
+          <span class:list={['hero__key', `hero__key--${key.size}`]} data-hotkey={key.hotkey ? '' : undefined}>
+            {key.label}
+          </span>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  import { startHero } from '@/scripts/hero';
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
+  if (hero) startHero(hero);
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    padding-block: calc(var(--nv-header-height) + clamp(3rem, 9vh, 6.5rem)) var(--nv-7);
+    overflow: clip;
+    isolation: isolate;
+  }
+
+  /* Far plane: a faint grid with a sage light behind the window, masked so it
+     fades before the edges and never reads as a pattern. */
+  .hero__far {
+    position: absolute;
+    inset: 0 -6% -10%;
+    z-index: -1;
+    background:
+      radial-gradient(46% 38% at 50% 62%, color-mix(in oklab, var(--nv-sage) 22%, transparent), transparent 70%),
+      radial-gradient(28% 24% at 50% 8%, color-mix(in oklab, var(--nv-accent) 8%, transparent), transparent 70%),
+      linear-gradient(color-mix(in oklab, white 4.5%, transparent) 1px, transparent 1px) 0 0 / 64px 64px,
+      linear-gradient(90deg, color-mix(in oklab, white 4.5%, transparent) 1px, transparent 1px) 0 0 / 64px 64px;
+    mask-image: radial-gradient(60% 70% at 50% 45%, black 25%, transparent 80%);
+    will-change: transform;
+  }
+
+  .hero__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    will-change: transform, opacity;
+  }
+  .hero__title {
+    margin: 0;
+    max-inline-size: 14ch;
+    font-family: var(--nv-font-display);
+    font-size: clamp(2.8rem, 1.4rem + 5vw, 6rem);
+    font-weight: 660;
+    letter-spacing: var(--nv-track-tight);
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+  .hero__subtitle {
+    margin: var(--nv-5) 0 0;
+    max-inline-size: 36ch;
+    font-size: var(--nv-t-lg);
+    line-height: 1.5;
+    color: var(--nv-ink-soft);
+    text-wrap: balance;
+  }
+  .hero__button {
+    margin-block-start: var(--nv-6);
+    padding: 0.95rem 1.5rem;
+    font-size: var(--nv-t-lg);
+  }
+  .hero__facts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--nv-2) var(--nv-5);
+    margin: var(--nv-5) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--nv-t-sm);
+    color: var(--nv-ink-soft);
+  }
+  .hero__facts li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .hero__facts :global(svg) {
+    inline-size: 0.95rem;
+    block-size: 0.95rem;
+    color: var(--nv-accent);
+  }
+
+  /* The copy arrives on load, line by line. "backwards" lets go of the element
+     once played, so the scroll script can move it afterwards. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__copy > * {
+      animation: arrive 760ms var(--nv-ease-out) backwards;
+    }
+    .hero__copy > :nth-child(2) {
+      animation-delay: 60ms;
+    }
+    .hero__copy > :nth-child(3) {
+      animation-delay: 120ms;
+    }
+    .hero__copy > :nth-child(4) {
+      animation-delay: 180ms;
+    }
+    .hero__stage {
+      animation: arrive 1100ms var(--nv-ease-out) 200ms backwards;
+    }
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+  }
+
+  /* The window, with room around it for the tilt. */
+  .hero__stage {
+    margin-block-start: clamp(3rem, 8vh, 5rem);
+    perspective: 1400px;
+  }
+  .hero__scene {
+    position: relative;
+    max-inline-size: 58rem;
+    margin: 0 auto;
+    padding-block-end: 3.5rem;
+    transform-origin: 50% 0%;
+    will-change: transform;
+  }
+  .hero__window :global(.window__body) {
+    min-block-size: 12rem;
+  }
+  .hero__window :global(.window__text) {
+    font-size: clamp(1.05rem, 0.9rem + 0.7vw, 1.45rem);
+  }
+  .hero__panel {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    inline-size: min(27rem, 82%);
+    will-change: transform;
+  }
+  :global([dir='rtl']) .hero__panel {
+    translate: 50% 0;
+  }
+  .hero__panel :global(.panel) {
+    inline-size: 100%;
+    transition:
+      opacity 260ms var(--nv-ease-out),
+      transform 260ms var(--nv-ease-out);
+  }
+  .hero__panel[data-panel='hidden'] :global(.panel) {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  .hero__label {
+    position: absolute;
+    inset-block-start: calc(100% + var(--nv-3));
+    inset-inline-end: 0;
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+
+  /* Near plane: the bottom row of a keyboard. */
+  .hero__keys {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-block-start: var(--nv-8);
+    direction: ltr;
+    will-change: transform, opacity;
+  }
+  .hero__key {
+    display: grid;
+    place-items: center;
+    block-size: 4rem;
+    border-radius: 10px;
+    background: linear-gradient(#202324, #17191a);
+    border: 1px solid color-mix(in oklab, white 7%, transparent);
+    box-shadow:
+      0 10px 20px -6px hsl(var(--nv-shadow-color) / 0.8),
+      inset 0 1px 0 color-mix(in oklab, white 9%, transparent);
+    color: var(--nv-ink-soft);
+    font-size: 1.1rem;
+    transition:
+      transform 90ms var(--nv-ease-out),
+      background-color 160ms var(--nv-ease-out),
+      color 160ms var(--nv-ease-out);
+  }
+  .hero__key--unit {
+    inline-size: 4rem;
+  }
+  .hero__key--wide {
+    inline-size: 5.2rem;
+  }
+  .hero__key--space {
+    inline-size: min(20rem, 28vw);
+  }
+  .hero__key[data-hotkey] {
+    color: var(--nv-ink);
+    border-color: var(--nv-accent-line);
+  }
+  .hero__key.is-pressed {
+    transform: translateY(2px);
+    background: var(--nv-accent);
+    color: var(--nv-accent-ink);
+  }
+
+  @media (max-width: 760px) {
+    .hero__window :global(.window__body) {
+      min-block-size: 10rem;
+    }
+    /* On a phone the window carries the demo; a keyboard row would only crowd it. */
+    .hero__keys {
+      display: none;
+    }
+  }
+</style>

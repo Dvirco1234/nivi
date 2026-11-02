@@ -1,0 +1,143 @@
+---
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const rows = translateList<{ label: string; nivi: string; cloud: string }>(t, 'compare.rows');
+---
+
+<section class="compare nv-section" aria-labelledby="compare-title">
+  <div class="nv-wrap">
+    <header class="nv-section-head" data-in data-stagger="60">
+      <p class="nv-eyebrow">{t('compare.eyebrow')}</p>
+      <h2 id="compare-title" class="nv-heading">{t('compare.heading')}</h2>
+      <p class="nv-lede">{t('compare.lede')}</p>
+    </header>
+
+    <!-- A real table, so screen readers announce row and column headers. The
+         Nivi column is a separate layer drawn over the table's own column, so it
+         can wipe in without hiding any cell from assistive technology. -->
+    <div class="compare__frame">
+      <table class="compare__table">
+        <caption class="visually-hidden">{t('compare.caption')}</caption>
+        <colgroup>
+          <col class="compare__col-label" />
+          <col class="compare__col-value" />
+          <col class="compare__col-value" />
+        </colgroup>
+        <thead>
+          <tr>
+            <td></td>
+            <th scope="col" class="compare__nivi">{t('compare.columns.nivi')}</th>
+            <th scope="col">{t('compare.columns.cloud')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr>
+                <th scope="row">{row.label}</th>
+                <td class="compare__nivi">{row.nivi}</td>
+                <td>{row.cloud}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <div class="compare__highlight" data-wipe="down" data-wipe-at="0.18 0.48" aria-hidden="true"></div>
+    </div>
+    <p class="compare__source nv-small">{t('compare.source')}</p>
+  </div>
+</section>
+
+<style>
+  .compare__frame {
+    position: relative;
+    max-inline-size: 60rem;
+    margin-inline: auto;
+    margin-block-start: var(--nv-8);
+    overflow-x: auto;
+  }
+  .compare__table {
+    position: relative;
+    z-index: 1;
+    inline-size: 100%;
+    min-inline-size: 36rem;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .compare__table th,
+  .compare__table td {
+    padding: var(--nv-4) var(--nv-5);
+    text-align: start;
+    vertical-align: top;
+    border-block-end: 1px solid var(--nv-hairline);
+  }
+  .compare__table thead th {
+    font-size: var(--nv-t-sm);
+    font-weight: 600;
+    color: var(--nv-ink-soft);
+  }
+  .compare__table thead .compare__nivi {
+    color: var(--nv-accent);
+    font-size: var(--nv-t-base);
+  }
+  /* The highlight below is positioned from these two widths. */
+  .compare__col-label {
+    inline-size: 34%;
+  }
+  .compare__col-value {
+    inline-size: 33%;
+  }
+  .compare__table tbody th {
+    font-weight: 500;
+    color: var(--nv-ink-soft);
+  }
+  .compare__table td {
+    color: var(--nv-ink-soft);
+  }
+  .compare__table td.compare__nivi {
+    color: var(--nv-ink);
+    font-weight: 560;
+  }
+
+  /* Sits behind the middle column, at the widths set on the <col> elements. */
+  .compare__highlight {
+    position: absolute;
+    z-index: 0;
+    inset-block: 0;
+    inset-inline-start: 34%;
+    inline-size: 33%;
+    border-radius: var(--nv-r-md);
+    background: var(--nv-accent-soft);
+    border: 1px solid var(--nv-accent-line);
+  }
+  .compare__source {
+    max-inline-size: 60rem;
+    margin: var(--nv-4) auto 0;
+  }
+
+  /* On a phone all three columns fit the width, with tighter cells, so nothing
+     needs a sideways swipe. */
+  @media (max-width: 640px) {
+    .compare__highlight {
+      display: none;
+    }
+    .compare__table {
+      min-inline-size: 0;
+      font-size: var(--nv-t-sm);
+    }
+    .compare__table th,
+    .compare__table td {
+      padding: var(--nv-3) var(--nv-2);
+    }
+    .compare__table td.compare__nivi {
+      background: var(--nv-accent-soft);
+    }
+  }
+</style>

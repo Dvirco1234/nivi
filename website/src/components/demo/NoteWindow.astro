@@ -1,0 +1,170 @@
+---
+/**
+ * A plain notes window that the recreated dictation types into.
+ *
+ * It can hold more than one note. They share the same spot in the window, so a
+ * script can swap one for the next without the window itself changing, the way
+ * a second dictation lands in the same app.
+ *
+ * Each note's language and direction are its own, not the page's: the English
+ * note stays left to right on the Hebrew page, and the Hebrew note stays right to
+ * left on the English page, as they would on a real Mac.
+ */
+export interface Note {
+  /** Names the note for scripts: [data-note="<key>"]. */
+  key: string;
+  title: string;
+  words: string;
+  lang: string;
+  dir: 'ltr' | 'rtl';
+}
+
+interface Props {
+  notes: Note[];
+  class?: string;
+}
+
+const { notes, class: className } = Astro.props;
+---
+
+<div class:list={['window', className]}>
+  <div class="window__bar" aria-hidden="true">
+    <span class="window__lights"><i></i><i></i><i></i></span>
+  </div>
+  <div class="window__notes">
+    {
+      notes.map((note) => (
+        <div class="window__body" data-note={note.key} lang={note.lang} dir={note.dir}>
+          <p class="window__title">{note.title}</p>
+          <p class="window__text">
+            <span data-demo-text>{note.words}</span>
+            <span class="window__caret" aria-hidden="true" />
+          </p>
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .window {
+    border-radius: var(--nv-radius-window);
+    background: var(--nv-window);
+    border: 1px solid color-mix(in oklab, white 8%, transparent);
+    box-shadow:
+      0 40px 80px -24px hsl(var(--nv-shadow-color) / 0.85),
+      0 12px 24px -8px hsl(var(--nv-shadow-color) / 0.5),
+      inset 0 1px 0 color-mix(in oklab, white 6%, transparent);
+    overflow: hidden;
+  }
+  .window__bar {
+    display: flex;
+    align-items: center;
+    block-size: 2.4rem;
+    padding-inline: 0.9rem;
+    background: var(--nv-window-bar);
+    border-block-end: 1px solid color-mix(in oklab, white 5%, transparent);
+    direction: ltr;
+  }
+  .window__lights {
+    display: inline-flex;
+    gap: 0.45rem;
+  }
+  .window__lights i {
+    inline-size: 0.72rem;
+    block-size: 0.72rem;
+    border-radius: 50%;
+    background: color-mix(in oklab, white 16%, transparent);
+  }
+  /* Every note sits in the same grid cell, so the window is as tall as the
+     longest one and does not jump when they swap. */
+  .window__notes {
+    display: grid;
+  }
+  .window__notes > .window__body {
+    grid-area: 1 / 1;
+  }
+  .window__body {
+    padding: clamp(1rem, 2.4vw, 1.75rem) clamp(1.1rem, 2.8vw, 2rem) clamp(1.4rem, 3vw, 2.4rem);
+    min-block-size: 11rem;
+  }
+  .window__title {
+    margin: 0 0 0.6rem;
+    font-weight: 650;
+    font-size: var(--nv-t-lg);
+    letter-spacing: var(--nv-track-snug);
+  }
+  .window__text {
+    margin: 0;
+    font-size: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    line-height: 1.6;
+    color: var(--nv-ink);
+  }
+  .window__body[lang='he'] .window__text {
+    font-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.32rem);
+  }
+  .window__caret {
+    display: inline-block;
+    inline-size: 2px;
+    block-size: 1.15em;
+    margin-inline-start: 1px;
+    vertical-align: text-bottom;
+    background: var(--nv-accent);
+    animation: caret 1.05s steps(1) infinite;
+  }
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .window__caret {
+      animation: none;
+    }
+  }
+
+  /* The word states DictationDemo switches. Words not yet spoken take no room,
+     words in the live preview are softer, committed words are full ink. */
+  .window__text :global(.demo-word:not(.is-shown)) {
+    display: none;
+  }
+  .window__text :global(.demo-word.is-shown) {
+    animation: word-in 220ms var(--nv-ease-out);
+  }
+  :global([data-demo-phase='listening']) .window__text :global(.demo-word) {
+    color: var(--nv-provisional);
+  }
+  :global([data-demo-phase='committed']) .window__text :global(.demo-word) {
+    color: var(--nv-ink);
+    transition: color 260ms var(--nv-ease-out);
+  }
+  :global([data-demo-phase='committed']) .window__text :global(.demo-punct) {
+    animation: punct-land 900ms var(--nv-ease-out);
+  }
+  .window__text :global(.demo-punct) {
+    font-weight: inherit;
+    border-radius: 3px;
+  }
+  @keyframes word-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes punct-land {
+    0% {
+      color: var(--nv-accent-ink);
+      background: var(--nv-accent);
+      box-shadow: 0 0 0 2px var(--nv-accent);
+    }
+    100% {
+      background: transparent;
+      box-shadow: 0 0 0 2px transparent;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .window__text :global(.demo-word.is-shown),
+    :global([data-demo-phase='committed']) .window__text :global(.demo-punct) {
+      animation: none;
+    }
+  }
+</style>

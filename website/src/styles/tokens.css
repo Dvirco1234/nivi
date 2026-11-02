@@ -1,0 +1,89 @@
+/*
+ * Nivi's design tokens: every colour, size, space and timing the site uses.
+ * Components read these and never hard-code a value that belongs here.
+ *
+ * The palette comes from the app icon: a graphite tile and sage waveform bars,
+ * with a brighter sage-mint as the one accent.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Colour roles. */
+  --nv-canvas: #0b0c0d;
+  --nv-surface: #141617;
+  --nv-surface-raised: #1b1e1f;
+  --nv-surface-sunken: #08090a;
+  --nv-ink: #eef1ef;
+  --nv-ink-soft: #a3adab;
+  --nv-accent: #a7f0cf;
+  --nv-accent-ink: #07110c;
+  --nv-sage: #9aa6a4;
+  --nv-hairline: color-mix(in oklab, var(--nv-ink) 12%, transparent);
+  --nv-hairline-strong: color-mix(in oklab, var(--nv-ink) 22%, transparent);
+  --nv-accent-soft: color-mix(in oklab, var(--nv-accent) 14%, transparent);
+  --nv-accent-line: color-mix(in oklab, var(--nv-accent) 38%, transparent);
+  --nv-window: #1a1c1d;
+  --nv-window-bar: #232627;
+  --nv-provisional: color-mix(in oklab, var(--nv-ink) 52%, transparent);
+
+  /* Type. Geist has no Hebrew letters, so Hebrew falls through to Heebo, which
+     was drawn to sit beside a geometric sans. */
+  --nv-font-display: 'Geist Variable', 'Heebo Variable', system-ui, sans-serif;
+  --nv-font-text: 'Geist Variable', 'Heebo Variable', system-ui, sans-serif;
+  --nv-font-mono: 'Geist Mono Variable', 'Heebo Variable', ui-monospace, monospace;
+
+  /* A fluid type scale: each step grows with the viewport between two limits. */
+  --nv-t-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.82rem);
+  --nv-t-sm: clamp(0.875rem, 0.84rem + 0.18vw, 0.95rem);
+  --nv-t-base: clamp(1rem, 0.96rem + 0.22vw, 1.125rem);
+  --nv-t-lg: clamp(1.2rem, 1.1rem + 0.5vw, 1.5rem);
+  --nv-t-xl: clamp(1.6rem, 1.35rem + 1.2vw, 2.25rem);
+  --nv-t-2xl: clamp(2.1rem, 1.6rem + 2.4vw, 3.4rem);
+  --nv-t-3xl: clamp(2.8rem, 1.9rem + 4.2vw, 5rem);
+
+  /* Tracking tightens as text grows; large type with default spacing looks loose. */
+  --nv-track-tight: -0.035em;
+  --nv-track-snug: -0.02em;
+  --nv-track-normal: -0.005em;
+  --nv-track-wide: 0.08em;
+  --nv-leading-tight: 1.06;
+  --nv-leading-body: 1.62;
+
+  /* Spacing, on a 4px base. */
+  --nv-1: 0.25rem;
+  --nv-2: 0.5rem;
+  --nv-3: 0.75rem;
+  --nv-4: 1rem;
+  --nv-5: 1.5rem;
+  --nv-6: 2rem;
+  --nv-7: 3rem;
+  --nv-8: 4rem;
+  --nv-9: 6rem;
+
+  /* Layout. */
+  --nv-section: clamp(4rem, 7vw, 8rem);
+  --nv-gutter: clamp(1.25rem, 5vw, 5.5rem);
+  --nv-maxw: 82rem;
+  --nv-header-height: 4rem;
+
+  /* Shape. */
+  --nv-r-sm: 6px;
+  --nv-r-md: 12px;
+  --nv-r-lg: 20px;
+  --nv-radius-window: 14px;
+
+  /* Elevation. Shadows take the canvas hue, so they read as depth, not dirt. */
+  --nv-shadow-color: 180 8% 2%;
+  --nv-e1: 0 1px 2px hsl(var(--nv-shadow-color) / 0.3), 0 2px 6px hsl(var(--nv-shadow-color) / 0.22);
+  --nv-e2: 0 2px 4px hsl(var(--nv-shadow-color) / 0.26), 0 8px 18px hsl(var(--nv-shadow-color) / 0.26);
+  --nv-e3: 0 4px 8px hsl(var(--nv-shadow-color) / 0.24), 0 24px 48px -8px hsl(var(--nv-shadow-color) / 0.5);
+  /* A 1px top highlight: raised surfaces catch light on their upper edge. */
+  --nv-edge: inset 0 1px 0 color-mix(in oklab, var(--nv-ink) 10%, transparent);
+
+  /* Motion. UI changes are short and ease out; nothing waits to start. */
+  --nv-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --nv-d-fast: 160ms;
+  --nv-d-base: 240ms;
+
+  --nv-z-header: 60;
+}

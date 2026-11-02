@@ -1,0 +1,77 @@
+---
+/**
+ * Quotes from real people, and only real people.
+ *
+ * The list in each language file starts empty, and while it is empty this section
+ * renders nothing at all. To add a quote, add an entry with the person's real name
+ * and permission to quote them:
+ *
+ *   { "quote": "…", "name": "…", "role": "…" }
+ */
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const quotes = translateList<{ quote: string; name: string; role?: string }>(t, 'testimonials.items');
+---
+
+{
+  quotes.length > 0 && (
+    <section class="quotes nv-section" aria-labelledby="quotes-title">
+      <div class="nv-wrap">
+        <h2 id="quotes-title" class="nv-heading">
+          {t('testimonials.heading')}
+        </h2>
+        <ul class="quotes__list" data-in data-stagger="60">
+          {quotes.map((item) => (
+            <li>
+              <blockquote>
+                <p>{item.quote}</p>
+              </blockquote>
+              <p class="quotes__who">
+                {item.name}
+                {item.role && <span>{item.role}</span>}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .quotes__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: var(--nv-7) clamp(1.5rem, 4vw, 4rem);
+    margin: var(--nv-8) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .quotes__list blockquote {
+    margin: 0;
+  }
+  .quotes__list blockquote p {
+    margin: 0;
+    font-size: var(--nv-t-lg);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .quotes__who {
+    display: flex;
+    flex-direction: column;
+    margin: var(--nv-4) 0 0;
+    font-weight: 600;
+  }
+  .quotes__who span {
+    font-weight: 400;
+    color: var(--nv-ink-soft);
+    font-size: var(--nv-t-sm);
+  }
+</style>

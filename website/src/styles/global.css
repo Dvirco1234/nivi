@@ -1,0 +1,183 @@
+/*
+ * Site-wide rules that are not tied to one section.
+ * Section styles live in each component's own <style> block.
+ */
+
+html {
+  scroll-padding-top: calc(var(--nv-header-height) + var(--nv-5));
+}
+
+/* Light text on a dark ground looks thin with light-mode metrics. A touch more
+   weight and leading compensates. */
+body {
+  font-weight: 420;
+  line-height: var(--nv-leading-body);
+}
+
+/* Hebrew reads better a little larger and a little more open than Latin set at
+   the same size, and tight Latin tracking hurts Hebrew letterforms. */
+:lang(he) {
+  --nv-track-tight: -0.01em;
+  --nv-track-snug: -0.005em;
+  --nv-track-normal: 0;
+}
+:lang(he) body {
+  font-size: 1.04em;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--nv-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The one width every section aligns to. */
+.nv-wrap {
+  inline-size: min(100% - 2 * var(--nv-gutter), var(--nv-maxw));
+  margin-inline: auto;
+}
+
+/* Keycaps are used in the hero, the demo and the FAQ. */
+.nv-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  min-inline-size: 2.2em;
+  padding: 0.2em 0.55em;
+  border-radius: 6px;
+  border: 1px solid var(--nv-hairline-strong);
+  border-block-end-width: 2px;
+  background: var(--nv-surface-raised);
+  font-family: var(--nv-font-mono);
+  font-size: 0.82em;
+  line-height: 1.4;
+  color: var(--nv-ink);
+  white-space: nowrap;
+}
+
+/* The primary action. One label per intent, used everywhere. */
+.nv-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nv-2);
+  padding: 0.8rem 1.25rem;
+  border-radius: 10px;
+  background: var(--nv-accent);
+  color: var(--nv-accent-ink);
+  font-weight: 600;
+  font-size: var(--nv-t-base);
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--nv-e1), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transition:
+    transform var(--nv-d-fast) var(--nv-ease-out),
+    background-color var(--nv-d-fast) var(--nv-ease-out),
+    box-shadow var(--nv-d-fast) var(--nv-ease-out);
+}
+.nv-button:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nv-button:hover {
+    background: color-mix(in oklab, var(--nv-accent) 88%, white);
+    box-shadow: var(--nv-e2), inset 0 1px 0 rgb(255 255 255 / 0.4);
+  }
+}
+.nv-button svg {
+  inline-size: 1.1em;
+  block-size: 1.1em;
+}
+.nv-button--small {
+  padding: 0.5rem 0.9rem;
+  font-size: var(--nv-t-sm);
+  border-radius: 8px;
+}
+
+/* A quiet text link with a real underline offset. */
+.nv-link {
+  color: var(--nv-ink);
+  text-decoration-line: underline;
+  text-decoration-color: var(--nv-hairline-strong);
+  text-underline-offset: 0.25em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color var(--nv-d-fast) var(--nv-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nv-link:hover {
+    text-decoration-color: var(--nv-accent);
+  }
+}
+
+/* Section headings: more room above than below, so the gap belongs to the
+   boundary between sections, not to the heading and its text. */
+.nv-heading {
+  font-family: var(--nv-font-display);
+  font-size: var(--nv-t-3xl);
+  font-weight: 620;
+  letter-spacing: var(--nv-track-tight);
+  line-height: var(--nv-leading-tight);
+  text-wrap: balance;
+  margin: 0;
+}
+.nv-lede {
+  font-size: var(--nv-t-lg);
+  color: var(--nv-ink-soft);
+  max-inline-size: 46ch;
+  text-wrap: pretty;
+  margin: var(--nv-4) 0 0;
+}
+.nv-small {
+  font-size: var(--nv-t-sm);
+  color: var(--nv-ink-soft);
+}
+
+/* A small label above a section heading: a dot and a few words in mono capitals.
+   Used sparingly, so it still means "a new part starts here". */
+.nv-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nv-2);
+  margin: 0 0 var(--nv-4);
+  font-family: var(--nv-font-mono);
+  font-size: var(--nv-t-xs);
+  letter-spacing: var(--nv-track-wide);
+  text-transform: uppercase;
+  color: var(--nv-ink-soft);
+}
+.nv-eyebrow::before {
+  content: '';
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--nv-accent);
+}
+:lang(he) .nv-eyebrow {
+  letter-spacing: 0;
+}
+
+/* A centred section header, as used by the calmer sections. */
+.nv-section-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-inline: auto;
+  max-inline-size: 46rem;
+}
+.nv-section-head .nv-lede {
+  margin-inline: auto;
+}

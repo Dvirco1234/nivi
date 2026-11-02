@@ -1,0 +1,131 @@
+---
+import { WifiOff, Check } from '@lucide/astro';
+import type { Locale } from '@/i18n/config';
+import { useTranslations, translateList } from '@/i18n/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const facts = translateList<{ title: string; body: string }>(t, 'offline.facts');
+---
+
+<section id="private" class="offline nv-section" aria-labelledby="offline-title">
+  <div class="offline__grid nv-wrap">
+    <div class="offline__copy nv-stack" data-in data-stagger="60">
+      <p class="nv-eyebrow">{t('offline.eyebrow')}</p>
+      <h2 id="offline-title" class="nv-heading">{t('offline.heading')}</h2>
+      <p class="nv-lede">{t('offline.body')}</p>
+      <dl class="offline__facts">
+        {
+          facts.map((fact) => (
+            <div>
+              <dt>{fact.title}</dt>
+              <dd>{fact.body}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+
+    <figure class="offline__plate" data-wipe="up" data-wipe-at="0.12 0.5" aria-hidden="true">
+      <div class="offline__menubar">
+        <span class="offline__wifi"><WifiOff />{t('offline.wifi')}</span>
+        <span class="offline__works"><Check />{t('offline.stillWorks')}</span>
+      </div>
+      <p class="offline__note" lang="he" dir="rtl">{t('demo.hebrew.words')}</p>
+    </figure>
+  </div>
+  <div class="nv-wrap">
+    <p class="offline__footnote nv-small">{t('offline.footnote')}</p>
+  </div>
+</section>
+
+<style>
+  .offline__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+    gap: clamp(2rem, 6vw, 6rem);
+    align-items: start;
+  }
+  .offline__plate {
+    margin-block-start: var(--nv-4);
+  }
+  .offline__facts {
+    display: grid;
+    gap: 0;
+    margin: var(--nv-7) 0 0;
+  }
+  .offline__facts div {
+    display: grid;
+    grid-template-columns: minmax(9rem, 2fr) 3fr;
+    gap: var(--nv-4);
+    padding-block: var(--nv-4);
+    border-block-start: 1px solid var(--nv-hairline);
+  }
+  .offline__facts dt {
+    font-weight: 600;
+  }
+  .offline__facts dd {
+    margin: 0;
+    color: var(--nv-ink-soft);
+  }
+
+  /* A still, dark desktop: the network is gone and the note is still there. */
+  .offline__plate {
+    margin: 0;
+    border-radius: var(--nv-r-lg);
+    background:
+      radial-gradient(80% 60% at 30% 0%, color-mix(in oklab, var(--nv-sage) 8%, transparent), transparent 70%),
+      var(--nv-surface-sunken);
+    border: 1px solid var(--nv-hairline);
+    box-shadow: var(--nv-e3), var(--nv-edge);
+    overflow: hidden;
+  }
+  .offline__menubar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 1.1rem;
+    border-block-end: 1px solid var(--nv-hairline);
+    font-family: var(--nv-font-mono);
+    font-size: var(--nv-t-xs);
+    color: var(--nv-ink-soft);
+  }
+  .offline__menubar span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .offline__menubar svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+  .offline__works {
+    color: var(--nv-accent);
+  }
+  .offline__note {
+    margin: 0;
+    padding: clamp(1.5rem, 4vw, 3rem);
+    font-size: clamp(1.15rem, 1rem + 0.8vw, 1.6rem);
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+  .offline__footnote {
+    margin: var(--nv-8) 0 0;
+    max-inline-size: 70ch;
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 900px) {
+    .offline__grid {
+      grid-template-columns: 1fr;
+    }
+    .offline__facts div {
+      grid-template-columns: 1fr;
+      gap: var(--nv-1);
+    }
+  }
+</style>

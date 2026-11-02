@@ -1,0 +1,77 @@
+# Builds the website in website/ and publishes it with GitHub Pages.
+#
+# Pages also serves the app's update feed, and every installed copy of Nivi reads
+# it from https://dvirco1234.github.io/nivi/appcast.xml. `make release` writes
+# that feed to docs/appcast.xml, so this workflow copies it into the site at the
+# same address, and refuses to publish if it is missing or broken.
+#
+# It runs on every push to main that touches the site, the feed or the version
+# (a release changes both), and can be started by hand from the Actions tab.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'docs/appcast.xml'
+      - 'version.mk'
+      - '.github/workflows/website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. A newer push waits instead of cancelling one that is
+# already publishing, so the feed is never left half deployed.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Add the update feed
+        run: cp ../docs/appcast.xml dist/appcast.xml
+
+      - name: Check the output before publishing
+        run: |
+          test -s dist/index.html
+          test -s dist/he/index.html
+          python3 -c "import xml.etree.ElementTree as ET; ET.parse('dist/appcast.xml')"
+          grep -q "<enclosure" dist/appcast.xml
+          echo "Pages and a valid update feed are in place."
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

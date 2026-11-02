@@ -174,9 +174,9 @@ the app "cannot be checked" or is "damaged". It is neither.
 
 0.2.0 carries every fix described under "Fixed in 0.2.0" below, plus
 four from before them: dictations kept out of clipboard managers in Electron and
-web apps (`c16eb77`), starting a recording no longer able to freeze the app
-(`45251ec`), the main-thread watchdog (`4ae17de`), and signing outside iCloud
-Drive (`dc6b345`).
+web apps (`d99bfc5`), starting a recording no longer able to freeze the app
+(`10bb9ac`), the main-thread watchdog (`3b1b507`), and signing outside iCloud
+Drive (`e3c8721`).
 
 **Self-update is still unproven.** An install of 0.1.0 or 0.2.0 should be offered
 0.2.1, but nobody has watched that happen. See "Open work and known issues".
